@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(source:*)",
+      "Bash(find:*)",
+      "Bash(mv:*)",
+      "Bash(mkdir:*)",
+      "Bash(tree:*)",
+      "Bash(ruff:*)",
+      "Bash(touch:*)",
+      "Bash(chmod:*)",
+      "Bash(cat:*)",
+      "Bash(ruff check:*)",
+      "Bash(pytest:*)",
+      "Bash(python:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python3 -m pytest:*)",
+      "WebFetch(domain:*)",
+      "Bash(gh issue view:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebSearch",
+      "WebFetch(domain:konvajs.org)",
+      "mcp__serena__list_dir",
+      "mcp__serena__write_memory",
+      "mcp__serena__get_current_config",
+      "mcp__serena__activate_project"
+    ],
+    "deny": []
+  }
+}

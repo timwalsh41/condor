@@ -20,15 +20,21 @@
       "WebFetch(domain:*)",
       "Bash(gh issue view:*)",
       "WebFetch(domain:docs.anthropic.com)",
-      "WebSearch",
-      "WebFetch(domain:konvajs.org)",
       "mcp__serena__list_dir",
       "mcp__serena__write_memory",
       "mcp__serena__get_current_config",
       "mcp__serena__activate_project",
       "mcp__serena__check_onboarding_performed",
       "mcp__serena__get_symbols_overview",
-      "mcp__serena__search_for_pattern"
+      "mcp__serena__search_for_pattern",
+      "Bash(npm create:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright install chromium firefox webkit)",
+      "Bash(/code/Claude/condor/tests/fixtures/generate_test_videos.sh)",
+      "Bash(npx playwright test:*)",
+      "Bash(npm run build:*)",
+      "Bash(mcp list-prompts:*)"
     ],
     "deny": []
   }

@@ -24,6 +24,9 @@ iptables -A INPUT -p tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A OUTPUT -o lo -j ACCEPT
 
+# Allow inbound connections on port 5173 (Vite dev server)
+iptables -A INPUT -p tcp --dport 5173 -j ACCEPT
+
 # Create ipset with CIDR support
 ipset create allowed-domains hash:net
 

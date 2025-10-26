@@ -79,7 +79,7 @@ When tests fail:
 **When Integration Reports Are NOT Required:**
 - ✗ Single component changes with no cross-boundary interaction
 - ✗ Bug fixes within existing component boundaries
-- ✗ Individual task completion (use `VALIDATION_REPORT.md` only)
+- ✗ Individual task completion (use VALIDATION_REPORT only)
 
 ## Validation Process Workflow
 
@@ -453,6 +453,7 @@ Sub-agents communicate via shared artifacts:
 - **validation/VALIDATION_REPORT.md**: Tracks requirement validation status by requirement ID
 - **validation/INTEGRATION_REPORT_*.md**: Documents integration testing at phase completion
 - **Test Output Logs**: Evidence files referenced in validation reports
+- **Be concise**: Reports should not be overly verbose, stick to the key evidence, and avoid redundancy
 
 **Coordination Through Top-Level Agent:**
 - Top-level agent provides validation request with context (requirements, files, acceptance criteria)

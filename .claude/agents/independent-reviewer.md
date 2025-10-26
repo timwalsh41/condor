@@ -162,6 +162,7 @@ Sub-agents communicate via shared artifacts:
 - Categorized findings: Required Changes, Suggested Improvements, Observations
 - Test coverage assessment
 - Style and standards compliance review
+- Be concise and avoid redundancy
 
 **Coordination Through Top-Level Agent:**
 - Top-level agent provides review request with change context

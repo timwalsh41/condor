@@ -25,6 +25,7 @@
   - [Testing requirements]
 - **Dependencies**: [Required prerequisites]
 - **Risk Level**: [High/Medium/Low]
+- **Relevant PRP(s)**: [List related PRPs]
 - **Estimated Sessions**: [Typically 1 session]
 - **Technical Notes**: [Key implementation considerations]
 
@@ -37,6 +38,7 @@
   - [Testing requirements]
 - **Dependencies**: [Required prerequisites]
 - **Risk Level**: [High/Medium/Low]
+- **Relevant PRP(s)**: [List related PRPs]
 - **Estimated Sessions**: [Typically 1 session]
 - **Technical Notes**: [Key implementation considerations]
 
@@ -51,6 +53,7 @@
   - [Testing requirements]
 - **Dependencies**: [Required prerequisites]
 - **Risk Level**: [High/Medium/Low]
+- **Relevant PRP(s)**: [List related PRPs]
 - **Estimated Sessions**: [Typically 1 session]
 - **Technical Notes**: [Key implementation considerations]
 
@@ -70,6 +73,7 @@
   - Performance/security/reliability validation
 - **Requirements Validated**: [Top-level requirement IDs that span multiple components]
 - **Dependencies**: [Required completed tasks]
+- **Relevant PRP(s)**: [List related PRPs]
 - **Success Criteria**: [How we know integration is successful]
 - **Integration Report**: `validation/INTEGRATION_REPORT_[PHASE_NAME].md`
 
@@ -87,6 +91,7 @@
   - Performance/security/reliability validation
 - **Requirements Validated**: [Top-level requirement IDs that span multiple components]
 - **Dependencies**: [Required completed tasks]
+- **Relevant PRP(s)**: [List related PRPs]
 - **Success Criteria**: [How we know integration is successful]
 - **Integration Report**: `validation/INTEGRATION_REPORT_[PHASE_NAME].md`
 

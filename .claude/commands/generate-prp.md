@@ -9,18 +9,18 @@ The command creates/updates `REQUIREMENTS.md` with formal requirements including
 ## Execution Process
 
 ### Step 1: Determine Context
-1. **Check for existing REQUIREMENTS.md**
+1. **Check for existing `REQUIREMENTS.md`**
    - If exists: This is an update/addition to existing project
    - If not: This is a new project
 
 2. **Read design inputs**
-   - Parse $ARGUMENTS file (typically INITIAL.md)
+   - Parse $ARGUMENTS file (typically `INITIAL.md` or similar)
    - Extract feature descriptions, examples, documentation references
    - Understand user intent and constraints
 
 ### Step 2: Requirements Generation/Update
 
-**For New Projects (no existing REQUIREMENTS.md):**
+**For New Projects (no existing `REQUIREMENTS.md`):**
 1. **Extract Requirements from Design Inputs**
    - Identify functional requirements (what system must do)
    - Identify non-functional requirements (performance, security, etc.)

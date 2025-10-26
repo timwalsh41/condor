@@ -7,18 +7,20 @@ Implement features using the PRP file through a structured, session-based execut
 ## Execution Process
 
 ### Step 1: Invoke Project Manager for Plan Integration
-**CRITICAL FIRST STEP**: Before any implementation, the project manager must integrate this PRP into the overall project plan.
+**CRITICAL FIRST STEP**: Before any implementation, the project manager must integrate the PRP into the overall project plan (note this may have happened already in a prior session if this is not a new PRP).
 
-**Use the project-manager subagent** to integrate this PRP into the project plan:
+**Use the project-manager subagent** to review this PRP and integrate into the project plan if needed:
    - Provide PRP file path: $ARGUMENTS
-   - Request `PROJECT_PLAN.md` creation or update
+   - Request `PROJECT_PLAN.md` creation or review & update
    
 **Project Manager will:**
-   - Read PRP and `REQUIREMENTS.md`
-   - Create `PROJECT_PLAN.md` (if new project) or update it (if existing)
-   - Break PRP into session-sized tasks
-   - Establish task-to-requirement mapping
-   - Generate session briefing for first session
+   - On first session with new PRP:
+      - Read PRP and `REQUIREMENTS.md`
+      - Create `PROJECT_PLAN.md` (if new project) or update it (if existing)
+      - Break PRP into session-sized tasks, referencing the relevant PRP for each task in the plan
+      - Establish task-to-requirement mapping
+   - Determine scope (tasks) for current session
+   - Generate session briefing for the current session
    
 **Receive from Project Manager:**
    - Session briefing with priority tasks for this session
@@ -62,7 +64,14 @@ Implement features using the PRP file through a structured, session-based execut
    - Note testing patterns to replicate
    - Understand validation approach
 
-### Step 4: Execute Implementation
+### Step 4: Review with User
+
+**IMPORTANT**: Review the session plan and implementation approach with the user:
+- Concisely (<100 lines) summarize the session plan and design approach
+- Resolve any user questions, and adjust the plan as needed
+- Receive explicit approval from the user to proceed to the next step
+
+### Step 5: Execute Implementation
 
 1. **Implement the Code**
    - Execute the PRP step by step
@@ -122,7 +131,7 @@ Implement features using the PRP file through a structured, session-based execut
        # Supporting test - validates helper function
    ```
 
-### Step 5: Validate Against Requirements
+### Step 6: Validate Against Requirements
 
 **Use the validation-gates subagent** to validate that requirements are met:
    - Provide requirement IDs being implemented
@@ -154,7 +163,7 @@ Implement features using the PRP file through a structured, session-based execut
    - Verify all phase requirements are validated
    - Confirm system is in stable, integrated state
 
-### Step 6: Review & Documentation
+### Step 7: Review & Documentation
 
 **Use the independent-reviewer subagent** to review code quality:
    - Request comprehensive code review
@@ -174,7 +183,7 @@ Implement features using the PRP file through a structured, session-based execut
    - Verify documentation updates are complete
    - Re-validate with validation-gates subagent if changes made
 
-### Step 7: Update Project Plan & Complete Session
+### Step 8: Update Project Plan & Complete Session
 
 **Use the project-manager subagent** to summarize the session and update the plan:
    - Report tasks completed with requirement IDs
@@ -197,10 +206,10 @@ Implement features using the PRP file through a structured, session-based execut
    - Tests pass and requirements validated
    - If phase complete: integration report exists and all phase requirements validated
    - Documentation current
-   - PROJECT_PLAN.md updated
+   - `PROJECT_PLAN.md` updated
    - Codebase in stable, working state
 
-### Step 8: Final Verification
+### Step 9: Final Verification
 
 1. **Read PRP Again**
    - Ensure all items implemented
@@ -234,28 +243,16 @@ A session represents one Claude Code conversation where:
 
 ### Multi-Session Implementation
 
-**First Session** (when `/execute-prp` is run):
-1. Use project-manager subagent to integrate PRP → PROJECT_PLAN.md
-2. Receive session briefing
-3. Implement first set of tasks
-4. Review with independent-reviewer subagent
-5. Validate with validation-gates subagent
-6. Update docs with documentation-manager subagent
-7. Update plan with project-manager subagent
+The project manager coordinates updates and execution of the project plan, which may consist of several individual PRPs across the term of the project, through multiple coding execution sessions.
 
-**Subsequent Sessions** (no command needed):
-1. Use project-manager subagent for next session briefing (PM reads `PROJECT_PLAN.md` and assesses next steps)
-2. **Consult the PRP file** (same PRP from initial /execute-prp command):
-   - Review requirements being implemented
-   - Check patterns and conventions to follow
-   - Note gotchas and special considerations
-   - Understand validation gates and test requirements
-3. Implement next priority tasks following PRP guidance
+For each session:
+1. Consult project-manager subagent to provide list of tasks for the session
+2. Receive session briefing
+3. Implement the tasks
 4. Review with independent-reviewer subagent
 5. Validate with validation-gates subagent
 6. Update docs with documentation-manager subagent
 7. Update plan with project-manager subagent
-8. Repeat until PRP fully implemented
 
 ### Session Scope Guidelines
 Each session should:
@@ -276,23 +273,16 @@ Each session should:
 - Links to external documentation and examples
 - Provides requirement acceptance criteria context
 
-**Using PRP Across Sessions:**
-- **First Session**: PRP loaded via `/execute-prp` command
-- **Subsequent Sessions**: Manually reference same PRP file
-  - PRP path provided in PROJECT_PLAN.md and session briefings
-  - Consult relevant sections for tasks being implemented
-  - Follow patterns and heed warnings throughout
-
 **PRP Complements PROJECT_PLAN.md:**
 - **PRP**: Implementation wisdom (patterns, gotchas, validation approach)
 - **PROJECT_PLAN.md**: Task coordination (priorities, dependencies, status)
-- **Both needed** for successful multi-session implementation
+- **Both are needed** for successful multi-session implementation
 
 **If PRP needs updates:**
 - Discoveries during implementation may warrant PRP updates
 - Consult user before modifying PRP
 - Document rationale for changes
-- Update PROJECT_PLAN.md to reference updated PRP sections
+- Prompt project manager to update `PROJECT_PLAN.md` to reference updated PRP sections
 
 ## Reference the PRP
 You can always reference the PRP again if needed throughout implementation.
@@ -307,12 +297,12 @@ You can always reference the PRP again if needed throughout implementation.
 ### Validation Gates (validation-gates subagent)
 - **After Implementation**: Use subagent to validate requirements, not just tests
 - **Provide**: Requirement IDs and acceptance criteria
-- **Receive**: Validation status, evidence, and updated VALIDATION_REPORT.md
+- **Receive**: Validation status, evidence, and updated `VALIDATION_REPORT.md`
 
 ### Independent Reviewer (independent-reviewer subagent)
 - **After Implementation**: Use subagent to request code review
 - **Highlight**: Requirement implementations
-- **Incorporate**: Review feedback from REVIEW_SUMMARY_*.md
+- **Incorporate**: Review feedback from `REVIEW_SUMMARY_*.md`
 
 ### Documentation Manager (documentation-manager subagent)
 - **After Implementation**: Use subagent to update docs
@@ -327,4 +317,4 @@ You can always reference the PRP again if needed throughout implementation.
 - **No Shortcuts**: Review, validate, document - every time
 - **Traceability**: Maintain clear links from code → tests → requirements
 
-Remember: If validation fails, use error patterns in PRP to fix and retry. Nothing is "done" until requirements are validated and PROJECT_PLAN.md is updated.
+Remember: If validation fails, use error patterns in PRP to fix and retry. Nothing is "done" until requirements are validated and `PROJECT_PLAN.md` is updated.

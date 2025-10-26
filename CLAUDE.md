@@ -23,7 +23,7 @@ Avoid building functionality on speculation. Implement features only when they a
 **YOU MUST coordinate with subagents** throughout implementation for all changes:
 
 1. **Session start** → Consult project-manager for briefing and priorities
-2. **Create plan for session** → Communicate to user your confidence (0-100) in successful implementation, identifying any risks or concerns
+2. **Create plan for session** → Communicate to user your confidence (0-100) in successful implementation, identifying any risks, gaps, or concerns
 2. **Execute changes** → Implement code following requirements and documented design & plan
 3. **Independent review** → Independent-reviewer provides fresh perspective  
 4. **Update documentation** → Documentation-manager updates affected docs
@@ -102,12 +102,12 @@ Creates or updates formal requirements document and generates implementation pla
 
 ### Session-Based Execution
 
-**First session**: `/execute-prp` triggers project-manager → receive briefing → implement tasks
+The project plan and PRP may be implemented across multiple individual working sessions.
 
-**Subsequent sessions**: 
+**For each session**:
 1. Consult project-manager for session briefing (reads `PROJECT_PLAN.md`)
-2. Consult relevant PRP file for implementation context
-3. Brief user and receive approval to implement next priority task(s) (no explicit command needed)
+2. Consult provided PRP file for implementation context
+3. Brief user and receive approval to implement next priority task(s)
 
 **Each session ends with**: Stable, tested, validated, documented code with updated plan
 
@@ -332,7 +332,7 @@ Closes #123
 ### Planning Best Practices
 
 - Make a plan before coding
-- Assess your confidence in executing the plan correctly in one shot, calling out any risks or concerns
+- Assess your confidence in executing the plan correctly in one shot, calling out any risks, gaps, or concerns
 - Use TodoWrite tool to track implementation steps
 - Reference specific requirements for each task
 - Break complex tasks into smaller, manageable steps

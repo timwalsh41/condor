@@ -79,7 +79,7 @@ When tests fail:
 **When Integration Reports Are NOT Required:**
 - ✗ Single component changes with no cross-boundary interaction
 - ✗ Bug fixes within existing component boundaries
-- ✗ Individual task completion (use VALIDATION_REPORT only)
+- ✗ Individual task completion (use `VALIDATION_REPORT.md` only)
 
 ## Validation Process Workflow
 

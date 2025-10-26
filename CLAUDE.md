@@ -311,6 +311,11 @@ Closes #123
 - **`docs/EXTERNAL_API.md`** - Service APIs
 - **System design docs** - Detailed subsystem designs
 
+### Specific Documentation Guidance
+- **Don't create new documents unprompted** - seek explicit approval from the user
+- **Be concise** - consider what is the core information that needs to be captured, and avoid redundancy
+    - Review your work to ensure these two guidelines are followed
+
 ## 🧠 AI Behavior Rules
 
 ### CRITICAL Guidelines

@@ -161,6 +161,9 @@ Sub-agents do NOT communicate directly with each other. All coordination flows t
 - Minimize overlap - each document should have clear, focused scope
 - Emphasize conciseness and brevity while maintaining completeness
 - Maintain independence from development to provide objective documentation perspective
+- Don't create new documents unprompted - seek explicit approval from the user via the top-level agent
+- Be concise - consider what is the core information that needs to be captured, and avoid redundancy
+- Review your work to ensure these guidelines are followed
 
 ## Documentation Change Assessment Criteria
 

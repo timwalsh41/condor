@@ -20,6 +20,10 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Frame-Accurate Video Control', () => {
   test.beforeEach(async ({ page }) => {
+    // Listen to console messages for debugging
+    page.on('console', msg => console.log(`BROWSER: ${msg.text()}`));
+    page.on('pageerror', err => console.log(`PAGE ERROR: ${err.message}`));
+
     await page.goto('/');
 
     // Wait for video to load metadata
@@ -27,14 +31,34 @@ test.describe('Frame-Accurate Video Control', () => {
 
     const video = page.locator('[data-testid="video-element"]');
 
-    // Wait for video to be ready
+    // Debug: Check video element state
+    const videoInfo = await video.evaluate((v: HTMLVideoElement) => ({
+      src: v.src,
+      readyState: v.readyState,
+      networkState: v.networkState,
+      error: v.error ? { code: v.error.code, message: v.error.message } : null,
+    }));
+    console.log('Video state:', videoInfo);
+
+    // Explicitly call load() and wait for metadata
     await video.evaluate((v: HTMLVideoElement) => {
-      return new Promise<void>((resolve) => {
+      v.load();
+      return new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Metadata timeout')), 10000);
+
         if (v.readyState >= 2) {
-          // HAVE_CURRENT_DATA
+          clearTimeout(timeout);
           resolve();
         } else {
-          v.addEventListener('loadeddata', () => resolve(), { once: true });
+          v.addEventListener('loadedmetadata', () => {
+            clearTimeout(timeout);
+            resolve();
+          }, { once: true });
+
+          v.addEventListener('error', (e) => {
+            clearTimeout(timeout);
+            reject(new Error(`Video error: ${v.error?.code} - ${v.error?.message}`));
+          }, { once: true });
         }
       });
     });
@@ -75,12 +99,14 @@ test.describe('Frame-Accurate Video Control', () => {
 
     // Wait for frame counter to update
     await page.waitForFunction(
-      ({ counter, expected }) => {
+      (expected) => {
+        const counter = document.querySelector('[data-testid="frame-counter"]');
+        if (!counter) return false;
         const text = counter.textContent || '';
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
         return Math.abs(currentFrame - expected) <= 1; // Allow 1 frame tolerance
       },
-      { frameCounter, expected: initialFrame + 1 },
+      initialFrame + 1,
       { timeout: 2000 }
     );
 
@@ -130,12 +156,14 @@ test.describe('Frame-Accurate Video Control', () => {
 
     // Wait for frame counter to update
     await page.waitForFunction(
-      ({ counter, expected }) => {
+      (expected) => {
+        const counter = document.querySelector('[data-testid="frame-counter"]');
+        if (!counter) return false;
         const text = counter.textContent || '';
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
         return Math.abs(currentFrame - expected) <= 1;
       },
-      { frameCounter, expected: beforeFrame - 1 },
+      beforeFrame - 1,
       { timeout: 2000 }
     );
 
@@ -163,13 +191,15 @@ test.describe('Frame-Accurate Video Control', () => {
 
     // Wait for frame counter to update significantly
     await page.waitForFunction(
-      ({ counter, initial }) => {
+      (initial) => {
+        const counter = document.querySelector('[data-testid="frame-counter"]');
+        if (!counter) return false;
         const text = counter.textContent || '';
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
         return currentFrame > initial + 3; // At least 3 frames forward
       },
-      { frameCounter, initial: initialFrame },
-      { timeout: 2000 }
+      initialFrame,
+      { timeout: 5000 }
     );
 
     const finalText = (await frameCounter.textContent()) || '';
@@ -203,14 +233,17 @@ test.describe('Frame-Accurate Video Control', () => {
 
     await stepBackward.click();
 
+    // Longer timeout to account for WebKit fallback delay (100ms per seek)
     await page.waitForFunction(
-      ({ counter, before }) => {
+      (before) => {
+        const counter = document.querySelector('[data-testid="frame-counter"]');
+        if (!counter) return false;
         const text = counter.textContent || '';
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
         return currentFrame < before - 3;
       },
-      { frameCounter, before: beforeFrame },
-      { timeout: 2000 }
+      beforeFrame,
+      { timeout: 10000 }
     );
 
     const afterText = (await frameCounter.textContent()) || '';
@@ -254,8 +287,19 @@ test.describe('Frame-Accurate Video Control', () => {
     // Start playback
     await playButton.click();
 
-    // Wait for a few frames to pass
-    await page.waitForTimeout(500);
+    // Wait for frame counter to advance during playback
+    // Longer timeout for WebKit which may use fallback on initial frame
+    await page.waitForFunction(
+      (initial) => {
+        const counter = document.querySelector('[data-testid="frame-counter"]');
+        if (!counter) return false;
+        const text = counter.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame > initial;
+      },
+      initialFrame,
+      { timeout: 10000 }
+    );
 
     // Pause
     await playButton.click();

@@ -154,12 +154,19 @@ export function FrameStepper({ videoSrc, framerate = 30 }: FrameStepperProps) {
       video.currentTime += 0.001;
       video.currentTime -= 0.001;
 
-      // Request frame callback to see what we got
-      video.requestVideoFrameCallback((_now, metadata) => {
+      // WebKit workaround: requestVideoFrameCallback may not fire on paused video
+      // Use timeout fallback to ensure state updates even if callback doesn't fire
+      let callbackFired = false;
+
+      // Request frame callback for accurate frame data (preferred method)
+      const callbackId = video.requestVideoFrameCallback((_now, metadata) => {
+        callbackFired = true;
+        clearTimeout(timeoutId);
+
         const actualFrame = calculateFrameNumber(metadata.mediaTime, framerate);
 
         if (actualFrame === clampedTarget) {
-          // Success! Update state
+          // Success! Update state with accurate metadata
           setCurrentFrame(actualFrame);
         } else {
           // Calculate delta and adjust position
@@ -169,6 +176,26 @@ export function FrameStepper({ videoSrc, framerate = 30 }: FrameStepperProps) {
           video.addEventListener('seeked', handleSeeked, { once: true });
         }
       });
+
+      // Fallback timeout: if callback doesn't fire within 100ms, use currentTime
+      const timeoutId = setTimeout(() => {
+        if (!callbackFired) {
+          video.cancelVideoFrameCallback(callbackId);
+
+          // Fall back to currentTime-based calculation (less accurate but works)
+          const fallbackFrame = Math.round(video.currentTime * framerate);
+          console.warn(`requestVideoFrameCallback timeout, using currentTime fallback (frame ${fallbackFrame})`);
+
+          if (fallbackFrame === clampedTarget) {
+            setCurrentFrame(fallbackFrame);
+          } else {
+            // Try one more adjustment
+            const frameDelta = clampedTarget - fallbackFrame;
+            video.currentTime += (frameDelta / framerate);
+            video.addEventListener('seeked', handleSeeked, { once: true });
+          }
+        }
+      }, 100);
     };
 
     // Initial seek to target

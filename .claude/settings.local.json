@@ -34,7 +34,9 @@
       "Bash(/code/Claude/condor/tests/fixtures/generate_test_videos.sh)",
       "Bash(npx playwright test:*)",
       "Bash(npm run build:*)",
-      "Bash(mcp list-prompts:*)"
+      "Bash(mcp list-prompts:*)",
+      "Bash(apt-cache search:*)",
+      "Bash(DISPLAY=:99 timeout 15 npx playwright test:*)"
     ],
     "deny": []
   }

@@ -458,6 +458,12 @@ This is a representative tree showing general organization of the repo into sour
 # GOTCHA: Safari requires video.currentTime change to trigger callback, even if same value
 # GOTCHA: Different codecs (H.264 vs H.265) handle seeking differently - keyframes matter
 # GOTCHA: Chrome 83+, Safari 15.4+ native support; Firefox needs polyfill or seekToNextFrame
+# CRITICAL (WebKit/Safari): requestVideoFrameCallback may NOT fire on paused video in some environments
+# Workaround: Use timeout fallback (100ms) that falls back to currentTime-based calculation
+# Implementation: video.requestVideoFrameCallback + setTimeout(() => setFrame(Math.round(video.currentTime * fps)), 100)
+# Accuracy: currentTime fallback accurate to ±1 frame at 30fps - acceptable for spike/MVP
+# TODO: Manual validation required on macOS/Safari to confirm behavior differs from containerized WebKit
+# Note: Fallback only applies to seeking/stepping, NOT continuous playback (playback works fine)
 
 # ===== VIDEO SYNCHRONIZATION =====
 # CRITICAL: timeupdate event is TOO COARSE (15-250ms) for frame-level sync

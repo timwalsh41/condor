@@ -12,6 +12,7 @@ This document provides comprehensive guidance for implementing automated testing
 **Core Principle**: Write tests that validate requirements, not implementations. Tests should persist and evolve as the application grows from spike → MVP → production.
 
 **Benefits:**
+
 - Tests map directly to FR/NFR requirements for traceability
 - Automated VALIDATION_REPORT.md generation
 - Regression prevention across all phases
@@ -27,7 +28,8 @@ This document provides comprehensive guidance for implementing automated testing
 #### 1. Playwright (E2E & Integration Testing)
 
 **Why Playwright:**
-- Built-in cross-browser support (Chromium, Firefox, WebKit/Safari)
+
+- Built-in cross-browser support (Chromium/Chrome, Firefox, WebKit/Safari)
 - Handles modern web APIs (`requestVideoFrameCallback`)
 - Headless execution for CI
 - Auto-waiting reduces flaky tests
@@ -35,6 +37,7 @@ This document provides comprehensive guidance for implementing automated testing
 - Component testing capability
 
 **Use Cases:**
+
 - Frame-stepping accuracy validation
 - Video synchronization testing
 - Cross-browser compatibility
@@ -42,6 +45,7 @@ This document provides comprehensive guidance for implementing automated testing
 - Performance benchmarks
 
 **Installation:**
+
 ```bash
 npm install -D @playwright/test
 npx playwright install --with-deps
@@ -50,6 +54,7 @@ npx playwright install --with-deps
 #### 2. Vitest (Unit Testing)
 
 **Why Vitest:**
+
 - Lightning-fast test execution
 - Native TypeScript support
 - Compatible with Jest API
@@ -57,12 +62,14 @@ npx playwright install --with-deps
 - Built-in coverage reporting
 
 **Use Cases:**
+
 - Frame calculation algorithms
 - Sync offset calculations
 - Pure utility functions
 - Data transformations
 
 **Installation:**
+
 ```bash
 npm install -D vitest @vitest/ui
 ```
@@ -70,17 +77,20 @@ npm install -D vitest @vitest/ui
 #### 3. FFmpeg (Test Fixture Generation)
 
 **Why FFmpeg:**
+
 - Programmatic video generation
 - Reproducible test fixtures
 - Frame counter overlays for validation
 - Multiple framerate support
 
 **Use Cases:**
+
 - Generate test videos with burned-in frame numbers
 - Create videos at specific framerates (30fps, 60fps, 120fps)
 - Produce edge-case test videos
 
 **Installation:**
+
 ```bash
 # Ubuntu/Debian
 sudo apt-get install ffmpeg
@@ -204,11 +214,13 @@ ls -lh "$OUTPUT_DIR"
 ```
 
 **Make executable:**
+
 ```bash
 chmod +x tests/fixtures/scripts/generate-test-videos.sh
 ```
 
 **Add to package.json:**
+
 ```json
 {
   "scripts": {
@@ -238,64 +250,67 @@ chmod +x tests/fixtures/scripts/generate-test-videos.sh
  * Phase: Spike (Phase 0) - foundational logic that persists
  */
 
-import { describe, it, expect } from 'vitest';
-import { calculateFrameFromTime, calculateTimeFromFrame } from '@/utils/frameUtils';
+import { describe, it, expect } from "vitest";
+import {
+  calculateFrameFromTime,
+  calculateTimeFromFrame,
+} from "@/utils/frameUtils";
 
-describe('Frame calculation utilities (FR-6.1, FR-6.2)', () => {
-  describe('calculateFrameFromTime', () => {
-    it('calculates correct frame number from timestamp at 30fps', () => {
+describe("Frame calculation utilities (FR-6.1, FR-6.2)", () => {
+  describe("calculateFrameFromTime", () => {
+    it("calculates correct frame number from timestamp at 30fps", () => {
       expect(calculateFrameFromTime(0.0, 30)).toBe(0);
       expect(calculateFrameFromTime(1.0, 30)).toBe(30);
       expect(calculateFrameFromTime(0.5, 30)).toBe(15);
       expect(calculateFrameFromTime(0.033333, 30)).toBe(1); // ~1 frame at 30fps
     });
 
-    it('calculates correct frame number from timestamp at 60fps', () => {
+    it("calculates correct frame number from timestamp at 60fps", () => {
       expect(calculateFrameFromTime(0.0, 60)).toBe(0);
       expect(calculateFrameFromTime(1.0, 60)).toBe(60);
       expect(calculateFrameFromTime(0.5, 60)).toBe(30);
       expect(calculateFrameFromTime(0.016667, 60)).toBe(1); // ~1 frame at 60fps
     });
 
-    it('calculates correct frame number from timestamp at 120fps', () => {
+    it("calculates correct frame number from timestamp at 120fps", () => {
       expect(calculateFrameFromTime(0.0, 120)).toBe(0);
       expect(calculateFrameFromTime(1.0, 120)).toBe(120);
       expect(calculateFrameFromTime(0.5, 120)).toBe(60);
     });
 
-    it('handles edge case of negative timestamp', () => {
+    it("handles edge case of negative timestamp", () => {
       expect(calculateFrameFromTime(-1.0, 30)).toBe(0);
     });
 
-    it('rounds to nearest frame', () => {
+    it("rounds to nearest frame", () => {
       // At 30fps, frame duration is ~0.033333s
       expect(calculateFrameFromTime(0.049999, 30)).toBe(1); // Closer to frame 1
-      expect(calculateFrameFromTime(0.017, 30)).toBe(1);    // Closer to frame 1
+      expect(calculateFrameFromTime(0.017, 30)).toBe(1); // Closer to frame 1
     });
   });
 
-  describe('calculateTimeFromFrame', () => {
-    it('calculates correct timestamp from frame at 30fps', () => {
+  describe("calculateTimeFromFrame", () => {
+    it("calculates correct timestamp from frame at 30fps", () => {
       expect(calculateTimeFromFrame(0, 30)).toBeCloseTo(0.0);
       expect(calculateTimeFromFrame(30, 30)).toBeCloseTo(1.0);
       expect(calculateTimeFromFrame(15, 30)).toBeCloseTo(0.5);
     });
 
-    it('calculates correct timestamp from frame at 60fps', () => {
+    it("calculates correct timestamp from frame at 60fps", () => {
       expect(calculateTimeFromFrame(0, 60)).toBeCloseTo(0.0);
       expect(calculateTimeFromFrame(60, 60)).toBeCloseTo(1.0);
       expect(calculateTimeFromFrame(30, 60)).toBeCloseTo(0.5);
     });
 
-    it('calculates correct timestamp from frame at 120fps', () => {
+    it("calculates correct timestamp from frame at 120fps", () => {
       expect(calculateTimeFromFrame(0, 120)).toBeCloseTo(0.0);
       expect(calculateTimeFromFrame(120, 120)).toBeCloseTo(1.0);
       expect(calculateTimeFromFrame(60, 120)).toBeCloseTo(0.5);
     });
   });
 
-  describe('round-trip conversion', () => {
-    it('maintains accuracy through frame → time → frame conversion', () => {
+  describe("round-trip conversion", () => {
+    it("maintains accuracy through frame → time → frame conversion", () => {
       const framerates = [30, 60, 120];
       const testFrames = [0, 1, 5, 10, 42, 100];
 
@@ -322,47 +337,62 @@ describe('Frame calculation utilities (FR-6.1, FR-6.2)', () => {
  * Phase: Spike (Phase 0) - evolves to support multi-framerate in Phase 3
  */
 
-import { describe, it, expect } from 'vitest';
-import { calculateSyncOffset } from '@/utils/syncUtils';
+import { describe, it, expect } from "vitest";
+import { calculateSyncOffset } from "@/utils/syncUtils";
 
-describe('Sync offset calculation', () => {
-  describe('FR-4.7: Same framerate sync (MVP)', () => {
-    it('calculates offset when video B is ahead of video A', () => {
+describe("Sync offset calculation", () => {
+  describe("FR-4.7: Same framerate sync (MVP)", () => {
+    it("calculates offset when video B is ahead of video A", () => {
       const syncPointA = 10; // Video A synced at frame 10
       const syncPointB = 25; // Video B synced at frame 25
       const framerateA = 30;
       const framerateB = 30;
 
-      const offset = calculateSyncOffset(syncPointA, syncPointB, framerateA, framerateB);
+      const offset = calculateSyncOffset(
+        syncPointA,
+        syncPointB,
+        framerateA,
+        framerateB
+      );
 
       expect(offset).toBe(15); // Video B is 15 frames ahead
     });
 
-    it('calculates offset when video A is ahead of video B', () => {
+    it("calculates offset when video A is ahead of video B", () => {
       const syncPointA = 50;
       const syncPointB = 20;
       const framerateA = 60;
       const framerateB = 60;
 
-      const offset = calculateSyncOffset(syncPointA, syncPointB, framerateA, framerateB);
+      const offset = calculateSyncOffset(
+        syncPointA,
+        syncPointB,
+        framerateA,
+        framerateB
+      );
 
       expect(offset).toBe(-30); // Video B is 30 frames behind
     });
 
-    it('calculates zero offset when sync points are equal', () => {
+    it("calculates zero offset when sync points are equal", () => {
       const syncPointA = 42;
       const syncPointB = 42;
       const framerateA = 30;
       const framerateB = 30;
 
-      const offset = calculateSyncOffset(syncPointA, syncPointB, framerateA, framerateB);
+      const offset = calculateSyncOffset(
+        syncPointA,
+        syncPointB,
+        framerateA,
+        framerateB
+      );
 
       expect(offset).toBe(0);
     });
   });
 
-  describe('FR-15.5: Multi-framerate sync (Phase 3)', () => {
-    it('calculates offset for 30fps vs 60fps videos', () => {
+  describe("FR-15.5: Multi-framerate sync (Phase 3)", () => {
+    it("calculates offset for 30fps vs 60fps videos", () => {
       // Video A (30fps) synced at frame 10 = 0.333s
       // Video B (60fps) synced at frame 40 = 0.666s
       const syncPointA = 10;
@@ -370,31 +400,46 @@ describe('Sync offset calculation', () => {
       const framerateA = 30;
       const framerateB = 60;
 
-      const offset = calculateSyncOffset(syncPointA, syncPointB, framerateA, framerateB);
+      const offset = calculateSyncOffset(
+        syncPointA,
+        syncPointB,
+        framerateA,
+        framerateB
+      );
 
       // Expected: (40 - 10 * (60/30)) = 40 - 20 = 20 frames
       expect(offset).toBe(20);
     });
 
-    it('calculates offset for 60fps vs 120fps videos', () => {
+    it("calculates offset for 60fps vs 120fps videos", () => {
       const syncPointA = 30; // 60fps at frame 30 = 0.5s
       const syncPointB = 60; // 120fps at frame 60 = 0.5s
       const framerateA = 60;
       const framerateB = 120;
 
-      const offset = calculateSyncOffset(syncPointA, syncPointB, framerateA, framerateB);
+      const offset = calculateSyncOffset(
+        syncPointA,
+        syncPointB,
+        framerateA,
+        framerateB
+      );
 
       // Expected: (60 - 30 * (120/60)) = 60 - 60 = 0 frames (same time)
       expect(offset).toBe(0);
     });
 
-    it('handles fractional frame offsets', () => {
+    it("handles fractional frame offsets", () => {
       const syncPointA = 15; // 30fps
       const syncPointB = 40; // 60fps
       const framerateA = 30;
       const framerateB = 60;
 
-      const offset = calculateSyncOffset(syncPointA, syncPointB, framerateA, framerateB);
+      const offset = calculateSyncOffset(
+        syncPointA,
+        syncPointB,
+        framerateA,
+        framerateB
+      );
 
       // Expected: (40 - 15 * (60/30)) = 40 - 30 = 10 frames
       expect(offset).toBe(10);
@@ -418,7 +463,7 @@ describe('Sync offset calculation', () => {
  * Evolution: Grows with feature additions
  */
 
-import { Page, expect } from '@playwright/test';
+import { Page, expect } from "@playwright/test";
 
 /**
  * Loads a video into the player and waits for it to be ready
@@ -427,15 +472,22 @@ import { Page, expect } from '@playwright/test';
 export async function loadVideo(
   page: Page,
   videoPath: string,
-  playerId: string = 'video-player'
+  playerId: string = "video-player"
 ): Promise<void> {
-  await page.evaluate(({ path, id }) => {
-    const video = document.querySelector(`[data-testid="${id}"]`) as HTMLVideoElement;
-    video.src = path;
-    return new Promise<void>(resolve => {
-      video.addEventListener('loadedmetadata', () => resolve(), { once: true });
-    });
-  }, { path: videoPath, id: playerId });
+  await page.evaluate(
+    ({ path, id }) => {
+      const video = document.querySelector(
+        `[data-testid="${id}"]`
+      ) as HTMLVideoElement;
+      video.src = path;
+      return new Promise<void>((resolve) => {
+        video.addEventListener("loadedmetadata", () => resolve(), {
+          once: true,
+        });
+      });
+    },
+    { path: videoPath, id: playerId }
+  );
 }
 
 /**
@@ -445,7 +497,7 @@ export async function loadVideo(
 export async function stepForward(
   page: Page,
   steps: number = 1,
-  videoId: string = 'video-player'
+  videoId: string = "video-player"
 ): Promise<void> {
   for (let i = 0; i < steps; i++) {
     await page.click(`[data-testid="${videoId}-step-forward"]`);
@@ -459,7 +511,7 @@ export async function stepForward(
 export async function stepBackward(
   page: Page,
   steps: number = 1,
-  videoId: string = 'video-player'
+  videoId: string = "video-player"
 ): Promise<void> {
   for (let i = 0; i < steps; i++) {
     await page.click(`[data-testid="${videoId}-step-backward"]`);
@@ -473,12 +525,15 @@ export async function stepBackward(
  */
 export async function getCurrentFrame(
   page: Page,
-  videoId: string = 'video-player'
+  videoId: string = "video-player"
 ): Promise<number> {
-  return page.evaluate(({ id }) => {
-    const player = (window as any).getVideoPlayer(id);
-    return player.getCurrentFrame();
-  }, { id: videoId });
+  return page.evaluate(
+    ({ id }) => {
+      const player = (window as any).getVideoPlayer(id);
+      return player.getCurrentFrame();
+    },
+    { id: videoId }
+  );
 }
 
 /**
@@ -487,7 +542,7 @@ export async function getCurrentFrame(
 export async function waitForFrame(
   page: Page,
   expectedFrame: number,
-  videoId: string = 'video-player',
+  videoId: string = "video-player",
   timeout: number = 5000
 ): Promise<void> {
   await page.waitForFunction(
@@ -507,9 +562,12 @@ export async function waitForFrame(
 export async function uploadVideo(
   page: Page,
   videoPath: string,
-  uploadSlot: 'a' | 'b' = 'a'
+  uploadSlot: "a" | "b" = "a"
 ): Promise<void> {
-  await page.setInputFiles(`[data-testid="upload-video-${uploadSlot}"]`, videoPath);
+  await page.setInputFiles(
+    `[data-testid="upload-video-${uploadSlot}"]`,
+    videoPath
+  );
   await page.waitForSelector(`[data-testid="video-${uploadSlot}-loaded"]`);
 }
 
@@ -543,7 +601,7 @@ export async function lockSync(page: Page): Promise<void> {
  * @evolution Grows as features added, but core API stable
  */
 
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator } from "@playwright/test";
 
 export class VideoPlayerPage {
   readonly page: Page;
@@ -551,7 +609,7 @@ export class VideoPlayerPage {
   readonly videoElement: Locator;
   readonly stepForwardButton: Locator;
   readonly stepBackwardButton: Locator;
-  readonly stepForward5Button: Locator;  // Coarse stepping
+  readonly stepForward5Button: Locator; // Coarse stepping
   readonly stepBackward5Button: Locator;
   readonly frameCounter: Locator;
 
@@ -561,17 +619,27 @@ export class VideoPlayerPage {
   readonly speedControl: Locator;
   readonly loopToggle: Locator;
 
-  constructor(page: Page, playerId: string = 'video-player') {
+  constructor(page: Page, playerId: string = "video-player") {
     this.page = page;
     this.playerId = playerId;
 
     // Core controls (Phase 0)
     this.videoElement = page.locator(`[data-testid="${playerId}"]`);
-    this.stepForwardButton = page.locator(`[data-testid="${playerId}-step-forward"]`);
-    this.stepBackwardButton = page.locator(`[data-testid="${playerId}-step-backward"]`);
-    this.stepForward5Button = page.locator(`[data-testid="${playerId}-step-forward-5"]`);
-    this.stepBackward5Button = page.locator(`[data-testid="${playerId}-step-backward-5"]`);
-    this.frameCounter = page.locator(`[data-testid="${playerId}-frame-counter"]`);
+    this.stepForwardButton = page.locator(
+      `[data-testid="${playerId}-step-forward"]`
+    );
+    this.stepBackwardButton = page.locator(
+      `[data-testid="${playerId}-step-backward"]`
+    );
+    this.stepForward5Button = page.locator(
+      `[data-testid="${playerId}-step-forward-5"]`
+    );
+    this.stepBackward5Button = page.locator(
+      `[data-testid="${playerId}-step-backward-5"]`
+    );
+    this.frameCounter = page.locator(
+      `[data-testid="${playerId}-frame-counter"]`
+    );
 
     // MVP additions
     this.playButton = page.locator(`[data-testid="${playerId}-play"]`);
@@ -610,14 +678,19 @@ export class VideoPlayerPage {
 
   async getCurrentFrame(): Promise<number> {
     const frameText = await this.frameCounter.textContent();
-    return parseInt(frameText || '0', 10);
+    return parseInt(frameText || "0", 10);
   }
 
-  async waitForFrame(expectedFrame: number, timeout: number = 5000): Promise<void> {
+  async waitForFrame(
+    expectedFrame: number,
+    timeout: number = 5000
+  ): Promise<void> {
     await this.page.waitForFunction(
       ({ id, frame }) => {
-        const counter = document.querySelector(`[data-testid="${id}-frame-counter"]`);
-        return counter && parseInt(counter.textContent || '0', 10) === frame;
+        const counter = document.querySelector(
+          `[data-testid="${id}-frame-counter"]`
+        );
+        return counter && parseInt(counter.textContent || "0", 10) === frame;
       },
       { id: this.playerId, frame: expectedFrame },
       { timeout }
@@ -658,14 +731,14 @@ export class VideoPlayerPage {
  * Phase: Spike (Phase 0) - foundational tests that persist
  */
 
-import { test, expect } from '@playwright/test';
-import { VideoPlayerPage } from '../helpers/page-objects/VideoPlayer';
-import { loadVideo } from '../helpers/video-test-utils';
+import { test, expect } from "@playwright/test";
+import { VideoPlayerPage } from "../helpers/page-objects/VideoPlayer";
+import { loadVideo } from "../helpers/video-test-utils";
 
-test.describe('Frame-accurate stepping (FR-6.1)', () => {
-  test('step forward increments frame by exactly 1', async ({ page }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/30fps-counter.mp4');
+test.describe("Frame-accurate stepping (FR-6.1)", () => {
+  test("step forward increments frame by exactly 1", async ({ page }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/30fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -676,9 +749,9 @@ test.describe('Frame-accurate stepping (FR-6.1)', () => {
     expect(newFrame).toBe(initialFrame + 1);
   });
 
-  test('step backward decrements frame by exactly 1', async ({ page }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/30fps-counter.mp4');
+  test("step backward decrements frame by exactly 1", async ({ page }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/30fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -692,9 +765,11 @@ test.describe('Frame-accurate stepping (FR-6.1)', () => {
     expect(newFrame).toBe(initialFrame - 1);
   });
 
-  test('100 consecutive forward steps results in +100 frame offset', async ({ page }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/60fps-counter.mp4');
+  test("100 consecutive forward steps results in +100 frame offset", async ({
+    page,
+  }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/60fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -707,9 +782,9 @@ test.describe('Frame-accurate stepping (FR-6.1)', () => {
     expect(finalFrame).toBe(initialFrame + 100);
   });
 
-  test('coarse stepping increments by 5 frames', async ({ page }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/30fps-counter.mp4');
+  test("coarse stepping increments by 5 frames", async ({ page }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/30fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -721,10 +796,10 @@ test.describe('Frame-accurate stepping (FR-6.1)', () => {
   });
 });
 
-test.describe('Frame counter display (FR-6.2)', () => {
-  test('displays correct frame number after stepping', async ({ page }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/60fps-counter.mp4');
+test.describe("Frame counter display (FR-6.2)", () => {
+  test("displays correct frame number after stepping", async ({ page }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/60fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -734,9 +809,11 @@ test.describe('Frame counter display (FR-6.2)', () => {
     expect(displayedFrame).toBe(42);
   });
 
-  test('frame counter updates in real-time during stepping', async ({ page }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/30fps-counter.mp4');
+  test("frame counter updates in real-time during stepping", async ({
+    page,
+  }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/30fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -748,16 +825,18 @@ test.describe('Frame counter display (FR-6.2)', () => {
   });
 });
 
-test.describe('Frame stepping precision (FR-6.3)', () => {
-  test('maintains precision within 1 frame across different framerates', async ({ page }) => {
+test.describe("Frame stepping precision (FR-6.3)", () => {
+  test("maintains precision within 1 frame across different framerates", async ({
+    page,
+  }) => {
     const testCases = [
-      { file: '30fps-counter.mp4', framerate: 30, steps: 10 },
-      { file: '60fps-counter.mp4', framerate: 60, steps: 10 },
-      { file: '120fps-counter.mp4', framerate: 120, steps: 10 }
+      { file: "30fps-counter.mp4", framerate: 30, steps: 10 },
+      { file: "60fps-counter.mp4", framerate: 60, steps: 10 },
+      { file: "120fps-counter.mp4", framerate: 120, steps: 10 },
     ];
 
     for (const { file, steps } of testCases) {
-      await page.goto('/spike');
+      await page.goto("/spike");
       await loadVideo(page, `tests/fixtures/videos/generated/${file}`);
 
       const player = new VideoPlayerPage(page);
@@ -773,10 +852,13 @@ test.describe('Frame stepping precision (FR-6.3)', () => {
   });
 });
 
-test.describe('Cross-browser reliability (FR-6.4)', () => {
-  test('frame stepping works consistently across browsers', async ({ page, browserName }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/30fps-counter.mp4');
+test.describe("Cross-browser reliability (FR-6.4)", () => {
+  test("frame stepping works consistently across browsers", async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/30fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -805,14 +887,14 @@ test.describe('Cross-browser reliability (FR-6.4)', () => {
  * Phase: Spike (Phase 0)
  */
 
-import { test, expect } from '@playwright/test';
-import { VideoPlayerPage } from '../helpers/page-objects/VideoPlayer';
-import { loadVideo } from '../helpers/video-test-utils';
+import { test, expect } from "@playwright/test";
+import { VideoPlayerPage } from "../helpers/page-objects/VideoPlayer";
+import { loadVideo } from "../helpers/video-test-utils";
 
-test.describe('Frame step latency (NFR-1.4)', () => {
-  test('single frame step completes within 100ms', async ({ page }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/60fps-counter.mp4');
+test.describe("Frame step latency (NFR-1.4)", () => {
+  test("single frame step completes within 100ms", async ({ page }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/60fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -825,9 +907,11 @@ test.describe('Frame step latency (NFR-1.4)', () => {
     console.log(`⏱️  Frame step latency: ${duration}ms`);
   });
 
-  test('coarse frame step (5 frames) completes within 200ms', async ({ page }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/30fps-counter.mp4');
+  test("coarse frame step (5 frames) completes within 200ms", async ({
+    page,
+  }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/30fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -840,9 +924,11 @@ test.describe('Frame step latency (NFR-1.4)', () => {
     console.log(`⏱️  Coarse step latency: ${duration}ms`);
   });
 
-  test('100 consecutive steps maintain acceptable latency', async ({ page }) => {
-    await page.goto('/spike');
-    await loadVideo(page, 'tests/fixtures/videos/generated/120fps-counter.mp4');
+  test("100 consecutive steps maintain acceptable latency", async ({
+    page,
+  }) => {
+    await page.goto("/spike");
+    await loadVideo(page, "tests/fixtures/videos/generated/120fps-counter.mp4");
 
     const player = new VideoPlayerPage(page);
 
@@ -874,10 +960,10 @@ test.describe('Frame step latency (NFR-1.4)', () => {
 **File: `playwright.config.ts`**
 
 ```typescript
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: './tests',
+  testDir: "./tests",
 
   // Timeout per test
   timeout: 30 * 1000,
@@ -893,26 +979,26 @@ export default defineConfig({
 
   // Reporter configuration
   reporter: [
-    ['html', { outputFolder: 'test-results/html-report' }],
-    ['json', { outputFile: 'test-results/results.json' }],
-    ['junit', { outputFile: 'test-results/junit.xml' }],
-    ['list'], // Console output
+    ["html", { outputFolder: "test-results/html-report" }],
+    ["json", { outputFile: "test-results/results.json" }],
+    ["junit", { outputFile: "test-results/junit.xml" }],
+    ["list"], // Console output
     // Custom reporter for VALIDATION_REPORT.md (add in MVP)
     // ['./tests/reporters/requirements-reporter.ts']
   ],
 
   use: {
     // Base URL
-    baseURL: process.env.BASE_URL || 'http://localhost:5173',
+    baseURL: process.env.BASE_URL || "http://localhost:5173",
 
     // Trace on first retry
-    trace: 'on-first-retry',
+    trace: "on-first-retry",
 
     // Screenshot on failure
-    screenshot: 'only-on-failure',
+    screenshot: "only-on-failure",
 
     // Video on failure
-    video: 'retain-on-failure',
+    video: "retain-on-failure",
 
     // Viewport
     viewport: { width: 1920, height: 1080 },
@@ -921,22 +1007,22 @@ export default defineConfig({
   // Projects for different browsers
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chrome",
+      use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
     },
     {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
     },
   ],
 
   // Web server configuration
   webServer: {
-    command: 'npm run dev',
+    command: "npm run dev",
     port: 5173,
     reuseExistingServer: !process.env.CI,
   },
@@ -950,24 +1036,24 @@ export default defineConfig({
 **File: `vitest.config.ts`**
 
 ```typescript
-import { defineConfig } from 'vitest/config';
-import path from 'path';
+import { defineConfig } from "vitest/config";
+import path from "path";
 
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./tests/setup.ts'],
+    environment: "jsdom",
+    setupFiles: ["./tests/setup.ts"],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}'],
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}"],
     },
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 });
@@ -984,9 +1070,9 @@ name: Test Suite
 
 on:
   push:
-    branches: [ main, develop, 'feature/*' ]
+    branches: [main, develop, "feature/*"]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   unit-tests:
@@ -999,8 +1085,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -1020,7 +1106,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: [chrome, firefox, webkit]
 
     steps:
       - uses: actions/checkout@v4
@@ -1028,8 +1114,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -1065,8 +1151,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -1100,8 +1186,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -1113,7 +1199,7 @@ jobs:
         run: npm run test:fixtures
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chrome
 
       - name: Run performance tests
         run: npx playwright test tests/performance
@@ -1138,14 +1224,19 @@ jobs:
  * Phase: MVP (Phase 1) - added when requirement tracking becomes critical
  */
 
-import { Reporter, TestCase, TestResult, FullResult } from '@playwright/test/reporter';
-import * as fs from 'fs';
+import {
+  Reporter,
+  TestCase,
+  TestResult,
+  FullResult,
+} from "@playwright/test/reporter";
+import * as fs from "fs";
 
 interface RequirementData {
   tests: string[];
   passed: number;
   failed: number;
-  status: 'pass' | 'fail';
+  status: "pass" | "fail";
 }
 
 class RequirementsReporter implements Reporter {
@@ -1153,7 +1244,9 @@ class RequirementsReporter implements Reporter {
 
   onTestEnd(test: TestCase, result: TestResult) {
     // Extract requirement IDs from test titles (e.g., "FR-6.1: step forward...")
-    const reqMatches = test.title.match(/([A-Z]+-[A-Z]+-\d+\.\d+|[A-Z]+-\d+\.\d+)/g);
+    const reqMatches = test.title.match(
+      /([A-Z]+-[A-Z]+-\d+\.\d+|[A-Z]+-\d+\.\d+)/g
+    );
 
     if (reqMatches) {
       for (const reqId of reqMatches) {
@@ -1162,18 +1255,18 @@ class RequirementsReporter implements Reporter {
             tests: [],
             passed: 0,
             failed: 0,
-            status: 'pass'
+            status: "pass",
           });
         }
 
         const req = this.requirements.get(reqId)!;
         req.tests.push(test.title);
 
-        if (result.status === 'passed') {
+        if (result.status === "passed") {
           req.passed++;
         } else {
           req.failed++;
-          req.status = 'fail';
+          req.status = "fail";
         }
       }
     }
@@ -1184,12 +1277,14 @@ class RequirementsReporter implements Reporter {
   }
 
   private generateValidationReport() {
-    let report = '# Validation Report\n\n';
+    let report = "# Validation Report\n\n";
     report += `**Generated**: ${new Date().toISOString()}\n\n`;
-    report += '---\n\n';
-    report += '## Requirement Validation Status\n\n';
-    report += '| Requirement | Status | Tests Passed | Tests Failed | Total Tests |\n';
-    report += '|-------------|--------|--------------|--------------|-------------|\n';
+    report += "---\n\n";
+    report += "## Requirement Validation Status\n\n";
+    report +=
+      "| Requirement | Status | Tests Passed | Tests Failed | Total Tests |\n";
+    report +=
+      "|-------------|--------|--------------|--------------|-------------|\n";
 
     // Sort by requirement ID
     const sortedReqs = Array.from(this.requirements.entries()).sort((a, b) =>
@@ -1197,27 +1292,29 @@ class RequirementsReporter implements Reporter {
     );
 
     for (const [reqId, data] of sortedReqs) {
-      const status = data.status === 'pass' ? '✅ PASS' : '❌ FAIL';
+      const status = data.status === "pass" ? "✅ PASS" : "❌ FAIL";
       const total = data.passed + data.failed;
       report += `| ${reqId} | ${status} | ${data.passed} | ${data.failed} | ${total} |\n`;
     }
 
-    report += '\n---\n\n';
-    report += '## Detailed Test Coverage\n\n';
+    report += "\n---\n\n";
+    report += "## Detailed Test Coverage\n\n";
 
     for (const [reqId, data] of sortedReqs) {
       report += `### ${reqId}\n\n`;
-      report += `**Status**: ${data.status === 'pass' ? '✅ Validated' : '❌ Failed'}\n\n`;
+      report += `**Status**: ${
+        data.status === "pass" ? "✅ Validated" : "❌ Failed"
+      }\n\n`;
       report += `**Tests** (${data.tests.length}):\n`;
       for (const test of data.tests) {
         report += `- ${test}\n`;
       }
-      report += '\n';
+      report += "\n";
     }
 
     // Write to file
-    fs.writeFileSync('VALIDATION_REPORT.md', report);
-    console.log('\n✅ VALIDATION_REPORT.md generated\n');
+    fs.writeFileSync("VALIDATION_REPORT.md", report);
+    console.log("\n✅ VALIDATION_REPORT.md generated\n");
   }
 }
 
@@ -1247,7 +1344,7 @@ npm run test:unit -- --watch
 npm run test:integration
 
 # Run integration tests for specific browser
-npx playwright test --project=chromium tests/integration
+npx playwright test --project=chrome tests/integration
 
 # Run E2E tests
 npm run test:e2e
@@ -1282,8 +1379,9 @@ npm run test:unit -- --coverage && npm run test
 ### 1. Test the Contract, Not the Implementation
 
 ✅ **Good:**
+
 ```typescript
-test('step forward increments frame by 1', async ({ page }) => {
+test("step forward increments frame by 1", async ({ page }) => {
   const initialFrame = await player.getCurrentFrame();
   await player.stepForward();
   const newFrame = await player.getCurrentFrame();
@@ -1292,8 +1390,9 @@ test('step forward increments frame by 1', async ({ page }) => {
 ```
 
 ❌ **Bad:**
+
 ```typescript
-test('step forward calls requestVideoFrameCallback', async ({ page }) => {
+test("step forward calls requestVideoFrameCallback", async ({ page }) => {
   // Testing implementation details - brittle!
   const callbackCalled = await page.evaluate(() => {
     return window.videoCallbackWasCalled;
@@ -1308,7 +1407,7 @@ Always use `data-testid` attributes, never CSS classes or DOM structure:
 
 ```tsx
 // In component
-<button data-testid="video-player-step-forward">Step Forward</button>
+<button data-testid="video-player-step-forward">Step Forward</button>;
 
 // In test
 await page.click('[data-testid="video-player-step-forward"]');
@@ -1323,7 +1422,7 @@ await page.click('[data-testid="video-player-step-forward"]');
  * Modified: Phase 3 (added multi-framerate support)
  * Status: Stable - foundational test
  */
-test('step forward increments frame by 1', async ({ page }) => {
+test("step forward increments frame by 1", async ({ page }) => {
   // ...
 });
 ```
@@ -1335,8 +1434,8 @@ Each test should be completely independent:
 ```typescript
 test.beforeEach(async ({ page }) => {
   // Reset state before each test
-  await page.goto('/spike');
-  await loadVideo(page, 'tests/fixtures/videos/generated/30fps-counter.mp4');
+  await page.goto("/spike");
+  await loadVideo(page, "tests/fixtures/videos/generated/30fps-counter.mp4");
 });
 ```
 
@@ -1350,7 +1449,7 @@ const player = new VideoPlayerPage(page);
 await player.stepForward();
 
 // Bad - breaks when UI changes
-await page.click('button.step-forward');
+await page.click("button.step-forward");
 ```
 
 ---

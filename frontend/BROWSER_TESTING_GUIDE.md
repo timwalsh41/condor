@@ -2,16 +2,17 @@
 
 ## Architecture
 
-**Container-Only Testing**:
-All three browsers (Firefox, Chrome, WebKit) run inside the development container with tests.
+**Headless Testing in Container**:
+All three browsers (Firefox, Chrome, WebKit) run in **headless mode** inside the development container. No display server (Xvfb) or windowing system is required.
 
-**Test Setup**:
-- **Firefox**: Native H.264 support (no additional setup)
-- **Chrome**: Requires Google Chrome installation (H.264 codec support)
-- **WebKit**: Requires GTK4 libraries (Debian 12 compatibility)
+## Browser Configuration
 
-**Display**:
-- **Xvfb**: Virtual display server (`:99`) for headful browser testing in container
+**Test Projects** (configured in `playwright.config.ts`):
+- **chrome**: Playwright's Chrome build with H.264 codec support
+- **firefox**: Playwright's Firefox build with native H.264 support
+- **webkit**: Playwright's WebKit build (Safari engine)
+
+All browsers run with `headless: true` by default.
 
 ## Container Setup
 
@@ -20,215 +21,148 @@ All three browsers (Firefox, Chrome, WebKit) run inside the development containe
 The development container should already have:
 - Node.js 20+
 - Playwright installed (`npm install` in `/code/Claude/condor/frontend`)
-- Firefox browser installed (`npx playwright install firefox`)
 
-### Install Google Chrome (for Chrome Tests)
-
-**Why Google Chrome?** Chromium in Debian repositories doesn't include H.264 codecs. Google Chrome includes proprietary codecs required for our test videos.
+### Install Browser Binaries
 
 ```bash
-# Run from container
-wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /tmp/google-chrome.gpg
-sudo mv /tmp/google-chrome.gpg /etc/apt/trusted.gpg.d/
-echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | \
-  sudo tee /etc/apt/sources.list.d/google-chrome.list
-sudo apt-get update
-sudo apt-get install -y google-chrome-stable
+cd /code/Claude/condor/frontend
 
-# Install Chrome browser for Playwright
-npx playwright install chromium
+# Install all browser binaries (one-time setup)
+npx playwright install chrome firefox webkit
+
+# Install system dependencies (if needed)
+npx playwright install-deps
 ```
 
-### Install WebKit Dependencies (for WebKit Tests)
-
-**Why GTK4?** WebKit on Debian 12 requires GTK4 libraries which aren't installed by default.
-
-```bash
-# Run from container
-sudo apt-get update
-sudo apt-get install -y libgtk-4-1
-
-# Install WebKit browser
-npx playwright install webkit
-
-# Install WebKit system dependencies
-sudo npx playwright install-deps webkit
-```
+**Note**: Playwright's Chrome channel includes H.264 codec support. Firefox and WebKit have native H.264 support.
 
 ## Running Tests
 
-### Start Xvfb (Virtual Display)
-
-All browser tests require Xvfb running in the container:
-
-```bash
-# Start Xvfb on display :99 (run once per container session)
-export DISPLAY=:99
-Xvfb :99 -screen 0 1280x720x24 &
-sleep 2
-```
-
-**Note**: You only need to start Xvfb once. It will keep running in the background for all subsequent test runs.
-
-### Firefox
+### All Browsers (Recommended)
 
 ```bash
 cd /code/Claude/condor/frontend
 
-# Ensure DISPLAY is set (if not already exported)
-export DISPLAY=:99
+# Run all tests across all 3 browsers
+npx playwright test
+```
 
-# Run Firefox tests
+### Individual Browsers
+
+```bash
+cd /code/Claude/condor/frontend
+
+# Run Firefox tests only
 npx playwright test --project=firefox
-```
 
-### Chrome
+# Run Chrome tests only
+npx playwright test --project=chrome
 
-```bash
-cd /code/Claude/condor/frontend
-
-# Ensure DISPLAY is set (if not already exported)
-export DISPLAY=:99
-
-# Run Chrome tests
-npx playwright test --project=chromium
-```
-
-### WebKit
-
-```bash
-cd /code/Claude/condor/frontend
-
-# Ensure DISPLAY is set (if not already exported)
-export DISPLAY=:99
-
-# Run WebKit tests
+# Run WebKit tests only
 npx playwright test --project=webkit
 ```
 
-### All Browsers
-
-Run all browser tests in sequence:
+### Specific Tests
 
 ```bash
-cd /code/Claude/condor/frontend
+# Run tests matching a pattern
+npx playwright test --grep "step forward by 1 frame"
 
-# Ensure DISPLAY is set
-export DISPLAY=:99
+# Run with line reporter (cleaner output)
+npx playwright test --reporter=line
 
-# Run all browsers
-npx playwright test --project=firefox
-npx playwright test --project=chromium
-npx playwright test --project=webkit
-```
-
-Or run in parallel using Playwright's built-in parallelization:
-
-```bash
-npx playwright test  # Runs all projects configured in playwright.config.ts
-```
-
-## Interpreting Results
-
-### Success Criteria
-
-**Frame Control Tests** (REQ-F-FRAME-001, REQ-F-FRAME-002, REQ-F-FRAME-003):
-- Frame counter displays "Frame X of Y" format
-- Fine stepping: ±1 frame accuracy
-- Coarse stepping: ~5 frames (3-7 range acceptable)
-- `requestVideoFrameCallback` API available
-- Frame counter updates during playback
-
-**Performance** (REQ-NF-P-004):
-- Frame step latency target: <100ms
-- Tests log latency but don't fail (container overhead expected)
-
-**Known Issues**:
-- **WebKit callback limitation**: `requestVideoFrameCallback` may not fire reliably on paused video in containerized WebKit
-- **Workaround**: 100ms timeout fallback to `currentTime`-based calculation (±1 frame accuracy)
-- **Impact**: One test may fail intermittently in WebKit (~95% pass rate expected)
-- **TODO**: Manual validation required on macOS/Safari to confirm native behavior
-
-### Troubleshooting
-
-**Tests fail with "browser not found"**:
-```bash
-cd /code/Claude/condor/frontend
-
-# Install browser binaries
-npx playwright install firefox
-npx playwright install chromium
-npx playwright install webkit
-```
-
-**Chrome tests fail with codec errors**:
-```bash
-# Ensure Google Chrome (not Chromium) is installed
-google-chrome --version
-
-# If not installed, follow "Install Google Chrome" setup section above
-```
-
-**WebKit tests fail with GTK errors**:
-```bash
-# Ensure GTK4 libraries are installed
-dpkg -l | grep libgtk-4
-
-# If not installed, follow "Install WebKit Dependencies" setup section above
-```
-
-**Video doesn't load**:
-```bash
-# Verify dev server is running and video is accessible
-curl -I http://localhost:5173/test_30fps_10s.mp4
-
-# Should return HTTP 200 with video/mp4 content type
-# If 404: ensure Vite dev server is running (npm run dev)
-```
-
-**Xvfb errors**:
-```bash
-# Kill existing Xvfb processes
-pkill Xvfb
-
-# Restart Xvfb
-export DISPLAY=:99
-Xvfb :99 -screen 0 1280x720x24 &
-sleep 2
-```
-
-**Tests timeout in WebKit**:
-- Expected behavior due to callback limitation
-- Timeout fallback ensures tests eventually pass
-- If all tests timeout: verify Xvfb is running and DISPLAY=:99 is set
-
-## Quick Reference
-
-All commands run from container:
-
-```bash
-cd /code/Claude/condor/frontend
-
-# Ensure Xvfb is running (run once per container session)
-export DISPLAY=:99
-Xvfb :99 -screen 0 1280x720x24 &
-sleep 2
-
-# Run Firefox tests
-DISPLAY=:99 npx playwright test --project=firefox
-
-# Run Chrome tests
-DISPLAY=:99 npx playwright test --project=chromium
-
-# Run WebKit tests
-DISPLAY=:99 npx playwright test --project=webkit
-
-# Run all browsers
-DISPLAY=:99 npx playwright test
-
-# Run specific test
-DISPLAY=:99 npx playwright test --grep "step forward by 1 frame"
-
-# View HTML report
+# View HTML report after tests
 npx playwright show-report
 ```
+
+## Known Limitations
+
+### Headless Browser Seeking Near Frame 0
+
+**Issue**: Video seeking to frames 0-10 is unreliable in headless browsers
+**Root Cause**: Browser optimization issue when seeking very close to video start
+**Solution**: Tests seek directly to frame ~100 before testing backward stepping
+**Impact**: None on production code, test strategy only
+
+**Example** (from `tests/test_frame_stepping.spec.ts`):
+```typescript
+// Seek directly to stable frame range before testing
+await video.evaluate((v: HTMLVideoElement) => {
+  v.currentTime = 100 / 30; // Seek to frame 100 at 30fps
+  v.pause();
+});
+```
+
+### requestVideoFrameCallback Timeout Fallback
+
+**Behavior**: In headless mode, `requestVideoFrameCallback` may not fire reliably on paused video
+**Mitigation**: 100ms timeout fallback using `Math.round(video.currentTime * framerate)`
+**Accuracy**: ±1 frame (acceptable for MVP)
+**Evidence**: See console warnings during test runs (not failures)
+
+## Troubleshooting
+
+### Tests fail with "browser not found"
+
+```bash
+cd /code/Claude/condor/frontend
+
+# Reinstall browser binaries
+npx playwright install chrome firefox webkit
+```
+
+### Video doesn't load (404 errors)
+
+```bash
+# Verify dev server is running
+curl -I http://localhost:5173/test_30fps_10s.mp4
+
+# If 404, start dev server
+npm run dev
+
+# Then run tests in another terminal
+npx playwright test
+```
+
+### All tests timeout
+
+**Possible causes**:
+1. Dev server not running → Start with `npm run dev`
+2. Network issue preventing video load → Check `curl` command above
+3. Browser installation corrupt → Reinstall with `npx playwright install`
+
+### WebKit-specific failures
+
+```bash
+# Install WebKit system dependencies
+npx playwright install-deps webkit
+
+# Verify WebKit browser installed
+npx playwright install webkit
+
+# Test WebKit specifically
+npx playwright test --project=webkit
+```
+
+### Tests pass locally but fail in CI
+
+- **Check CI environment**: Ensure `npm install` and `npx playwright install` run before tests
+- **Check headless mode**: Verify `playwright.config.ts` has `headless: true`
+- **Check timeouts**: CI may need longer timeouts due to slower environment
+
+## Architecture Decisions
+
+**Why headless mode?**
+- Container compatibility without X11/display servers
+- Faster, more reliable test execution
+- Industry standard for automated testing
+
+**Why Playwright's Chrome channel?**
+- Includes H.264 codec support (unlike open-source Chromium)
+- Simpler setup than installing system Google Chrome
+- Better reproducibility across environments
+
+**Why seek to frame 100 in tests?**
+- Avoids unreliable seeking near frame 0 in headless browsers
+- Tests run faster (direct seek vs. frame-by-frame stepping)
+- Validates same functionality with better test reliability

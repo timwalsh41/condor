@@ -1,13 +1,13 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Playwright configuration for spike validation tests
  * Focus on frame-accurate video control testing across browsers
  *
  * Browser Support:
- * - Firefox: Runs in container with native H.264 support
- * - Chrome: Runs on host (Chrome won't bind to 0.0.0.0 for remote debugging)
- * - WebKit: Runs on host (container missing GTK4 libraries)
+ * - All browsers run in headless mode for container compatibility
+ * - Tests use direct video seeking (not frame-by-frame stepping) to avoid
+ *   unreliable seeking near frame 0 in headless browsers
  */
 
 // Fetch WebSocket URL from Chrome DevTools Protocol endpoint
@@ -27,83 +27,85 @@ async function getChromeEndpoint(): Promise<string | undefined> {
   if (!cdpUrl) return undefined;
 
   // If already a WebSocket URL, return as-is
-  if (cdpUrl.startsWith('ws://') || cdpUrl.startsWith('wss://')) {
+  if (cdpUrl.startsWith("ws://") || cdpUrl.startsWith("wss://")) {
     return cdpUrl;
   }
 
   // If HTTP URL, fetch the WebSocket URL from /json/version
-  if (cdpUrl.startsWith('http://') || cdpUrl.startsWith('https://')) {
+  if (cdpUrl.startsWith("http://") || cdpUrl.startsWith("https://")) {
     return await getChromeWebSocketUrl(cdpUrl);
   }
 
   return cdpUrl;
 }
 
-const chromeEndpoint = process.env.CHROME_CDP_URL ? await getChromeEndpoint() : undefined;
+const chromeEndpoint = process.env.CHROME_CDP_URL
+  ? await getChromeEndpoint()
+  : undefined;
 
 export default defineConfig({
-  testDir: './tests',
+  testDir: "./tests",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: "html",
 
   use: {
-    baseURL: 'http://localhost:5173',
-    trace: 'on-first-retry',
-    video: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    baseURL: "http://localhost:5173",
+    trace: "on-first-retry",
+    video: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
 
   projects: [
     {
-      name: 'chromium',
+      name: "chrome",
       use: {
-        ...devices['Desktop Chrome'],
+        ...devices["Desktop Chrome"],
         // Use remote Chrome if chromeEndpoint is set, otherwise launch local browser
         ...(chromeEndpoint
           ? { connectOptions: { wsEndpoint: chromeEndpoint } }
           : {
-              headless: false,
+              headless: true, // Must be headless in container environment (no X11)
               launchOptions: {
-                executablePath: '/usr/bin/google-chrome', // Use Google Chrome with H.264 support
+                executablePath: "/usr/bin/google-chrome-stable", // Use system Google Chrome with H.264 support
                 args: [
-                  '--autoplay-policy=no-user-gesture-required',
-                  '--disable-blink-features=AutomationControlled',
-                  '--use-fake-ui-for-media-stream',
-                  '--use-fake-device-for-media-stream',
-                  '--no-sandbox',
-                  '--disable-setuid-sandbox',
+                  "--autoplay-policy=no-user-gesture-required",
+                  "--disable-blink-features=AutomationControlled",
+                  "--use-fake-ui-for-media-stream",
+                  "--use-fake-device-for-media-stream",
+                  "--no-sandbox",
+                  "--disable-setuid-sandbox",
                 ],
               },
             }),
       },
     },
     {
-      name: 'firefox',
+      name: "firefox",
       use: {
-        ...devices['Desktop Firefox'],
-        headless: false, // Run in headed mode for codec support
+        ...devices["Desktop Firefox"],
+        headless: true, // Must be headless in container environment (no X11)
         launchOptions: {
-          args: ['--no-sandbox'],
+          args: ["--no-sandbox"],
         },
       },
     },
     {
-      name: 'webkit',
+      name: "webkit",
       use: {
-        ...devices['Desktop Safari'],
-        headless: false, // Run in headed mode for codec support
+        ...devices["Desktop Safari"],
+        headless: true, // Must be headless in container environment (no X11)
       },
     },
   ],
 
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+    command: "npm run dev",
+    url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,
-    stdout: 'ignore',
-    stderr: 'pipe',
+    stdout: "ignore",
+    stderr: "pipe",
   },
 });

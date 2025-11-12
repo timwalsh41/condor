@@ -118,12 +118,30 @@ connect_container() {
     "
 }
 
+# Function to connect to container as root user with zsh
+connect_container_root() {
+    echo "Connecting to container as root with zsh..."
+    echo "⚠️  You are connecting as ROOT user"
+    echo "📁 Your code directory is mounted at: $CONTAINER_CODE_DIR"
+    echo ""
+    
+    # Execute the container as root with zsh
+    docker exec -it -u root "$CONTAINER_NAME" zsh -c "
+        # Ensure we're in the mounted code directory
+        cd $CONTAINER_CODE_DIR
+        
+        # Start an interactive zsh session as root
+        exec zsh
+    "
+}
+
 # Function to print usage
 print_usage() {
     echo "Usage: $0 [ACTION]"
     echo ""
     echo "Actions:"
     echo "  connect  - Start container if needed and connect (default)"
+    echo "  root     - Connect to container as root user"
     echo "  start    - Start the container without connecting"
     echo "  stop     - Stop the running container"
     echo "  restart  - Restart the container"
@@ -132,6 +150,7 @@ print_usage() {
     echo "Examples:"
     echo "  $0           # Connect to container (start if needed)"
     echo "  $0 connect   # Same as above"
+    echo "  $0 root      # Connect as root user"
     echo "  $0 stop      # Stop the container"
     echo "  $0 restart   # Restart the container"
     echo "  $0 rebuild   # Remove and recreate container"
@@ -149,7 +168,7 @@ fi
 
 # Validate action
 case "$ACTION" in
-    connect|start|stop|restart|rebuild)
+    connect|root|start|stop|restart|rebuild)
         ;;
     *)
         echo "❌ Invalid action: $ACTION"
@@ -166,6 +185,20 @@ if [[ "$ACTION" == "stop" ]]; then
         exit 0
     fi
     stop_container
+    exit 0
+fi
+
+# Handle root connection action
+if [[ "$ACTION" == "root" ]]; then
+    if ! container_exists; then
+        echo "❌ Container does not exist. Please start it first."
+        exit 1
+    fi
+    if ! container_running; then
+        echo "❌ Container is not running. Please start it first."
+        exit 1
+    fi
+    connect_container_root
     exit 0
 fi
 

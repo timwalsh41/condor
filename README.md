@@ -38,7 +38,7 @@ npm run dev
 # Use `npm run dev -- --host` when port forwarding outside of dev container
 
 # Run Playwright tests
-npx playwright test --project=chromium
+npx playwright test
 
 # Build for production
 npm run build
@@ -62,11 +62,13 @@ bash generate_test_videos.sh
 ## Documentation
 
 ### Project Planning
+
 - **[Requirements](project/REQUIREMENTS.md)** - 46 formal MVP requirements with acceptance criteria
 - **[Project Plan](project/PROJECT_PLAN.md)** - Phased task breakdown (Phase 0: Spikes, Phase 1: MVP Implementation)
 - **[MVP Product Requirements Prompt](PRPs/MVP_PRP.md)** - Comprehensive implementation guide with patterns and gotchas
 
 ### Technical Spikes
+
 - **[Frame Control Spike Results](docs/spike/FRAME_CONTROL.md)** - Phase 0 Task 0.2 findings and recommendations
 
 ## Repository Structure
@@ -95,18 +97,19 @@ condor/
 
 **Goal**: Validate HIGH RISK technical challenges before full MVP implementation.
 
-| Task | Status | Confidence | Notes |
-|------|--------|------------|-------|
-| **0.1** Setup Spike Environment | ✅ Complete | 95% | Vite + React + TypeScript + Playwright configured |
-| **0.2** Frame-Accurate Seeking | ⚠️ Partial | 75% | Implementation complete, cross-browser testing deferred |
-| **0.3** Dual Video Sync | 🔲 Not Started | - | Next priority after 0.2 completion |
-| **0.4** Canvas Overlay | 🔲 Not Started | - | Annotations performance validation |
-| **0.5** CI Setup | 🔲 Not Started | - | GitHub Actions cross-browser testing |
-| **0.6** Raspberry Pi Validation | 🔲 Not Started | - | Target hardware performance testing |
+| Task                            | Status         | Confidence | Notes                                                   |
+| ------------------------------- | -------------- | ---------- | ------------------------------------------------------- |
+| **0.1** Setup Spike Environment | ✅ Complete    | 95%        | Vite + React + TypeScript + Playwright configured       |
+| **0.2** Frame-Accurate Seeking  | ⚠️ Partial     | 75%        | Implementation complete, cross-browser testing deferred |
+| **0.3** Dual Video Sync         | 🔲 Not Started | -          | Next priority after 0.2 completion                      |
+| **0.4** Canvas Overlay          | 🔲 Not Started | -          | Annotations performance validation                      |
+| **0.5** CI Setup                | 🔲 Not Started | -          | GitHub Actions cross-browser testing                    |
+| **0.6** Raspberry Pi Validation | 🔲 Not Started | -          | Target hardware performance testing                     |
 
 ### Integration Checkpoint 1 (Phase 0 Completion)
 
 Before proceeding to Phase 1, must validate:
+
 - All spike tests pass in Chrome, Firefox, WebKit
 - Frame stepping accuracy within 1 frame
 - Video sync drift <1 frame over 10 seconds
@@ -117,11 +120,13 @@ Before proceeding to Phase 1, must validate:
 ## Technology Stack
 
 ### Backend (Phase 1)
+
 - **Python 3.11+**: FastAPI, uvicorn
 - **FFmpeg**: Video metadata extraction
 - **Testing**: pytest
 
 ### Frontend
+
 - **React 18**: UI framework
 - **TypeScript**: Type safety
 - **Vite**: Build tool
@@ -129,11 +134,13 @@ Before proceeding to Phase 1, must validate:
 - **react-konva**: Canvas annotations (Phase 1)
 
 ### Testing
+
 - **Playwright**: E2E cross-browser testing
 - **Vitest**: Frontend unit tests (Phase 1)
 - **pytest**: Backend unit tests (Phase 1)
 
 ### Deployment
+
 - **Docker**: Containerization
 - **Raspberry Pi 4**: 8GB RAM, Ubuntu 22.04 LTS (ARM64)
 
@@ -142,6 +149,7 @@ Before proceeding to Phase 1, must validate:
 This project follows a **requirements-driven development** approach with formal requirements, phased implementation, and comprehensive validation.
 
 ### Key Artifacts
+
 - **Requirements** (`REQUIREMENTS.md`) - Source of truth for what to build
 - **PRPs** - Implementation guides with patterns and gotchas
 - **Project Plan** (`PROJECT_PLAN.md`) - Task tracking and coordination
@@ -150,6 +158,7 @@ This project follows a **requirements-driven development** approach with formal 
 ## Contributing
 
 This project is developed using an AI-assisted workflow. See **[CLAUDE.md](CLAUDE.md)** for:
+
 - Development philosophy (KISS, YAGNI, design principles)
 - Agent coordination workflow
 - Requirements-driven development process

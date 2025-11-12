@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  * Phase 0 - Task 0.2: Validates frame-accurate video control
  *
  * Requirements Validated:
- * - REQ-F-FRAME-001: Frame stepping (coarse: ~5 frames, fine: 1 frame)
+ * - REQ-F-FRAME-001: Frame stepping (coarse: 5 frames, fine: 1 frame)
  * - REQ-F-FRAME-002: Frame counter display accuracy
  * - REQ-F-FRAME-003: Seeking precision (within 1 frame)
  * - REQ-NF-P-004: Frame step response time (<100ms)
@@ -88,8 +88,27 @@ test.describe('Frame-Accurate Video Control', () => {
      */
     const frameCounter = page.locator('[data-testid="frame-counter"]');
     const stepButton = page.locator('[data-testid="step-forward-fine"]');
+    const video = page.locator('[data-testid="video-element"]');
 
-    // Get initial frame number
+    // Seek directly to frame ~100 to avoid unreliable seeking near frame 0 in headless browsers
+    await video.evaluate((v: HTMLVideoElement) => {
+      v.currentTime = 100 / 30; // Seek to frame 100 at 30fps
+      v.pause();
+    });
+
+    // Wait for frame counter to update to ~100
+    await page.waitForFunction(
+      () => {
+        const counter = document.querySelector('[data-testid="frame-counter"]');
+        if (!counter) return false;
+        const text = counter.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame >= 95; // Allow some tolerance for seek
+      },
+      { timeout: 2000 }
+    );
+
+    // Get initial frame number after seeking
     const initialText = (await frameCounter.textContent()) || '';
     const initialFrame = parseInt(initialText.match(/Frame (\d+)/)?.[1] || '0');
 
@@ -116,10 +135,9 @@ test.describe('Frame-Accurate Video Control', () => {
     const finalText = (await frameCounter.textContent()) || '';
     const finalFrame = parseInt(finalText.match(/Frame (\d+)/)?.[1] || '0');
 
-    // Verify frame accuracy (within 1 frame tolerance)
+    // Verify frame accuracy
     const frameDiff = finalFrame - initialFrame;
-    expect(frameDiff).toBeGreaterThanOrEqual(0);
-    expect(frameDiff).toBeLessThanOrEqual(2); // Allow up to 1 frame error
+    expect(frameDiff).toBe(1); // Target exact 1 frame step
 
     // Log latency for analysis
     console.log(`Frame step latency: ${latency}ms`);
@@ -138,16 +156,28 @@ test.describe('Frame-Accurate Video Control', () => {
      * Acceptance Criteria: Fine step backward button moves exactly 1 frame back
      */
     const frameCounter = page.locator('[data-testid="frame-counter"]');
-    const stepForward = page.locator('[data-testid="step-forward-fine"]');
     const stepBackward = page.locator('[data-testid="step-backward-fine"]');
+    const video = page.locator('[data-testid="video-element"]');
 
-    // Step forward a few frames first to have room to step back
-    for (let i = 0; i < 10; i++) {
-      await stepForward.click();
-      await page.waitForTimeout(50);
-    }
+    // Seek directly to frame ~100 to avoid unreliable seeking near frame 0 in headless browsers
+    await video.evaluate((v: HTMLVideoElement) => {
+      v.currentTime = 100 / 30; // Seek to frame 100 at 30fps
+      v.pause();
+    });
 
-    // Get frame number after stepping forward
+    // Wait for frame counter to update to ~100
+    await page.waitForFunction(
+      () => {
+        const counter = document.querySelector('[data-testid="frame-counter"]');
+        if (!counter) return false;
+        const text = counter.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame >= 95; // Allow some tolerance for seek
+      },
+      { timeout: 2000 }
+    );
+
+    // Get frame number after seeking
     const beforeText = (await frameCounter.textContent()) || '';
     const beforeFrame = parseInt(beforeText.match(/Frame (\d+)/)?.[1] || '0');
 
@@ -170,19 +200,37 @@ test.describe('Frame-Accurate Video Control', () => {
     const afterText = (await frameCounter.textContent()) || '';
     const afterFrame = parseInt(afterText.match(/Frame (\d+)/)?.[1] || '0');
 
-    // Verify backward step (within 1 frame tolerance)
+    // Verify backward step
     const frameDiff = beforeFrame - afterFrame;
-    expect(frameDiff).toBeGreaterThanOrEqual(0);
-    expect(frameDiff).toBeLessThanOrEqual(2);
+    expect(frameDiff).toBe(1); // Target exact 1 frame step
   });
 
-  test('should step forward by ~5 frames (coarse stepping)', async ({ page }) => {
+  test('should step forward by 5 frames (coarse stepping)', async ({ page }) => {
     /**
      * Validates: REQ-F-FRAME-001 (coarse stepping)
-     * Acceptance Criteria: Coarse step forward button advances ~5 frames
+     * Acceptance Criteria: Coarse step forward button advances 5 frames
      */
     const frameCounter = page.locator('[data-testid="frame-counter"]');
     const stepButton = page.locator('[data-testid="step-forward-coarse"]');
+    const video = page.locator('[data-testid="video-element"]');
+
+    // Seek directly to frame ~100 to avoid unreliable seeking near frame 0 in headless browsers
+    await video.evaluate((v: HTMLVideoElement) => {
+      v.currentTime = 100 / 30; // Seek to frame 100 at 30fps
+      v.pause();
+    });
+
+    // Wait for frame counter to update to ~100
+    await page.waitForFunction(
+      () => {
+        const counter = document.querySelector('[data-testid="frame-counter"]');
+        if (!counter) return false;
+        const text = counter.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame >= 95; // Allow some tolerance for seek
+      },
+      { timeout: 2000 }
+    );
 
     const initialText = (await frameCounter.textContent()) || '';
     const initialFrame = parseInt(initialText.match(/Frame (\d+)/)?.[1] || '0');
@@ -207,26 +255,37 @@ test.describe('Frame-Accurate Video Control', () => {
 
     const frameDiff = finalFrame - initialFrame;
 
-    // Verify coarse step moves ~5 frames (tolerance: 3-7 frames)
-    expect(frameDiff).toBeGreaterThanOrEqual(3);
-    expect(frameDiff).toBeLessThanOrEqual(7);
+    // Verify coarse step moves 5 frames
+    expect(frameDiff).toBe(5); // Target exact 5 frames step
 
-    console.log(`Coarse step moved ${frameDiff} frames (target: ~5)`);
+    console.log(`Coarse step moved ${frameDiff} frames (target: 5)`);
   });
 
-  test('should step backward by ~5 frames (coarse stepping)', async ({ page }) => {
+  test('should step backward by 5 frames (coarse stepping)', async ({ page }) => {
     /**
      * Validates: REQ-F-FRAME-001 (coarse stepping backward)
      */
     const frameCounter = page.locator('[data-testid="frame-counter"]');
-    const stepForward = page.locator('[data-testid="step-forward-coarse"]');
     const stepBackward = page.locator('[data-testid="step-backward-coarse"]');
+    const video = page.locator('[data-testid="video-element"]');
 
-    // Step forward several times to have room to step back
-    for (let i = 0; i < 3; i++) {
-      await stepForward.click();
-      await page.waitForTimeout(100);
-    }
+    // Seek directly to frame ~100 to avoid unreliable seeking near frame 0 in headless browsers
+    await video.evaluate((v: HTMLVideoElement) => {
+      v.currentTime = 100 / 30; // Seek to frame 100 at 30fps
+      v.pause();
+    });
+
+    // Wait for frame counter to update to ~100
+    await page.waitForFunction(
+      () => {
+        const counter = document.querySelector('[data-testid="frame-counter"]');
+        if (!counter) return false;
+        const text = counter.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame >= 95; // Allow some tolerance for seek
+      },
+      { timeout: 2000 }
+    );
 
     const beforeText = (await frameCounter.textContent()) || '';
     const beforeFrame = parseInt(beforeText.match(/Frame (\d+)/)?.[1] || '0');
@@ -249,12 +308,11 @@ test.describe('Frame-Accurate Video Control', () => {
     const afterText = (await frameCounter.textContent()) || '';
     const afterFrame = parseInt(afterText.match(/Frame (\d+)/)?.[1] || '0');
 
+    // Verify coarse step moves 5 frames
     const frameDiff = beforeFrame - afterFrame;
+    expect(frameDiff).toBe(5); // Target exact 5 frames step
 
-    expect(frameDiff).toBeGreaterThanOrEqual(3);
-    expect(frameDiff).toBeLessThanOrEqual(7);
-
-    console.log(`Coarse step backward moved ${frameDiff} frames (target: ~5)`);
+    console.log(`Coarse step backward moved ${frameDiff} frames (target: 5)`);
   });
 
   test('should handle requestVideoFrameCallback API availability', async ({ page }) => {

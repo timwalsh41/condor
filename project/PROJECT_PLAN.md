@@ -28,10 +28,11 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
   - Intuitive sync workflow discoverable without documentation
   - Comprehensive deployment documentation
 - **Technology Stack**:
-  - **Backend**: Python 3.11+, FastAPI, uvicorn, ffmpeg (for metadata extraction)
-  - **Frontend**: React 18, TypeScript, Vite, Zustand (state), react-konva (annotations)
+  - **Backend**: Python 3.11+, FastAPI, uvicorn, ffprobe (metadata extraction)
+  - **Frontend**: React 18, TypeScript, Vite, WebCodecs API, mp4box.js, Canvas API, react-konva (annotations), Zustand (state)
   - **Testing**: Playwright (E2E cross-browser), Vitest (unit tests), pytest (backend)
   - **Deployment**: Docker, Raspberry Pi 4 8GB, Ubuntu 22.04 LTS (arm64)
+  - **Browser Requirements**: Chrome 94+, Firefox 130+, Safari 17.4+ (desktop & mobile)
 
 ## Beyond MVP (Future Phases)
 
@@ -48,11 +49,12 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 ## Current Status
 
 - **Phase**: Phase 0 - Technical Spikes (In Progress)
-- **Last Updated**: 2025-11-12 - Task 0.2.1 completed, all cross-browser tests passing (21/21)
-- **Next Priority**: Task 0.3 (Dual Video Sync Spike)
-- **Overall Progress**: 40 planned, 2 in progress, 0 implemented (awaiting validation), 4 validated (~9% validated)
+- **Last Updated**: 2025-11-14 - Tasks 0.2/0.2.1 completed but failed exact frame requirements, pivoting to WebCodecs (Task 0.3)
+- **Next Priority**: Task 0.3 (WebCodecs Frame Control Spike)
+- **Overall Progress**: 40 planned, 1 in progress, 0 implemented (awaiting validation), 0 validated (~0% validated)
   - _Status synchronized with `REQUIREMENTS.md` "Requirements Coverage Analysis" section_
-- **Task 0.2.1 Status**: Complete - 21/21 tests passing (100% pass rate), frame stepping fully validated across Chrome, Firefox, and WebKit
+  - _Note: Tasks 0.2/0.2.1 validated requirements with ±1 frame tolerance, NOT exact frame accuracy_
+- **Critical Discovery**: HTML5 video `currentTime` seeking + `requestVideoFrameCallback` cannot achieve deterministic exact frame positioning required for dual-video sync. Pivoting to WebCodecs API for frame-by-frame decode control.
 
 ## Task Breakdown
 
@@ -87,8 +89,6 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Dependencies**: None
 - **Risk Level**: Low
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 1 (Tasks 1.1, 1.4), Spike 4 (Tasks 4.1-4.3)
-- **Estimated Sessions**: 0.5-1 session
-- **Actual Sessions**: 0.5 session
 - **Technical Notes**:
   - Use minimal dependencies for spike - don't install full app stack yet
   - Focus on `requestVideoFrameCallback` API availability
@@ -102,28 +102,28 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
-#### Task 0.2: Cross-Browser Testing Infrastructure
+#### Task 0.2: Cross-Browser Testing Infrastructure (requestVideoFrameCallback Approach)
 
-- **Status**: Complete
+- **Status**: Complete - Failed to Meet Exact Frame Requirements
 - **Started**: 2025-10-29
 - **Completed**: 2025-11-09
 - **Requirements**: REQ-F-FRAME-001 (Frame Stepping), REQ-F-FRAME-002 (Frame Counter), REQ-F-FRAME-003 (Seeking Precision), REQ-NF-P-004 (Frame Step Response), REQ-NF-BC-001 (Browser Compatibility)
 - **Scope**: Implement and validate frame-accurate video control using `requestVideoFrameCallback` across all target browsers
+- **Outcome**: Tests passed with ±1 frame tolerance but failed with exact frame matching (0 tolerance)
 - **Acceptance Criteria**:
   - ✅ `useFrameCallback` hook implemented with frame detection from `metadata.mediaTime`
   - ✅ Frame stepping component with forward/backward controls (coarse: ~5 frames, fine: 1 frame)
-  - ✅ Frame counter displays accurately (within 1 frame) - validated across browsers
+  - ⚠️ Frame counter displays accurately (within ±1 frame) - NOT exact frame accuracy required
   - ✅ Spike tests pass in Firefox - 7/7 tests passing (100%)
   - ⚠️ Spike tests pass in Chrome - 6/7 tests passing (86%, 1 logic bug in backward stepping)
   - ⚠️ Spike tests pass in WebKit - 5/7 tests passing (71%, 2 timeout failures)
   - ⚠️ Frame step latency <100ms measured via Playwright - logged but not enforced due to container overhead
-  - ✅ Scrubber seeking lands within 1 frame of target - validated across browsers
+  - ⚠️ Scrubber seeking lands within ±1 frame of target - NOT deterministic exact frame positioning
   - ✅ Spike documentation created and updated (`docs/spike/FRAME_CONTROL.md`, `PRPs/MVP_PRP.md`)
 - **Dependencies**: Task 0.1
 - **Risk Level**: **HIGH** - Core functionality for entire application
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 1 (Tasks 1.2-1.5), Known Gotchas section, WebKit callback limitation (lines 461-466)
-- **Estimated Sessions**: 1 session
-- **Actual Sessions**: 1.5 sessions (implementation + cross-browser testing)
+- **Conclusion**: `requestVideoFrameCallback` + `video.currentTime` seeking cannot achieve deterministic exact frame positioning required for dual-video sync. Approach abandoned in favor of WebCodecs (Task 0.3).
 - **Technical Notes**:
   - CRITICAL: Use `metadata.mediaTime` (NOT `metadata.presentationTime`)
   - Frame number calculation: `Math.round(metadata.mediaTime * framerate)`
@@ -163,89 +163,146 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - WebKit: 5/7 passing (71%) - 2 timeout failures
   - Overall: 18/21 tests passing (86%)
 - **Requirements Validated**:
-  - ✅ REQ-F-FRAME-001: Frame stepping (coarse: ~5 frames, fine: 1 frame)
-  - ✅ REQ-F-FRAME-002: Frame counter display accuracy
-  - ✅ REQ-F-FRAME-003: Seeking precision (within 1 frame)
+  - ⚠️ REQ-F-FRAME-001: Frame stepping - works with ±1 frame tolerance, NOT exact
+  - ⚠️ REQ-F-FRAME-002: Frame counter - accurate within ±1 frame, NOT exact
+  - ⚠️ REQ-F-FRAME-003: Seeking precision - within ±1 frame, NOT deterministic
   - ⚠️ REQ-NF-P-004: Frame step response time (<100ms) - logged but not enforced due to container overhead
-  - ✅ REQ-NF-BC-001: Browser compatibility (Chrome, Firefox, WebKit) with noted WebKit limitation
+  - ✅ REQ-NF-BC-001: Browser compatibility (Chrome, Firefox, WebKit) - API available but insufficient
 - **Known Issues**:
+  - **Critical**: HTML5 video.currentTime seeking is non-deterministic - cannot guarantee exact frame positioning
+  - **Critical**: Retry loop with MAX_ATTEMPTS=10 indicates approach doesn't reliably hit target frames
+  - **Blocker**: Dual-video sync impossible without deterministic frame positioning
   - Chrome: 1 logic bug in backward stepping (steps forward instead of backward) - test passes in Firefox
   - WebKit: 2 timeout failures (frame counter during playback, backward coarse stepping) - may be related to callback timing
-  - Overall 18/21 tests passing (86%) - core functionality works across all browsers
-  - Manual macOS/Safari validation needed to confirm if WebKit issues are container-specific
+  - Overall 18/21 tests passing (86%) with relaxed assertions - 0% with exact frame matching
 
 ---
 
-#### Task 0.2.1: Cross-Browser Test Issue Resolution
+#### Task 0.2.1: Cross-Browser Test Issue Resolution (requestVideoFrameCallback Approach)
 
-- **Status**: Completed
+- **Status**: Complete - Failed to Meet Exact Frame Requirements
 - **Completed**: 2025-11-12
 - **Priority**: High
 - **Requirements**: REQ-NF-BC-001 (Browser Compatibility), REQ-F-FRAME-001 (Frame Stepping), REQ-F-FRAME-002 (Frame Counter), REQ-F-FRAME-003 (Seeking Precision)
 - **Scope**: Investigate and resolve test failures across Chrome and WebKit browsers, including logic bugs and timeout issues
+- **Outcome**: Achieved 21/21 tests passing with ±1 frame tolerance assertions, but exact frame matching (0 tolerance) still fails
 - **Final Test Results (2025-11-12)**:
-  - **Firefox**: 7/7 passing (100%) ✅
-  - **Chrome**: 7/7 passing (100%) ✅
-  - **WebKit**: 7/7 passing (100%) ✅
-  - **Overall**: 21/21 tests passing (100%)
+  - **Firefox**: 7/7 passing (100%) with ±1 frame tolerance ⚠️
+  - **Chrome**: 7/7 passing (100%) with ±1 frame tolerance ⚠️
+  - **WebKit**: 7/7 passing (100%) with ±1 frame tolerance ⚠️
+  - **Overall**: 21/21 tests passing (100%) with relaxed assertions
+  - **With Exact Frame Assertions**: 12/21 tests failing - step operations don't reliably hit target frames
   - **Execution Time**: 19 seconds (all browsers)
-- **Issues Resolved**:
+- **Issues "Resolved" (but not truly fixed)**:
   1. **WebKit Test Failures**: Fixed by modifying backward stepping tests to seek directly to frame ~100, avoiding unreliable seeking near frame 0
   2. **Headless Mode**: Enabled headless mode for all browsers for container compatibility
   3. **Test Performance**: Improved test efficiency with direct video seeking vs frame-by-frame approach
+  4. **Relaxed Assertions**: Changed test assertions from exact match to ±1 frame tolerance to make tests pass
 - **Acceptance Criteria**:
-  - ✅ All 21 tests passing across Firefox, Chrome, and WebKit (7/7 each)
-  - ✅ Chrome backward stepping test failure fixed
-  - ✅ WebKit timeout issues resolved
+  - ✅ All 21 tests passing across Firefox, Chrome, and WebKit (7/7 each) - WITH RELAXED ASSERTIONS
+  - ⚠️ Chrome backward stepping test failure fixed - but still not exact frame positioning
+  - ⚠️ WebKit timeout issues resolved - but still not deterministic seeking
   - ✅ Documentation updated based on findings
   - ✅ Headless mode enabled for CI/container compatibility
 - **Dependencies**: Task 0.2
-- **Risk Level**: **HIGH** - Successfully resolved, test suite now fully functional across all browsers
+- **Risk Level**: **CRITICAL** - Tests pass but don't validate actual requirements (exact frame accuracy)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Updated with test fixes and headless mode configuration
-- **Estimated Sessions**: 0.5-1 sessions
-- **Actual Sessions**: 1 session
+- **Conclusion**: Relaxing assertions to ±1 frame tolerance made tests pass, but this doesn't meet the actual requirement for exact frame control needed for dual-video sync. The `requestVideoFrameCallback` + `video.currentTime` approach is fundamentally limited by browser video seeking behavior.
 - **Deliverables**:
-  - ✅ 100% test pass rate across all browsers
+  - ✅ 100% test pass rate across all browsers (with relaxed assertions)
   - ✅ Playwright configuration updated for headless mode
   - ✅ Test suite optimized for performance (19s execution)
   - ✅ Validation report updated with requirement validation status
-  - ✅ Documentation updated (FRAME_CONTROL.md, MVP_PRP.md)
-- **Requirements Validated**:
-  - ✅ REQ-F-FRAME-001: Frame Stepping - FULLY VALIDATED
-  - ✅ REQ-F-FRAME-002: Frame Counter Display - FULLY VALIDATED
-  - ✅ REQ-F-FRAME-003: Seeking Precision - FULLY VALIDATED
-  - ✅ REQ-NF-BC-001: Browser Compatibility - FULLY VALIDATED
+  - ✅ Documentation updated (`FRAME_CONTROL.md` - now deprecated, `MVP_PRP.md`)
+- **Requirements Status**:
+  - ⚠️ REQ-F-FRAME-001: Frame Stepping - VALIDATED with ±1 tolerance, NOT with exact accuracy
+  - ⚠️ REQ-F-FRAME-002: Frame Counter Display - VALIDATED with ±1 tolerance, NOT exact
+  - ⚠️ REQ-F-FRAME-003: Seeking Precision - VALIDATED with ±1 tolerance, NOT deterministic
+  - ⚠️ REQ-NF-BC-001: Browser Compatibility - API available but insufficient for requirements
 
 ---
 
-#### Task 0.3: Dual Video Sync Spike
+#### Task 0.3: WebCodecs Frame Control Spike
 
 - **Status**: Not Started
-- **Requirements**: REQ-F-SYNC-003 (Sync Offset Calculation), REQ-F-PLAY-001 (Unified Controls), REQ-NF-P-001 (Playback Smoothness)
-- **Scope**: Implement and validate synchronized dual video playback with offset maintenance
+- **Requirements**: REQ-F-FRAME-001 (Frame Stepping), REQ-F-FRAME-002 (Frame Counter), REQ-F-FRAME-003 (Seeking Precision), REQ-NF-P-004 (Frame Step Response), REQ-NF-BC-001 (Browser Compatibility)
+- **Scope**: Implement and validate frame-accurate video control using WebCodecs API for deterministic exact frame positioning
+- **Rationale**: Tasks 0.2 and 0.2.1 proved that `requestVideoFrameCallback` + `video.currentTime` seeking cannot achieve exact frame accuracy. WebCodecs provides direct frame-by-frame decode access for deterministic positioning.
 - **Acceptance Criteria**:
-  - Dual video component with two side-by-side video elements
-  - Sync offset calculation hook: `offset = sync_frame_B - sync_frame_A`
-  - Sync maintenance during playback using `requestAnimationFrame`
-  - Drift detection and correction (adjust if >1 frame difference)
-  - Sync maintained during frame stepping, seeking, and speed changes
-  - Spike tests pass (`tests/spikes/test_video_sync.spec.ts`)
-  - Drift <1 frame over 10 second playback test
-  - Spike documentation created (`docs/spike/VIDEO_SYNC.md`)
-- **Dependencies**: Task 0.2, task 0.2.1
-- **Risk Level**: **HIGH** - Core functionality for dual video comparison
-- **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 2 (Tasks 2.1-2.6), "Known Gotchas" section
-- **Estimated Sessions**: 1-1.5 sessions
+  - WebCodecs VideoDecoder successfully decodes H.264 and H.265 MP4 files
+  - MP4 container parsed using mp4box.js for codec configuration and frame data
+  - Frame-by-frame stepping with exact frame accuracy (0 frame tolerance, not ±1)
+  - Frame counter displays exact frame numbers with perfect accuracy
+  - Decode latency measured and <50ms (REQ-NF-P-004 compliance)
+  - Tests pass with exact frame assertions in Chrome, Firefox, Safari (desktop & mobile)
+  - Canvas rendering displays decoded VideoFrame objects correctly
+  - Memory management with LRU cache for decoded frames (~30 frame window)
+  - Spike tests pass (`tests/spikes/test_webcodecs_frame_control.spec.ts`)
+  - Spike documentation created (`docs/spike/WEBCODECS_FRAME_CONTROL.md`)
+- **Dependencies**: Task 0.1
+- **Risk Level**: **HIGH** - Core functionality pivot, new technology
+- **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 1 (revised with WebCodecs approach)
 - **Technical Notes**:
-  - CRITICAL: `timeupdate` event is TOO COARSE (15-250ms) - use `requestAnimationFrame`
-  - Sync formula (MVP same framerate): `position_B = sync_frame_B + (position_A - sync_frame_A)`
-  - Check drift every frame, adjust only if >1 frame to avoid stutter
-  - Only adjust sync when paused or with small corrections during playback
-  - Pause both videos if one buffers to maintain <1 frame sync accuracy
+  - Use VideoDecoder with EncodedVideoChunk for frame-by-frame decode
+  - Parse MP4 container with mp4box.js to extract codec config and sample data
+  - Decode frames to VideoFrame objects, render to canvas via ctx.drawImage()
+  - Frame index = exact frame number (deterministic, no seeking ambiguity)
+  - Store decoded frames in LRU cache (memory: ~30 frames × ~1MB/frame = ~30MB per video)
+  - Browser support: Chrome 94+, Firefox 130+, Safari 17.4+ (desktop & mobile)
+  - Show clear error message for unsupported browsers (acceptable for MVP)
+  - Always call videoFrame.close() to release memory (critical!)
+  - Handle keyframe dependencies: decode from nearest keyframe when seeking
+  - Hardware decode automatically used when available
+- **Deliverables**:
+  - WebCodecsPlayer component using VideoDecoder
+  - MP4Parser utility wrapping mp4box.js
+  - FrameCache utility with LRU eviction
+  - useVideoDecoder hook for React integration
+  - Unit tests for exact frame accuracy (0 tolerance)
+  - User-facing frame stepping demo (runnable via `npm run dev` from `frontend/`)
+  - Spike documentation with WebCodecs patterns and gotchas
 
 ---
 
-#### Task 0.4: Canvas Overlay Spike
+#### Task 0.4: Dual Video Sync Spike
+
+- **Status**: Not Started
+- **Requirements**: REQ-F-SYNC-003 (Sync Offset Calculation), REQ-F-PLAY-001 (Unified Controls), REQ-F-PLAY-002 (Playback Speed Control), REQ-NF-P-001 (Playback Smoothness)
+- **Scope**: Implement and validate synchronized dual video playback with hybrid approach: WebCodecs for stepping/seeking, HTML5 video for continuous playback
+- **Rationale**: WebCodecs provides exact frame positioning for analysis (stepping/seeking), while HTML5 video provides smooth continuous playback with variable speed control. Hybrid approach leverages strengths of each technology.
+- **Acceptance Criteria**:
+  - Dual video component with two side-by-side players (WebCodecs canvas + HTML5 video)
+    - User-exercisable demo extended from task 0.3 - side by side sync demo in browser
+  - WebCodecs mode: Exact frame stepping/seeking (0 frame tolerance)
+  - HTML5 playback mode: Smooth continuous playback at variable speeds (0.25x, 0.5x, 1x, 2x)
+  - Mode switching: Seamless toggle between stepping and playback modes
+  - Sync-back on pause: HTML5 → WebCodecs transition restores exact sync offset (corrects any ±1 frame drift)
+  - Sync offset calculation: `offset = sync_frame_B - sync_frame_A`
+  - Sync maintained during stepping (exact, 0 tolerance) and playback (approximate ±1 frame, acceptable)
+    - Recover frame-exact sync (0 tolerance) on pause
+  - Frame counter displays accurate frame numbers in both modes
+  - Spike tests pass (`tests/spikes/test_video_sync.spec.ts`)
+    - Test: Stepping mode maintains exact sync (0 frame tolerance)
+    - Test: Playback mode maintains approximate sync (±1 frame acceptable)
+    - Test: Pause during playback restores exact sync offset
+  - Performance validated: Playback smooth at all speeds, stepping latency <50ms
+  - Spike documentation created (`docs/spike/VIDEO_SYNC.md`)
+- **Dependencies**: Task 0.3 (WebCodecs implementation)
+- **Risk Level**: **LOW** - Combines validated WebCodecs stepping with proven HTML5 playback from Tasks 0.2/0.2.1
+- **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 2 (Tasks 2.1-2.6), "Known Gotchas" section
+- **Technical Notes**:
+  - Hybrid architecture: WebCodecs for exact frame control (stepping/seeking), HTML5 for continuous playback
+  - During stepping: Both videos use WebCodecs decoders, exact sync maintained (0 frame tolerance)
+  - During playback: Both videos use HTML5 elements, sync maintained within ±1 frame (acceptable for motion)
+  - Sync-back pattern on pause: `frameA = round(videoA.currentTime × framerate); frameB = frameA + syncOffset`
+  - WebCodecs canvas and HTML5 video overlay in same container, only one visible at a time
+  - Variable speed via `video.playbackRate` (0.25x, 0.5x, 1x, 2x)
+  - Handle different video lengths by calculating effective playback range
+  - Both videos must have same framerate for MVP (validation at upload)
+
+---
+
+#### Task 0.5: Canvas Overlay Spike
 
 - **Status**: Not Started
 - **Requirements**: REQ-F-ANNOT-002 (Annotation Rendering), REQ-NF-P-002 (Annotation Performance)
@@ -263,7 +320,6 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Dependencies**: Task 0.1
 - **Risk Level**: **MEDIUM** - Performance-critical feature
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 3 (Tasks 3.1-3.5), Known Gotchas section
-- **Estimated Sessions**: 0.5-1 session
 - **Technical Notes**:
   - CRITICAL: Canvas dimensions MUST match video display EXACTLY
   - Use `video.clientWidth/clientHeight` for canvas sizing
@@ -274,7 +330,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
-#### Task 0.5: CI Setup for Cross-Browser Testing
+#### Task 0.6: CI Setup for Cross-Browser Testing
 
 - **Status**: Not Started
 - **Requirements**: REQ-NF-BC-001 (Browser Compatibility), REQ-NF-M-001 (Code Quality)
@@ -286,10 +342,9 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Test artifacts (screenshots, videos) uploaded on failure
   - Test results visible in CI logs
   - Workflow passes with all tests green
-- **Dependencies**: Tasks 0.2, 0.3, 0.4 (tests must exist)
+- **Dependencies**: Tasks 0.3, 0.4, 0.5 (tests must exist)
 - **Risk Level**: Low
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 4 (Tasks 4.1-4.3)
-- **Estimated Sessions**: 0.5 session
 - **Technical Notes**:
   - Run spike tests in parallel across browsers for speed
   - Use Playwright's built-in retry mechanism for flaky tests
@@ -297,29 +352,27 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
-#### Task 0.6: Raspberry Pi 4 Performance Validation
+#### Task 0.7: Raspberry Pi 4 Performance Validation
 
 - **Status**: Not Started
 - **Requirements**: REQ-NF-P-001 (Playback Smoothness), REQ-NF-PT-001 (Raspberry Pi Deployment)
-- **Scope**: Manual performance testing on target hardware (Raspberry Pi 4 8GB)
+- **Scope**: Manual backend performance testing on target hardware (Raspberry Pi 4 8GB)
 - **Acceptance Criteria**:
-  - Spike deployed to Raspberry Pi 4 8GB
-  - Dual 1080p/30fps playback achieves >25fps average
-  - CPU usage <80% during dual video playback
-  - Memory usage ≤4GB
-  - No frame drops or stuttering observed
-  - Performance metrics documented in spike docs
-  - Confidence level 8+/10 for Phase 1 full implementation
-- **Dependencies**: Tasks 0.2, 0.3, 0.4
-- **Risk Level**: **MEDIUM** - Target platform validation
+  - Backend deployed to Raspberry Pi 4 8GB
+  - Video upload endpoint works correctly
+  - Video streaming with range requests works correctly
+  - ffprobe metadata extraction works on arm64
+  - Storage and cleanup working correctly
+  - Backend performance acceptable (CPU, memory, disk I/O)
+  - Deployment documentation created (`docs/deployment/SPIKE_DEPLOYMENT.md`)
+- **Dependencies**: Tasks 0.3, 0.4, 0.5
+- **Risk Level**: **LOW** - Pi 4 only runs backend, not client-side WebCodecs
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 2 (Task 2.6), REQ-NF-P-001 acceptance criteria
-- **Estimated Sessions**: 0.5 session (manual testing)
 - **Technical Notes**:
   - Use `htop` or `top` for CPU monitoring
-  - Use `free -h` for memory monitoring
-  - Test with actual 1080p/30fps video files (not synthetic test patterns)
-  - Chrome DevTools Performance profiling for frame drop analysis
-  - Document any ARM-specific issues for Phase 1
+  - Use `df -h` for disk space monitoring
+  - Test video upload/streaming, NOT client-side decode (users bring own devices)
+  - Validate ffprobe works on arm64 Ubuntu
   - Create clear and concise instructions to manually deploy code and run tests in `docs/deployment/SPIKE_DEPLOYMENT.md`
 
 ---
@@ -328,12 +381,12 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 **Before proceeding to Phase 1, validate**:
 
-- [ ] All spike tests pass in CI across Chrome, Firefox, WebKit
-- [ ] Frame stepping accuracy validated (within 1 frame)
-- [ ] Video sync drift <1 frame over 10 seconds
+- [ ] All spike tests pass in CI across Chrome, Firefox, Safari
+- [ ] Frame stepping exact accuracy validated (0 frame tolerance)
+- [ ] Video sync perfect (0 frame drift) over 10 seconds
 - [ ] Canvas overlay performs smoothly (latency ≤16ms)
-- [ ] Raspberry Pi 4 performance acceptable (dual 1080p/30fps smooth)
-- [ ] Spike documentation complete (3 docs with gotchas, recommendations)
+- [ ] Raspberry Pi 4 backend performance acceptable (video upload/streaming)
+- [ ] Spike documentation complete (WebCodecs patterns, gotchas, recommendations)
 - [ ] Confidence level 8+/10 for Phase 1 full implementation
 
 **Integration Report**: `validation/INTEGRATION_REPORT_PHASE_0_SPIKE.md` (created by validation-gates agent)
@@ -365,7 +418,6 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Dependencies**: Phase 0 completion
 - **Risk Level**: Medium
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 1 (all tasks)
-- **Estimated Sessions**: 1 session
 - **Technical Notes**:
   - Review spike documentation in `docs/spike/` for learnings and technical implementation details
   - Use `aiofiles` for async file I/O
@@ -391,7 +443,6 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Dependencies**: Task 1.1
 - **Risk Level**: Low
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 2 (all tasks)
-- **Estimated Sessions**: 1 session
 - **Technical Notes**:
   - CSS: Tailwind recommended for speed
   - Video source: `/api/video/{video_id}`
@@ -403,23 +454,23 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 - **Status**: Not Started
 - **Requirements**: REQ-F-FRAME-001, REQ-F-FRAME-002, REQ-F-PLAYBACK-001, REQ-F-PLAY-002
-- **Scope**: Integrate Phase 0 frame control spike into main application
+- **Scope**: Integrate Phase 0 WebCodecs frame control spike into main application
 - **Acceptance Criteria**:
-  - `useFrameCallback` hook migrated from spike
-  - FrameController component integrated with VideoPlayer
-  - PlaybackControls component with play/pause, coarse/fine step buttons, scrubber
-  - Frame counter display: "Frame X of Y"
+  - WebCodecsPlayer component migrated from spike
+  - VideoDecoder integration with React lifecycle
+  - MP4Parser and FrameCache utilities integrated
+  - PlaybackControls component with play/pause, coarse/fine step buttons
+  - Frame counter display: "Frame X of Y" with exact accuracy
   - SpeedControl component (dropdown: 0.1x, 0.25x, 0.5x, 0.75x, 1x, 2x)
   - Current frame number stored in Zustand store
-  - E2E tests pass: upload → play → frame step → speed change → frame counter accurate
-- **Dependencies**: Task 1.2, Phase 0 Task 0.2
+  - E2E tests pass: upload → play → frame step → speed change → frame counter exact
+- **Dependencies**: Task 1.2, Phase 0 Task 0.3 (WebCodecs Frame Control)
 - **Risk Level**: Low (validated in Phase 0)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 3 (all tasks)
-- **Estimated Sessions**: 1 session
 - **Technical Notes**:
-  - Reuse patterns from spike exactly - they're validated
-  - Set `video.playbackRate` for speed control
-  - Frame counter updates via `requestVideoFrameCallback`
+  - Reuse WebCodecs patterns from spike exactly - they're validated
+  - VideoDecoder configuration from MP4 codec data
+  - Frame counter updates via decoded frame index (deterministic, not currentTime)
 
 ---
 
@@ -438,15 +489,14 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Visual indicators for current mode and sync points
   - Zustand store manages: mode, sync_frame_A, sync_frame_B, offset, effective playback boundaries
   - E2E tests pass: upload 2 videos → Sync Mode → set sync points → verify offset
-- **Dependencies**: Task 1.3, Phase 0 Task 0.3
-- **Risk Level**: Medium (sync logic complexity)
+- **Dependencies**: Task 1.3, Phase 0 Task 0.4 (Dual Video Sync)
+- **Risk Level**: Low (simplified with WebCodecs - was Medium)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 4 (all tasks), REQ-F-SYNC-004 implementation notes
-- **Estimated Sessions**: 1.5 sessions
 - **Technical Notes**:
   - Sync Mode = independent controls, Playback Mode = unified controls
-  - Sync offset formula: `position_B = sync_frame_B + (position_A - sync_frame_A)`
+  - Perfect deterministic sync: `displayFrame(decoderB, frameA + offset)`
   - Duration equalization: calculate effective start/end based on pre/post sync durations
-  - Reuse sync maintenance patterns from Phase 0 spike
+  - No drift correction needed - WebCodecs frame indices are exact
 
 ---
 
@@ -466,7 +516,6 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Dependencies**: Task 1.4
 - **Risk Level**: Low (validated in Phase 0)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 4 (Playback Mode tasks)
-- **Estimated Sessions**: 0.5 session (continuation of Task 1.4)
 - **Technical Notes**:
   - Apply sync offset to video B based on video A position
   - Use `requestAnimationFrame` for continuous drift checking
@@ -489,12 +538,11 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Annotations stored per video in Zustand
   - Konva.Animation active during video playback
   - E2E tests pass: draw each tool type → delete → toggle → persist across playback
-- **Dependencies**: Task 1.3, Phase 0 Task 0.4
+- **Dependencies**: Task 1.3, Phase 0 Task 0.5 (Canvas Overlay)
 - **Risk Level**: Low (validated in Phase 0)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 5 (all tasks)
-- **Estimated Sessions**: 1-1.5 sessions
 - **Technical Notes**:
-  - Canvas dimensions = video.clientWidth/clientHeight (NOT videoWidth/videoHeight)
+  - Canvas dimensions match WebCodecs canvas rendering dimensions
   - Destroy Konva layers on unmount to prevent memory leaks
   - Design for future style customization (color, thickness) but don't implement
 
@@ -519,7 +567,6 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Dependencies**: Task 1.5
 - **Risk Level**: Medium (trim + sync interaction complexity)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 6 (all tasks)
-- **Estimated Sessions**: 1-1.5 sessions
 - **Technical Notes**:
   - Store user-selected trim points AND calculated effective playback positions
   - In Playback Mode, use effective positions from REQ-F-SYNC-004 calculation
@@ -545,7 +592,6 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Dependencies**: Task 1.7
 - **Risk Level**: Low
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 7 (all tasks)
-- **Estimated Sessions**: 0.5-1 session
 - **Technical Notes**:
   - FastAPI lifespan event for background task or separate cron
   - Clean up pattern: cancel `requestVideoFrameCallback`, destroy Konva layers
@@ -571,7 +617,6 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Dependencies**: Task 1.8
 - **Risk Level**: Low
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 8 (UI Polish tasks)
-- **Estimated Sessions**: 0.5-1 session
 - **Technical Notes**:
   - Minimalist, intuitive design philosophy
   - No technical jargon in user-facing text
@@ -596,7 +641,6 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Dependencies**: Task 1.9
 - **Risk Level**: Medium (target hardware validation)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 8 (Documentation tasks)
-- **Estimated Sessions**: 1-1.5 sessions
 - **Technical Notes**:
   - Test on actual Raspberry Pi 4 8GB hardware
   - Validate ARM architecture compatibility (all dependencies)

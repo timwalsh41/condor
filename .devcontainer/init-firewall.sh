@@ -66,9 +66,7 @@ for domain in \
     "astral.sh" \
     "downloads.astral.sh"; do
     echo "Resolving $domain..."
-    # Use +short and filter only for A records (IPv4 addresses)
-    # This automatically follows CNAMEs and returns only IPs
-    ips=$(dig +short A "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
+    ips=$(dig +short "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
     if [ -z "$ips" ]; then
         echo "WARNING: Failed to resolve $domain, skipping..."
         continue

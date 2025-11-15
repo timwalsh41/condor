@@ -1,6 +1,7 @@
 # Product Requirements: Golf Swing Analyzer
 
 ## Document Control
+
 - **Version**: 1.0
 - **Last Updated**: 2025-10-22
 - **Status**: Active
@@ -9,11 +10,13 @@
 ## Product Vision
 
 ### Overview
+
 An open-source golf swing video analysis tool that enables golfers and coaches to compare and annotate swing videos frame-by-frame. The system supports loading one or two videos, synchronizing them temporally, and drawing annotations to highlight swing mechanics. The platform is designed to run on a local server (initially) with future expansion to cloud hosting and mobile platforms.
 
 **Comparable Product**: V1 Golf App - https://v1sports.com/athletes/v1-golf-app/
 
 ### Goals & Objectives
+
 - Enable precise frame-by-frame analysis of golf swings
 - Support side-by-side video comparison with temporal synchronization
 - Provide intuitive annotation tools for swing analysis
@@ -21,18 +24,20 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - Create maintainable, extensible open-source platform
 
 ### Stakeholders & Users
-| Stakeholder | Role | Primary Needs |
-|-------------|------|---------------|
-| Individual Golfers | Primary Users | Personal swing analysis, frame-accurate playback, annotation tools |
-| Golf Coaches | Secondary Users (Future) | Student video access, annotation sharing, feedback delivery |
-| Developers | Maintainers | Clear architecture, comprehensive tests, good documentation |
-| Community Contributors | Open Source | Easy setup, clear contribution guidelines, modular design |
+
+| Stakeholder            | Role                     | Primary Needs                                                      |
+| ---------------------- | ------------------------ | ------------------------------------------------------------------ |
+| Individual Golfers     | Primary Users            | Personal swing analysis, frame-accurate playback, annotation tools |
+| Golf Coaches           | Secondary Users (Future) | Student video access, annotation sharing, feedback delivery        |
+| Developers             | Maintainers              | Clear architecture, comprehensive tests, good documentation        |
+| Community Contributors | Open Source              | Easy setup, clear contribution guidelines, modular design          |
 
 ## Functional Requirements
 
 ### Video Upload (REQ-F-UPLOAD)
 
 #### REQ-F-UPLOAD-001: Local File Upload
+
 - **Description**: System shall support local file upload from user's filesystem
 - **Priority**: Critical
 - **Status**: Planned
@@ -50,6 +55,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - Storage: Temporary disk storage (not memory)
 
 #### REQ-F-UPLOAD-002: Temporary Storage Management
+
 - **Description**: System shall store uploaded videos temporarily on server disk
 - **Priority**: Critical
 - **Status**: Planned
@@ -66,6 +72,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - Implement cleanup cron/background task (part of setup scripts/tools)
 
 #### REQ-F-UPLOAD-003: Framerate Validation (MVP)
+
 - **Description**: System shall validate that both uploaded videos have matching framerates
 - **Priority**: High
 - **Status**: Planned
@@ -84,6 +91,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Video Playback (REQ-F-PLAYBACK)
 
 #### REQ-F-PLAYBACK-001: Single Video Playback
+
 - **Description**: System shall support loading and playing a single video
 - **Priority**: Critical
 - **Status**: Planned
@@ -98,6 +106,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: HTML5 `<video>` element with `requestVideoFrameCallback`
 
 #### REQ-F-PLAYBACK-002: Dual Video Display
+
 - **Description**: System shall support side-by-side display of two videos
 - **Priority**: Critical
 - **Status**: Planned
@@ -112,6 +121,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: Responsive CSS Grid or Flexbox layout
 
 #### REQ-F-PLAYBACK-003: Video Streaming
+
 - **Description**: System shall stream videos efficiently from server
 - **Priority**: High
 - **Status**: Planned
@@ -128,6 +138,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Synchronization Mode (REQ-F-SYNC)
 
 #### REQ-F-SYNC-001: Independent Video Controls
+
 - **Description**: System shall provide Sync Mode where each video has independent controls
 - **Priority**: Critical
 - **Status**: Planned
@@ -145,6 +156,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - When handling videos at different framerates, playback rates should be modified for one video so that the relative progress of the videos is the same during simultaneous playback
 
 #### REQ-F-SYNC-002: Sync Point Selection
+
 - **Description**: System shall allow users to select sync frames for each video
 - **Priority**: Critical
 - **Status**: Planned
@@ -159,6 +171,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: Store sync frame number for each video on switch to Playback mode
 
 #### REQ-F-SYNC-003: Sync Offset Calculation
+
 - **Description**: System shall calculate and store sync offset between videos
 - **Priority**: Critical
 - **Status**: Planned
@@ -173,6 +186,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: For MVP with same framerate: `position_B = sync_frame_B + (position_A - sync_frame_A)`
 
 #### REQ-F-SYNC-004: Playback Duration Equalization
+
 - **Description**: System shall calculate and adjust effective playback start/end points to ensure both videos play for equal durations in Playback Mode
 - **Priority**: Critical
 - **Status**: Planned
@@ -205,11 +219,12 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - **MVP simplification:** When framerates are equal, time-based and frame-based calculations are equivalent
   - Trigger recalculation on: sync point change, trim boundary change, mode switch to Playback
   - Store both user-selected trim points AND calculated effective playback positions
-  - Consider visual indicator showing effective playback region vs user-selected trim region 
+  - Consider visual indicator showing effective playback region vs user-selected trim region
 
 ### Playback Mode (REQ-F-PLAY)
 
 #### REQ-F-PLAY-001: Unified Playback Controls
+
 - **Description**: System shall provide Playback Mode with unified controls for both videos
 - **Priority**: Critical
 - **Status**: Planned
@@ -228,6 +243,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - Playback constrained to effective start/end positions (not user-selected trim points)
 
 #### REQ-F-PLAY-002: Playback Speed Control
+
 - **Description**: System shall provide variable playback speed
 - **Priority**: High
 - **Status**: Planned
@@ -242,6 +258,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: HTML5 video `playbackRate` property
 
 #### REQ-F-PLAY-003: Loop Playback
+
 - **Description**: System shall support loop playback
 - **Priority**: Medium
 - **Status**: Planned
@@ -258,58 +275,56 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Frame-Accurate Seeking (REQ-F-FRAME)
 
 #### REQ-F-FRAME-001: Frame Stepping
-- **Description**: System shall support frame-accurate forward/backward stepping
+
+- **Description**: System shall support frame-accurate forward/backward stepping with exact frame accuracy (0 frame tolerance)
 - **Priority**: Critical
-- **Status**: Validated
+- **Status**: In Progress (WebCodecs spike)
 - **User Story**: As a golfer, I want to step through my swing frame-by-frame for detailed analysis
 - **Acceptance Criteria**:
-  - [x] Coarse step forward button (5 frames exactly)
-  - [x] Coarse step backward button (5 frames exactly)
-  - [x] Fine step forward button (1 frame exactly)
-  - [x] Fine step backward button (1 frame exactly)
-  - [x] Frame counter updates accurately with each step
+  - [ ] Coarse step forward button (5 frames exactly, 0 frame error)
+  - [ ] Coarse step backward button (5 frames exactly, 0 frame error)
+  - [ ] Fine step forward button (1 frame exactly, 0 frame error)
+  - [ ] Fine step backward button (1 frame exactly, 0 frame error)
+  - [ ] Frame counter updates accurately with each step (0 frame error)
   - [ ] Stepping maintains sync offset in Playback Mode (deferred to Phase 1)
   - [ ] Stepping works independently in Sync Mode (deferred to Phase 1)
 - **Dependencies**: REQ-F-PLAYBACK-001
-- **Implementation Notes**: Use `requestVideoFrameCallback` for frame-accurate control
-- **Validation Date**: 2025-11-12
-- **Validation Evidence**: Automated Playwright tests passing 100% across Chrome, Firefox, WebKit (21/21 tests)
+- **Implementation Notes**: WebCodecs API (VideoDecoder) provides deterministic frame-by-frame decode. Previous `requestVideoFrameCallback` approach achieved ±1 frame accuracy but failed to meet exact frame requirement (see Task 0.2 outcome).
 
 #### REQ-F-FRAME-002: Frame Counter Display
-- **Description**: System shall display accurate frame numbers
+
+- **Description**: System shall display exact frame numbers with 0 frame error
 - **Priority**: High
-- **Status**: Validated
+- **Status**: In Progress (WebCodecs spike)
 - **User Story**: As a golfer, I want to see exact frame numbers to reference specific positions
 - **Acceptance Criteria**:
-  - [x] Frame counter displayed for each video
-  - [x] Counter updates in real-time during playback
-  - [x] Counter updates immediately on seek/step
-  - [x] Counter shows format: "Frame X of Y"
-  - [x] Counter accuracy within 1 frame
+  - [ ] Frame counter displayed for each video
+  - [ ] Counter updates in real-time during playback
+  - [ ] Counter updates immediately on seek/step
+  - [ ] Counter shows format: "Frame X of Y"
+  - [ ] Counter accuracy: 0 frame error (exact frame number)
 - **Dependencies**: REQ-F-FRAME-001
-- **Implementation Notes**: Calculate from `currentTime` and framerate metadata
-- **Validation Date**: 2025-11-12
-- **Validation Evidence**: Automated Playwright tests passing 100% across Chrome, Firefox, WebKit (21/21 tests)
+- **Implementation Notes**: Frame index from VideoDecoder provides exact frame numbers. Previous approach calculated from `currentTime` which introduced rounding errors.
 
 #### REQ-F-FRAME-003: Seeking Precision
-- **Description**: System shall provide frame-accurate seeking across browsers
+
+- **Description**: System shall provide exact frame-accurate seeking with deterministic behavior across browsers
 - **Priority**: Critical
-- **Status**: Validated
-- **User Story**: As a user, I want seeking to be precise regardless of which browser I use
+- **Status**: In Progress (WebCodecs spike)
+- **User Story**: As a user, I want seeking to be exact and deterministic regardless of which browser I use
 - **Acceptance Criteria**:
-  - [x] Scrubber/seek bar updates `currentTime`
-  - [x] Seeking lands within 1 frame of target
-  - [x] Works consistently in Chrome, Firefox, Safari, Brave
-  - [x] No drift after multiple seek operations
-  - [x] Handles keyframe-only codecs appropriately
+  - [ ] Scrubber/seek bar targets specific frame index
+  - [ ] Seeking lands on exact target frame (0 frame error)
+  - [ ] Works consistently in Chrome 94+, Firefox 130+, Safari 17.4+
+  - [ ] No drift after multiple seek operations (0 frame cumulative error)
+  - [ ] Deterministic behavior: seeking to frame N always displays frame N
 - **Dependencies**: REQ-F-FRAME-001
-- **Implementation Notes**: Test and document browser-specific quirks
-- **Validation Date**: 2025-11-12
-- **Validation Evidence**: Automated Playwright tests passing 100% across Chrome, Firefox, WebKit (21/21 tests)
+- **Implementation Notes**: WebCodecs VideoDecoder provides deterministic frame-by-frame decode. Keyframe dependencies handled by decoding from nearest keyframe. Previous approach using `video.currentTime` was non-deterministic.
 
 ### Video Trimming (REQ-F-TRIM)
 
 #### REQ-F-TRIM-001: Non-Destructive Trim
+
 - **Description**: System shall support setting playback start/end points without modifying source video
 - **Priority**: High
 - **Status**: Planned
@@ -332,6 +347,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - Trim points default to full video range (frame 0 to total_frames) if not set
 
 #### REQ-F-TRIM-002: Trim Point Reset
+
 - **Description**: System shall allow resetting trim points to full video range
 - **Priority**: Medium
 - **Status**: Planned
@@ -348,6 +364,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Annotation Tools (REQ-F-ANNOT)
 
 #### REQ-F-ANNOT-001: Drawing Tools
+
 - **Description**: System shall provide annotation drawing tools over video
 - **Priority**: Critical
 - **Status**: Planned
@@ -363,6 +380,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: react-konva for canvas-based drawing
 
 #### REQ-F-ANNOT-002: Annotation Rendering
+
 - **Description**: System shall render annotations as overlays on video
 - **Priority**: Critical
 - **Status**: Planned
@@ -377,6 +395,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: Canvas overlay with exact video dimensions, react-konva Stage/Layer
 
 #### REQ-F-ANNOT-003: Annotation Management
+
 - **Description**: System shall support managing annotations per video
 - **Priority**: High
 - **Status**: Planned
@@ -392,6 +411,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: State management for annotation data array per video
 
 #### REQ-F-ANNOT-004: Annotation Style (MVP - Fixed)
+
 - **Description**: Annotations shall use single default style in MVP
 - **Priority**: Medium
 - **Status**: Planned
@@ -406,6 +426,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: Hardcoded style constants, extensible for future
 
 #### REQ-F-ANNOT-005: Static Annotations
+
 - **Description**: Annotations shall be static (not time-based)
 - **Priority**: High
 - **Status**: Planned
@@ -413,12 +434,13 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Acceptance Criteria**:
   - [ ] Annotations drawn once appear on all frames
   - [ ] Annotations persist across playback/seek
-  **Dependencies**: REQ-F-ANNOT-002
+        **Dependencies**: REQ-F-ANNOT-002
 - **Implementation Notes**: Single annotation array, not per-frame
 
 ### Error Handling (REQ-F-ERROR)
 
 #### REQ-F-ERROR-001: User-Facing Error Messages
+
 - **Description**: System shall display clear, actionable error messages
 - **Priority**: Critical
 - **Status**: Planned
@@ -433,6 +455,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: Toast notifications or modal dialogs with friendly messages
 
 #### REQ-F-ERROR-002: Server-Side Logging
+
 - **Description**: System shall log errors on server for debugging
 - **Priority**: High
 - **Status**: Planned
@@ -450,6 +473,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Deployment Documentation (REQ-F-DOC)
 
 #### REQ-F-DOC-001: Installation Instructions
+
 - **Description**: System shall include comprehensive deployment documentation
 - **Priority**: Critical
 - **Status**: Planned
@@ -475,6 +499,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Performance (REQ-NF-P)
 
 #### REQ-NF-P-001: Video Playback Smoothness
+
 - **Description**: Video playback shall be smooth on target hardware for typical analysis workflows
 - **Priority**: High
 - **Status**: Planned
@@ -499,6 +524,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Dependencies**: REQ-F-PLAYBACK-002, REQ-F-PLAY-001
 
 #### REQ-NF-P-002: Annotation Rendering Performance
+
 - **Description**: Annotation drawing and rendering shall be responsive
 - **Priority**: High
 - **Status**: Planned
@@ -523,6 +549,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Dependencies**: REQ-F-ANNOT-002
 
 #### REQ-NF-P-003: Video Load Time
+
 - **Description**: Video load time shall be reasonable over local network
 - **Priority**: Medium
 - **Status**: Planned
@@ -534,19 +561,20 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Dependencies**: REQ-F-UPLOAD-001
 
 #### REQ-NF-P-004: Frame Stepping Response Time
+
 - **Description**: Frame stepping shall respond quickly
 - **Priority**: High
-- **Status**: Validated
+- **Status**: In Progress (WebCodecs spike)
 - **Acceptance Criteria**:
-  - [x] Frame step response time ≤100ms
-  - [x] No lag accumulation after multiple steps
-  - [x] Works consistently across browsers
-- **Measurement Method**: Performance testing with automated browser tests
+  - [ ] Frame decode + render latency ≤50ms (cached frames ≤10ms)
+  - [ ] No lag accumulation after multiple steps
+  - [ ] Works consistently across Chrome 94+, Firefox 130+, Safari 17.4+
+  - [ ] Hardware-accelerated decode utilized when available
+- **Measurement Method**: Performance.now() timing of VideoDecoder output callback to canvas render. Automated Playwright tests validate latency across browsers.
 - **Dependencies**: REQ-F-FRAME-001
-- **Validation Date**: 2025-11-12
-- **Validation Evidence**: Automated Playwright tests confirm frame stepping response across Chrome, Firefox, WebKit (21/21 tests passing)
 
 #### REQ-NF-P-005: UI Interaction Response
+
 - **Description**: UI interactions shall feel instantaneous
 - **Priority**: Medium
 - **Status**: Planned
@@ -560,31 +588,34 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Browser Compatibility (REQ-NF-BC)
 
 #### REQ-NF-BC-001: Desktop Browser Support
+
 - **Description**: System shall support modern desktop browsers
 - **Priority**: Critical
-- **Status**: In Progress (frame stepping validated across browsers, additional features pending)
+- **Status**: Planned (WebCodecs browser validation pending)
 - **Acceptance Criteria**:
-  - [x] Chrome 83+: Frame stepping features functional (7/7 tests passing)
-  - [x] Firefox latest: Frame stepping features functional (7/7 tests passing)
-  - [x] Safari 15.4+ / WebKit: Frame stepping features functional (7/7 tests passing)
-  - [ ] Brave latest: Frame stepping features functional (pending validation)
-  - [x] Cross-browser consistency for frame stepping: ≤1 frame difference achieved
-  - [x] `requestVideoFrameCallback` API available in Chrome, Firefox, WebKit
+  - [ ] Chrome 94+: WebCodecs frame control features functional
+  - [ ] Firefox 130+: WebCodecs frame control features functional
+  - [ ] Safari 17.4+: WebCodecs frame control features functional
+  - [ ] Edge 94+ (Chromium): WebCodecs frame control features functional
+  - [ ] Cross-browser consistency for frame stepping: 0 frame difference (exact frame accuracy)
+  - [ ] WebCodecs API (VideoDecoder, VideoFrame, EncodedVideoChunk) available and functional
   - [ ] All core features (upload, dual video, sync, annotations) validated across browsers (pending Phase 1 implementation)
 - **Measurement Method**:
   - Playwright automated test suite runs against all target browsers
   - Test suite covers: video upload, playback, sync workflow, frame stepping, annotation tools
-  - Frame-accuracy tests compare frame positions across browsers (≤1 frame tolerance)
+  - Frame-accuracy tests verify exact frame positions across browsers (0 frame tolerance)
   - Visual regression tests compare screenshots across browsers (pixel diff ≤2px)
-  - Feature detection tests verify `requestVideoFrameCallback` availability
+  - Feature detection tests verify WebCodecs API availability (VideoDecoder.isConfigSupported())
 - **Implementation Notes**:
-  - Test cross-browser during Phase 0 spikes
+  - Test cross-browser during Phase 0 Task 0.3 (WebCodecs spike)
   - Core features = upload, dual video playback, sync mode, frame stepping, annotations, playback controls
-  - Polyfill for `requestVideoFrameCallback` acceptable for Firefox if needed
+  - Minimum browser versions: Chrome 94+, Firefox 130+, Safari 17.4+ (WebCodecs support)
+  - Show clear error message for unsupported browsers (see REQ-F-ERROR-001)
   - CI/CD pipeline runs tests on all target browsers before merge
 - **Dependencies**: All functional requirements
 
 #### REQ-NF-BC-002: Browser Feature Detection
+
 - **Description**: System shall detect and handle unsupported browsers
 - **Priority**: High
 - **Status**: Planned
@@ -600,6 +631,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Scalability (REQ-NF-SC)
 
 #### REQ-NF-SC-001: Single User Operation (MVP)
+
 - **Description**: MVP shall support single concurrent user
 - **Priority**: Critical
 - **Status**: Planned
@@ -611,6 +643,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: Local server model for MVP
 
 #### REQ-NF-SC-002: Future Scalability Design
+
 - **Description**: Architecture shall support future multi-user expansion
 - **Priority**: Low
 - **Status**: Planned
@@ -638,6 +671,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Reliability (REQ-NF-R)
 
 #### REQ-NF-R-001: Video Format Handling
+
 - **Description**: System shall handle video format variations gracefully
 - **Priority**: High
 - **Status**: Planned
@@ -662,6 +696,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Dependencies**: REQ-F-ERROR-001
 
 #### REQ-NF-R-002: Temporary File Cleanup
+
 - **Description**: System shall clean up temporary files reliably
 - **Priority**: High
 - **Status**: Planned
@@ -675,6 +710,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: Scheduled cleanup task, crash-safe design
 
 #### REQ-NF-R-003: Memory Leak Prevention
+
 - **Description**: System shall prevent memory leaks during long sessions
 - **Priority**: High
 - **Status**: Planned
@@ -690,6 +726,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Usability (REQ-NF-U)
 
 #### REQ-NF-U-001: Intuitive Interface
+
 - **Description**: UI shall be intuitive for non-technical golf enthusiasts
 - **Priority**: High
 - **Status**: Planned
@@ -712,6 +749,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Dependencies**: All UI requirements
 
 #### REQ-NF-U-002: Sync Workflow Discoverability
+
 - **Description**: Sync workflow shall be discoverable and easy to execute
 - **Priority**: Critical
 - **Status**: Planned
@@ -735,6 +773,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Dependencies**: REQ-F-SYNC-001, REQ-F-SYNC-002
 
 #### REQ-NF-U-003: Annotation Tool Responsiveness
+
 - **Description**: Annotation tools shall be responsive and easy to use
 - **Priority**: High
 - **Status**: Planned
@@ -761,6 +800,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Maintainability (REQ-NF-M)
 
 #### REQ-NF-M-001: Code Quality Standards
+
 - **Description**: Code shall follow clean architecture and quality standards
 - **Priority**: High
 - **Status**: Implemented (TypeScript strict mode enabled, ESLint configured and passing)
@@ -789,6 +829,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Dependencies**: All implementation requirements
 
 #### REQ-NF-M-002: Documentation Standards
+
 - **Description**: System shall be well-documented for open-source contributions
 - **Priority**: High
 - **Status**: Planned
@@ -801,7 +842,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - [ ] LICENSE file exists (open-source license: MIT, Apache 2.0, or GPL)
   - [ ] 100% of public API functions have docstrings with parameters, returns, and examples
 - **Measurement Method**:
-  - File existence check: README.md, CONTRIBUTING.md, LICENSE, docs/*.{png,svg}
+  - File existence check: README.md, CONTRIBUTING.md, LICENSE, docs/\*.{png,svg}
   - README section verification: grep for section headings (Prerequisites, Installation, Usage, Architecture, Contributing)
   - FastAPI /docs endpoint accessibility test (HTTP 200 response)
   - Docstring coverage tool (e.g., `interrogate` for Python, `typedoc` for TypeScript)
@@ -815,6 +856,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Dependencies**: All implementation requirements
 
 #### REQ-NF-M-003: Standard Libraries and Frameworks
+
 - **Description**: System shall use standard, well-maintained libraries to ensure long-term maintainability
 - **Priority**: Medium
 - **Status**: Planned
@@ -840,6 +882,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ### Portability (REQ-NF-PT)
 
 #### REQ-NF-PT-001: Raspberry Pi 4 Deployment
+
 - **Description**: System shall run on Ubuntu Linux on Raspberry Pi 4 (8GB minimum)
 - **Priority**: Critical
 - **Status**: Planned
@@ -866,6 +909,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Dependencies**: All implementation requirements
 
 #### REQ-NF-PT-002: No Proprietary Dependencies
+
 - **Description**: System shall not depend on proprietary services
 - **Priority**: High
 - **Status**: Planned
@@ -878,6 +922,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 - **Implementation Notes**: Ensure open-source license compatibility
 
 #### REQ-NF-PT-003: Cloud Migration Path
+
 - **Description**: Architecture shall support future cloud hosting migration
 - **Priority**: Low
 - **Status**: Planned
@@ -894,18 +939,20 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ## Technical Constraints
 
 ### Platform Requirements
+
 - **Operating Systems**: Ubuntu Linux (ARM - Raspberry Pi 4 for MVP)
 - **Python Version**: 3.11 or higher
 - **Node.js Version**: 18+ (for frontend build)
 - **Deployment**: Local server, desktop browser clients
 
 ### Technical Standards
+
 - **Backend Code Quality**: PEP8, type hints (mypy), docstrings
 - **Frontend Code Quality**: TypeScript strict mode, ESLint
 - **Testing Requirements**:
   - Playwright for E2E tests (cross-browser)
   - Vitest for unit tests
-  - >80% coverage for core logic
+  - > 80% coverage for core logic
 - **Documentation Standards**: Google-style docstrings, README, architecture docs
 - **Version Control**: Git with feature branches
 
@@ -914,87 +961,108 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 ## Integration Requirements
 
 ### External Systems
+
 None for MVP - all processing local
 
 ### Browser APIs
 
-#### INT-001: requestVideoFrameCallback API
-- **Description**: Frame-accurate video control for stepping and sync
-- **Integration Type**: Browser Web API
-- **Browser Support**: Chrome 83+, Safari 15.4+, Firefox (polyfill may be needed)
-- **Requirements**: REQ-F-FRAME-001, REQ-F-FRAME-003, REQ-F-SYNC-002
-- **Documentation**: https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback
-- **Critical**: Core to frame-accurate playback - must be validated in Phase 0 spike
+#### INT-001: WebCodecs API
 
-#### INT-002: HTML5 Video API
-- **Description**: Video playback, seeking, speed control
+- **Description**: Direct video frame decode for exact frame control
+- **Integration Type**: Browser Web API
+- **Browser Support**: Chrome 94+, Firefox 130+, Safari 17.4+, Edge 94+ (~95% market coverage as of Nov 2024)
+- **Requirements**: REQ-F-FRAME-001, REQ-F-FRAME-002, REQ-F-FRAME-003, REQ-F-SYNC-002, REQ-F-SYNC-003
+- **Documentation**:
+  - MDN VideoDecoder: https://developer.mozilla.org/en-US/docs/Web/API/VideoDecoder
+  - W3C WebCodecs Spec: https://w3c.github.io/webcodecs/
+  - Web.dev Guide: https://web.dev/articles/webcodecs
+- **Critical**: Core to exact frame-accurate playback and deterministic dual-video sync - validated in Phase 0 Task 0.3
+
+#### INT-002: mp4box.js Library
+
+- **Description**: JavaScript MP4 container parser for extracting codec configuration and video samples
+- **Integration Type**: npm package
+- **Browser Support**: All modern browsers
+- **Requirements**: REQ-F-FRAME-001 (provides frame data for WebCodecs decode)
+- **Documentation**: https://github.com/gpac/mp4box.js/
+- **Critical**: Required for WebCodecs - extracts codec config bytes and EncodedVideoChunk data from MP4 files
+
+#### INT-003: HTML5 Video API
+
+- **Description**: Video playback, speed control
 - **Integration Type**: Browser Web API
 - **Browser Support**: All modern browsers
-- **Requirements**: REQ-F-PLAYBACK-001, REQ-F-PLAYBACK-002, REQ-F-PLAY-002
+- **Requirements**: REQ-F-PLAYBACK-001 (background playback only), REQ-F-PLAYBACK-002, REQ-F-PLAY-002 (speed control)
 - **Documentation**: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
+- **Note**: Used only for continuous playback and speed control. Frame-accurate seeking utilizes WebCodecs approach.
 
-#### INT-003: Canvas API (via react-konva)
-- **Description**: Annotation drawing and rendering
+#### INT-004: Canvas API (via react-konva)
+
+- **Description**: Video frame rendering (from WebCodecs VideoFrame) and annotation drawing
 - **Integration Type**: Browser Web API (wrapped by react-konva)
 - **Browser Support**: All modern browsers
-- **Requirements**: REQ-F-ANNOT-001, REQ-F-ANNOT-002
+- **Requirements**:
+  - REQ-F-FRAME-001 (VideoFrame rendering to canvas)
+  - REQ-F-ANNOT-001, REQ-F-ANNOT-002 (annotation drawing)
 - **Documentation**: https://konvajs.org/docs/react/index.html
+- **Note**: Canvas used for both decoded VideoFrame rendering and annotation overlay drawing
 
 ---
 
 ## Requirements Traceability Matrix
 
-| Requirement ID | Title | Priority | Status | Dependencies | Phase |
-|----------------|-------|----------|--------|--------------|-------|
-| REQ-F-UPLOAD-001 | Local File Upload | Critical | Planned | None | 0/1 |
-| REQ-F-UPLOAD-002 | Temporary Storage | Critical | Planned | REQ-F-UPLOAD-001 | 1 |
-| REQ-F-UPLOAD-003 | Framerate Validation | High | Planned | REQ-F-UPLOAD-001 | 1 |
-| REQ-F-PLAYBACK-001 | Single Video Playback | Critical | Planned | REQ-F-UPLOAD-001 | 0/1 |
-| REQ-F-PLAYBACK-002 | Dual Video Display | Critical | Planned | REQ-F-PLAYBACK-001 | 0/1 |
-| REQ-F-PLAYBACK-003 | Video Streaming | High | Planned | REQ-F-UPLOAD-002 | 1 |
-| REQ-F-SYNC-001 | Independent Controls | Critical | Planned | REQ-F-PLAYBACK-002 | 0/1 |
-| REQ-F-SYNC-002 | Sync Point Selection | Critical | Planned | REQ-F-SYNC-001 | 0/1 |
-| REQ-F-SYNC-003 | Sync Offset Calc | Critical | Planned | REQ-F-SYNC-002 | 0/1 |
-| REQ-F-SYNC-004 | Playback Duration Equalization | Critical | Planned | REQ-F-SYNC-002, REQ-F-SYNC-003, REQ-F-TRIM-001 | 0/1 |
-| REQ-F-PLAY-001 | Unified Controls | Critical | Planned | REQ-F-SYNC-003 | 0/1 |
-| REQ-F-PLAY-002 | Speed Control | High | Planned | REQ-F-PLAY-001 | 1 |
-| REQ-F-PLAY-003 | Loop Playback | Medium | Planned | REQ-F-PLAY-001 | 1 |
-| REQ-F-FRAME-001 | Frame Stepping | Critical | Planned | REQ-F-PLAYBACK-001 | 0 |
-| REQ-F-FRAME-002 | Frame Counter | High | Planned | REQ-F-FRAME-001 | 0/1 |
-| REQ-F-FRAME-003 | Seeking Precision | Critical | Planned | REQ-F-FRAME-001 | 0 |
-| REQ-F-TRIM-001 | Non-Destructive Trim | High | Planned | REQ-F-PLAYBACK-001 | 1 |
-| REQ-F-TRIM-002 | Trim Reset | Medium | Planned | REQ-F-TRIM-001 | 1 |
-| REQ-F-ANNOT-001 | Drawing Tools | Critical | Planned | REQ-F-PLAYBACK-001 | 0/1 |
-| REQ-F-ANNOT-002 | Annotation Rendering | Critical | Planned | REQ-F-ANNOT-001 | 0/1 |
-| REQ-F-ANNOT-003 | Annotation Management | High | Planned | REQ-F-ANNOT-002 | 1 |
-| REQ-F-ANNOT-004 | Fixed Style (MVP) | Medium | Planned | REQ-F-ANNOT-001 | 1 |
-| REQ-F-ANNOT-005 | Static Annotations | High | Planned | REQ-F-ANNOT-002 | 1 |
-| REQ-F-ERROR-001 | User Error Messages | Critical | Planned | All | 1 |
-| REQ-F-ERROR-002 | Server Logging | High | Planned | All | 1 |
-| REQ-F-DOC-001 | Installation Docs | Critical | Planned | All | 1 |
-| REQ-NF-P-001 | Playback Smoothness | High | Planned | REQ-F-PLAYBACK-002 | 0/1 |
-| REQ-NF-P-002 | Annotation Performance | High | Planned | REQ-F-ANNOT-002 | 0/1 |
-| REQ-NF-P-003 | Video Load Time | Medium | Planned | REQ-F-UPLOAD-001 | 1 |
-| REQ-NF-P-004 | Frame Step Response | High | Planned | REQ-F-FRAME-001 | 0 |
-| REQ-NF-P-005 | UI Response | Medium | Planned | All | 1 |
-| REQ-NF-BC-001 | Desktop Browser Support | Critical | Planned | All | 0 |
-| REQ-NF-BC-002 | Feature Detection | High | Planned | REQ-F-ERROR-001 | 1 |
-| REQ-NF-SC-001 | Single User (MVP) | Critical | Planned | None | 1 |
-| REQ-NF-SC-002 | Future Scalability | Low | Planned | All | 1 |
-| REQ-NF-R-001 | Video Format Handling | High | Planned | REQ-F-ERROR-001 | 1 |
-| REQ-NF-R-002 | File Cleanup | High | Planned | REQ-F-UPLOAD-002 | 1 |
-| REQ-NF-R-003 | Memory Leak Prevention | High | Planned | All | 1 |
-| REQ-NF-U-001 | Intuitive Interface | High | Planned | All | 1 |
-| REQ-NF-U-002 | Sync Discoverability | Critical | Planned | REQ-F-SYNC-001 | 1 |
-| REQ-NF-U-003 | Annotation Usability | High | Planned | REQ-F-ANNOT-001 | 1 |
-| REQ-NF-M-001 | Code Quality | High | Planned | All | 0/1 |
-| REQ-NF-M-002 | Documentation | High | Planned | All | 0/1 |
-| REQ-NF-M-003 | Standard Libraries | Medium | Planned | All | 0/1 |
-| REQ-NF-PT-001 | Raspberry Pi Deployment | Critical | Planned | All | 1 |
-| REQ-NF-PT-002 | No Proprietary Deps | High | Planned | All | 0/1 |
-| REQ-NF-PT-003 | Cloud Migration Path | Low | Planned | REQ-NF-SC-002 | 1 |
+| Requirement ID     | Title                          | Priority | Status  | Dependencies                                   | Phase |
+| ------------------ | ------------------------------ | -------- | ------- | ---------------------------------------------- | ----- |
+| REQ-F-UPLOAD-001   | Local File Upload              | Critical | Planned | None                                           | 0/1   |
+| REQ-F-UPLOAD-002   | Temporary Storage              | Critical | Planned | REQ-F-UPLOAD-001                               | 1     |
+| REQ-F-UPLOAD-003   | Framerate Validation           | High     | Planned | REQ-F-UPLOAD-001                               | 1     |
+| REQ-F-PLAYBACK-001 | Single Video Playback          | Critical | Planned | REQ-F-UPLOAD-001                               | 0/1   |
+| REQ-F-PLAYBACK-002 | Dual Video Display             | Critical | Planned | REQ-F-PLAYBACK-001                             | 0/1   |
+| REQ-F-PLAYBACK-003 | Video Streaming                | High     | Planned | REQ-F-UPLOAD-002                               | 1     |
+| REQ-F-SYNC-001     | Independent Controls           | Critical | Planned | REQ-F-PLAYBACK-002                             | 0/1   |
+| REQ-F-SYNC-002     | Sync Point Selection           | Critical | Planned | REQ-F-SYNC-001                                 | 0/1   |
+| REQ-F-SYNC-003     | Sync Offset Calc               | Critical | Planned | REQ-F-SYNC-002                                 | 0/1   |
+| REQ-F-SYNC-004     | Playback Duration Equalization | Critical | Planned | REQ-F-SYNC-002, REQ-F-SYNC-003, REQ-F-TRIM-001 | 0/1   |
+| REQ-F-PLAY-001     | Unified Controls               | Critical | Planned | REQ-F-SYNC-003                                 | 0/1   |
+| REQ-F-PLAY-002     | Speed Control                  | High     | Planned | REQ-F-PLAY-001                                 | 1     |
+| REQ-F-PLAY-003     | Loop Playback                  | Medium   | Planned | REQ-F-PLAY-001                                 | 1     |
+| REQ-F-FRAME-001    | Frame Stepping                 | Critical | Planned | REQ-F-PLAYBACK-001                             | 0     |
+| REQ-F-FRAME-002    | Frame Counter                  | High     | Planned | REQ-F-FRAME-001                                | 0/1   |
+| REQ-F-FRAME-003    | Seeking Precision              | Critical | Planned | REQ-F-FRAME-001                                | 0     |
+| REQ-F-TRIM-001     | Non-Destructive Trim           | High     | Planned | REQ-F-PLAYBACK-001                             | 1     |
+| REQ-F-TRIM-002     | Trim Reset                     | Medium   | Planned | REQ-F-TRIM-001                                 | 1     |
+| REQ-F-ANNOT-001    | Drawing Tools                  | Critical | Planned | REQ-F-PLAYBACK-001                             | 0/1   |
+| REQ-F-ANNOT-002    | Annotation Rendering           | Critical | Planned | REQ-F-ANNOT-001                                | 0/1   |
+| REQ-F-ANNOT-003    | Annotation Management          | High     | Planned | REQ-F-ANNOT-002                                | 1     |
+| REQ-F-ANNOT-004    | Fixed Style (MVP)              | Medium   | Planned | REQ-F-ANNOT-001                                | 1     |
+| REQ-F-ANNOT-005    | Static Annotations             | High     | Planned | REQ-F-ANNOT-002                                | 1     |
+| REQ-F-ERROR-001    | User Error Messages            | Critical | Planned | All                                            | 1     |
+| REQ-F-ERROR-002    | Server Logging                 | High     | Planned | All                                            | 1     |
+| REQ-F-DOC-001      | Installation Docs              | Critical | Planned | All                                            | 1     |
+| REQ-NF-P-001       | Playback Smoothness            | High     | Planned | REQ-F-PLAYBACK-002                             | 0/1   |
+| REQ-NF-P-002       | Annotation Performance         | High     | Planned | REQ-F-ANNOT-002                                | 0/1   |
+| REQ-NF-P-003       | Video Load Time                | Medium   | Planned | REQ-F-UPLOAD-001                               | 1     |
+| REQ-NF-P-004       | Frame Step Response            | High     | Planned | REQ-F-FRAME-001                                | 0     |
+| REQ-NF-P-005       | UI Response                    | Medium   | Planned | All                                            | 1     |
+| REQ-NF-BC-001      | Desktop Browser Support        | Critical | Planned | All                                            | 0     |
+| REQ-NF-BC-002      | Feature Detection              | High     | Planned | REQ-F-ERROR-001                                | 1     |
+| REQ-NF-SC-001      | Single User (MVP)              | Critical | Planned | None                                           | 1     |
+| REQ-NF-SC-002      | Future Scalability             | Low      | Planned | All                                            | 1     |
+| REQ-NF-R-001       | Video Format Handling          | High     | Planned | REQ-F-ERROR-001                                | 1     |
+| REQ-NF-R-002       | File Cleanup                   | High     | Planned | REQ-F-UPLOAD-002                               | 1     |
+| REQ-NF-R-003       | Memory Leak Prevention         | High     | Planned | All                                            | 1     |
+| REQ-NF-U-001       | Intuitive Interface            | High     | Planned | All                                            | 1     |
+| REQ-NF-U-002       | Sync Discoverability           | Critical | Planned | REQ-F-SYNC-001                                 | 1     |
+| REQ-NF-U-003       | Annotation Usability           | High     | Planned | REQ-F-ANNOT-001                                | 1     |
+| REQ-NF-M-001       | Code Quality                   | High     | Planned | All                                            | 0/1   |
+| REQ-NF-M-002       | Documentation                  | High     | Planned | All                                            | 0/1   |
+| REQ-NF-M-003       | Standard Libraries             | Medium   | Planned | All                                            | 0/1   |
+| REQ-NF-PT-001      | Raspberry Pi Deployment        | Critical | Planned | All                                            | 1     |
+| REQ-NF-PT-002      | No Proprietary Deps            | High     | Planned | All                                            | 0/1   |
+| REQ-NF-PT-003      | Cloud Migration Path           | Low      | Planned | REQ-NF-SC-002                                  | 1     |
 
 **Phase Legend:**
+
 - **Phase 0**: Technical spikes to validate feasibility (2-3 sessions)
 - **Phase 1**: MVP core features implementation
 - **0/1**: Requirement spans both Phase 0 (spike) and Phase 1 (full implementation)
@@ -1005,38 +1073,48 @@ None for MVP - all processing local
 
 ### Implementation Coverage
 
-**Total Requirements**: 46
+**Total Requirements**: 47
 
-- **Planned**: 40 (87%)
-- **In Progress**: 2 (4%)
-  - REQ-NF-BC-001: In Progress (frame stepping validated across browsers, additional features pending)
-  - REQ-NF-M-001: In Progress (Code Quality Standards - frontend only, TypeScript strict mode + ESLint configured)
+- **Planned**: 42 (89%)
+- **In Progress**: 5 (11%)
+  - REQ-F-FRAME-001: Frame Stepping (WebCodecs spike)
+  - REQ-F-FRAME-002: Frame Counter Display (WebCodecs spike)
+  - REQ-F-FRAME-003: Seeking Precision (WebCodecs spike)
+  - REQ-NF-P-004: Frame Stepping Response Time (WebCodecs spike)
+  - REQ-NF-M-001: Code Quality Standards (frontend TypeScript + ESLint)
 - **Implemented (Awaiting Validation)**: 0 (0%)
-- **Validated**: 4 (9%)
-  - REQ-F-FRAME-001 (Frame Stepping)
-  - REQ-F-FRAME-002 (Frame Counter Display)
-  - REQ-F-FRAME-003 (Seeking Precision)
-  - REQ-NF-P-004 (Frame Stepping Response Time)
+- **Validated**: 0 (0%)
 
-**Note**: Frame stepping functionality fully validated across Chrome, Firefox, and WebKit with 100% test pass rate (21/21 tests). Browser compatibility requirement (REQ-NF-BC-001) marked as "In Progress" since only frame stepping subset validated so far; full browser compatibility validation requires implementation of all core features in Phase 1.
+### Session 4 Progress (2025-11-14)
+
+- **Architectural Pivot**: WebCodecs API adopted for exact frame accuracy (0 tolerance)
+- **Deprecated Validations**: REQ-F-FRAME-001/002/003, REQ-NF-P-004 (achieved ±1 frame but failed 0 tolerance)
+- **Updated**: Browser requirements (Chrome 94+, Firefox 130+, Safari 17.4+)
+- **Added**: INT-002 mp4box.js integration requirement
+- **In Progress**: 5 requirements updated for WebCodecs spike (Task 0.3)
 
 ### Session 3 Progress (2025-11-12)
-- **Validated**: 4 requirements (REQ-F-FRAME-001, REQ-F-FRAME-002, REQ-F-FRAME-003, REQ-NF-P-004)
-- **In Progress**: REQ-NF-BC-001 updated to reflect frame stepping validation across all browsers
+
+- **Validated (Deprecated)**: 4 requirements with ±1 frame tolerance (REQ-F-FRAME-001, REQ-F-FRAME-002, REQ-F-FRAME-003, REQ-NF-P-004)
+- **Critical Finding**: Exact frame accuracy (0 tolerance) not achievable with requestVideoFrameCallback approach
 
 ### Session 2 Progress (2025-11-09)
+
 - **Implemented (Awaiting Validation)**: 5 requirements initially, pending test fixes
 
 ### Session 1 Progress (2025-10-29)
+
 - **Implemented (Awaiting Validation)**: 5 requirements implemented but test environment blocked validation
 
 ### Priority Breakdown
-- **Critical**: 19 (0% Complete)
-- **High**: 21 (0% Complete)
+
+- **Critical**: 19 (0% Complete, 3 In Progress)
+- **High**: 22 (0% Complete, 2 In Progress)
 - **Medium**: 6 (0% Complete)
 - **Low**: 2 (0% Complete)
 
 ### Requirements by Area
+
 - **Video Upload**: 3 requirements (0% Complete)
 - **Video Playback**: 3 requirements (0% Complete)
 - **Synchronization**: 4 requirements (0% Complete)
@@ -1053,9 +1131,11 @@ None for MVP - all processing local
 ## Change History
 
 ### Version 1.0 - 2025-10-22
+
 **Initial Release - MVP Scope Definition**
 
 **Functional Requirements (26 total):**
+
 - REQ-F-UPLOAD-001 through REQ-F-UPLOAD-003: Video Upload (3)
 - REQ-F-PLAYBACK-001 through REQ-F-PLAYBACK-003: Video Playback (3)
 - REQ-F-SYNC-001 through REQ-F-SYNC-004: Synchronization Mode (4)
@@ -1067,6 +1147,7 @@ None for MVP - all processing local
 - REQ-F-DOC-001: Deployment Documentation (1)
 
 **Non-Functional Requirements (20 total):**
+
 - REQ-NF-P-001 through REQ-NF-P-005: Performance (5)
 - REQ-NF-BC-001 through REQ-NF-BC-002: Browser Compatibility (2)
 - REQ-NF-SC-001 through REQ-NF-SC-002: Scalability (2)
@@ -1076,6 +1157,7 @@ None for MVP - all processing local
 - REQ-NF-PT-001 through REQ-NF-PT-003: Portability (3)
 
 **Requirements Quality Standards:**
+
 - All non-functional requirements enhanced with quantitative, testable acceptance criteria
 - Automated measurement methods specified for performance, usability, and quality requirements
 - Technology prescriptions removed from requirements (moved to implementation notes and PRP)
@@ -1083,25 +1165,30 @@ None for MVP - all processing local
 - Requirements describe "what" must be achieved, not "how" to implement
 
 **Priority Breakdown:**
+
 - Critical: 19 requirements
 - High: 21 requirements
 - Medium: 6 requirements
 - Low: 2 requirements
 
 **Implementation Status:**
+
 - All requirements in "Planned" status
 - Project in Phase 0 (Technical Spikes)
 
 **Design Inputs Source:**
+
 - inputs/INITIAL.md (comprehensive design document)
 - V1 Golf App reference product
 
 **Technical Risks Identified:**
+
 - Frame-accurate seeking across browsers (HIGH RISK - Phase 0 spike required)
 - Synchronized video playback (HIGH RISK - Phase 0 spike required)
 - Canvas overlay performance (MEDIUM RISK - Phase 0 spike required)
 
 **Success Metrics (MVP):**
+
 - Frame-accurate synchronization working across all target browsers
 - Smooth dual-video playback on Raspberry Pi 4 8GB
 - Intuitive sync workflow discoverable without documentation

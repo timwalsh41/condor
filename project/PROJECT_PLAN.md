@@ -49,8 +49,8 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 ## Current Status
 
 - **Phase**: Phase 0 - Technical Spikes (In Progress)
-- **Last Updated**: 2025-11-14 - Tasks 0.2/0.2.1 completed but failed exact frame requirements, pivoting to WebCodecs (Task 0.3)
-- **Next Priority**: Task 0.3 (WebCodecs Frame Control Spike)
+- **Last Updated**: 2025-11-16 - Task 0.3 in progress (Phase 1 complete: environment setup, dependencies, feature detection)
+- **Next Priority**: Task 0.3 Phase 2 (MP4 Container Parser Implementation)
 - **Overall Progress**: 40 planned, 1 in progress, 0 implemented (awaiting validation), 0 validated (~0% validated)
   - _Status synchronized with `REQUIREMENTS.md` "Requirements Coverage Analysis" section_
   - _Note: Tasks 0.2/0.2.1 validated requirements with ±1 frame tolerance, NOT exact frame accuracy_
@@ -224,7 +224,8 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 0.3: WebCodecs Frame Control Spike
 
-- **Status**: Not Started
+- **Status**: In Progress (Phase 1 Complete - Environment Setup)
+- **Started**: 2025-11-16
 - **Requirements**: REQ-F-FRAME-001 (Frame Stepping), REQ-F-FRAME-002 (Frame Counter), REQ-F-FRAME-003 (Seeking Precision), REQ-NF-P-004 (Frame Step Response), REQ-NF-BC-001 (Browser Compatibility)
 - **Scope**: Implement and validate frame-accurate video control using WebCodecs API for deterministic exact frame positioning
 - **Rationale**: Tasks 0.2 and 0.2.1 proved that `requestVideoFrameCallback` + `video.currentTime` seeking cannot achieve exact frame accuracy. WebCodecs provides direct frame-by-frame decode access for deterministic positioning.

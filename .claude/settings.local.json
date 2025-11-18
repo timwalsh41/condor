@@ -36,7 +36,9 @@
       "Bash(npm run build:*)",
       "Bash(mcp list-prompts:*)",
       "Bash(apt-cache search:*)",
-      "Bash(DISPLAY=:99 timeout 15 npx playwright test:*)"
+      "Bash(DISPLAY=:99 timeout 15 npx playwright test:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm test:*)"
     ],
     "deny": []
   }

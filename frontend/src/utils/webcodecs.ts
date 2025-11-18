@@ -11,3 +11,5 @@ export {
   COMMON_CODECS,
   type FeatureSupport
 } from './featureDetection';
+
+export { MP4Parser, MP4ParseError } from './MP4Parser';

@@ -7,6 +7,11 @@
 
 declare module 'mp4box' {
   /**
+   * Create a new MP4File instance for parsing MP4 containers
+   */
+  export function createFile(): MP4File;
+
+  /**
    * MP4Box file instance for parsing MP4 containers
    */
   export interface MP4File {
@@ -23,7 +28,7 @@ declare module 'mp4box' {
     /**
      * Callback for receiving extracted samples (frames)
      */
-    onSamples?: (id: number, user: unknown, samples: MP4Sample[]) => void;
+    onSamples?: (id: number, user: unknown, samples: Sample[]) => void;
 
     /**
      * Append data to the MP4 parser
@@ -179,7 +184,7 @@ declare module 'mp4box' {
   /**
    * Video/audio sample (frame) data
    */
-  export interface MP4Sample {
+  export interface Sample {
     /** Track ID this sample belongs to */
     track_id: number;
 
@@ -199,7 +204,7 @@ declare module 'mp4box' {
     size: number;
 
     /** Sample data */
-    data: ArrayBuffer;
+    data: Uint8Array;
 
     /** Is sync sample (keyframe/I-frame) */
     is_sync: boolean;
@@ -232,15 +237,4 @@ declare module 'mp4box' {
     endianness: number;
   }
 
-  /**
-   * MP4Box namespace with factory methods
-   */
-  namespace MP4Box {
-    /**
-     * Create a new MP4File instance
-     */
-    export function createFile(): MP4File;
-  }
-
-  export default MP4Box;
 }

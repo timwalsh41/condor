@@ -4,13 +4,15 @@
 **Started**: 2025-11-16
 **Completed**: TBD
 **Owner**: Development Team
-**Estimated Effort**: 12-15 hours across 2-3 sessions
+**Estimated Effort**: 18-22 hours across 3-4 sessions
 
 ---
 
 ## Overview
 
 Implement frame-accurate video control using WebCodecs API to achieve exact frame positioning (0 tolerance) required for deterministic dual-video synchronization. This replaces the `requestVideoFrameCallback` approach from Tasks 0.2/0.2.1 which achieved ±1 frame accuracy but failed exact frame matching.
+
+Server-side video re-encoding with GOP=30 (keyframe every 30 frames) guarantees predictable decode performance and simplifies client-side frame cache implementation (simple LRU cache, 60-120 frames). See `docs/spike/WEBCODECS_FRAME_CONTROL.md` for technical details.
 
 **Key Requirements**:
 
@@ -80,19 +82,59 @@ Implement frame-accurate video control using WebCodecs API to achieve exact fram
 
 ---
 
-## Phase 3: VideoDecoder Integration
+## Phase 2.5: Backend Video Optimization
 
 **Status**: Not Started  
 **Estimated**: 3-4 hours
 
 ### Scope
 
-- Implement WebCodecs VideoDecoder pipeline
-- Frame-by-frame decode with canvas rendering
-- Handle keyframe dependencies
+Implement server-side video re-encoding to guarantee GOP=30 (keyframe every 30 frames), which simplifies client-side frame cache and ensures predictable decode performance.
+
+### Rationale
+
+Videos with large keyframe intervals (GOP=250, ~8 seconds @ 30fps) require decoding up to 250 frames for backward seeks. Server-side re-encoding with GOP=30 reduces worst-case decode to 30 frames (~300ms vs 2000ms), enabling simpler client-side LRU cache (60-120 frames vs 250+).
 
 ### Deliverables
 
+- [ ] Backend video processing module (`backend/services/video_optimizer.py`)
+- [ ] Smart re-encoding logic:
+  - Extract video metadata using ffprobe (codec, resolution, GOP size)
+  - Skip re-encoding if already optimal (GOP≤30, H.264/H.265, ≤1080p)
+  - Re-encode otherwise with GOP=30, CRF=23, remove audio
+  - Use hardware encoding on Pi 4 if available (`h264_v4l2m2m`)
+- [ ] Processing time measurement and logging
+- [ ] Unit tests for decision logic
+
+### Acceptance Criteria
+
+- ffprobe correctly extracts GOP size from test videos
+- Re-encoding skips already-optimal videos (<1 second decision time)
+- Re-encoding produces GOP=30 videos (verified with ffprobe)
+- Processing time documented for Pi 4 (both HW and SW encoding)
+- Re-encoded videos maintain visual quality (subjective assessment)
+- Unit tests verify decision logic with various video metadata
+- Integration test: Upload video → optimize → verify GOP=30
+
+**Technical Details**: See `docs/spike/WEBCODECS_FRAME_CONTROL.md` for implementation code examples
+
+---
+
+## Phase 3: VideoDecoder Integration & Frame Cache
+
+**Status**: Not Started  
+**Estimated**: 4-5 hours (merged with former Phase 4)
+
+### Scope
+
+- Implement WebCodecs VideoDecoder pipeline
+- Frame-by-frame decode with canvas rendering
+- Handle keyframe dependencies with LRU frame cache
+- Optimize for GOP=30 videos (max 30-frame decode from keyframe)
+
+### Deliverables
+
+- [ ] `utils/FrameCache.ts` - Simple LRU cache utility class with 60-120 frame capacity
 - [ ] `hooks/useWebCodecsDecoder.ts` hook with interface:
   - `canvasRef: RefObject<HTMLCanvasElement>`
   - `currentFrame: number`
@@ -102,52 +144,28 @@ Implement frame-accurate video control using WebCodecs API to achieve exact fram
   - `seekToFrame(frameIndex: number): void`
   - `stepForward(): void`
   - `stepBackward(): void`
+- [ ] Keyframe-aware seeking logic (decode from keyframe → target frame)
 - [ ] VideoDecoder configuration and initialization
-- [ ] Frame decode pipeline with EncodedVideoChunk
 - [ ] Canvas rendering of decoded VideoFrames
-- [ ] Memory management (VideoFrame.close())
+- [ ] Memory management (VideoFrame.close() in cache eviction)
 
 ### Acceptance Criteria
 
 - VideoDecoder initializes successfully with both H.264 and H.265
 - Frames decode and render to canvas correctly
 - Frame positioning is deterministic (frame N always shows frame N)
-- Memory properly released (no leaks)
-- Decode latency <50ms per frame for sequential steps
+- **Cache hit performance: <10ms** (instant for cached frames)
+- **Cache miss performance: <300ms** (worst case, 30-frame decode from keyframe)
+- Memory usage stays bounded (60-120MB for 60-120 frame cache @ 1080p)
+- Memory properly released (no leaks - verified with DevTools profiler)
+- Forward stepping uses cached frames (consecutive frames cached during decode)
+- Backward stepping within cache window is instant (<10ms)
+
+**Technical Details**: See `docs/spike/WEBCODECS_FRAME_CONTROL.md` for LRU cache implementation and keyframe-aware seeking algorithm
 
 ---
 
-## Phase 4: Frame Cache Implementation
-
-**Status**: Not Started  
-**Estimated**: 1-2 hours
-
-### Scope
-
-- Implement LRU cache for decoded VideoFrames
-- Optimize frame stepping performance
-
-### Deliverables
-
-- [ ] `utils/FrameCache.ts` utility class:
-  - `set(frameIndex: number, frame: VideoFrame): void`
-  - `get(frameIndex: number): VideoFrame | undefined`
-  - `clear(): void`
-  - `evictOldest(): void`
-- [ ] Integration with useWebCodecsDecoder hook
-- [ ] Cache size limit (~30 frames, ~30MB)
-
-### Acceptance Criteria
-
-- Cache hit improves frame step performance (<10ms)
-- Memory usage stays bounded (~30MB per video)
-- No memory leaks detected
-- Cache cleared properly on unmount
-- Oldest frames evicted when at capacity
-
----
-
-## Phase 5: React Components & UI
+## Phase 4: React Components & UI
 
 **Status**: Not Started  
 **Estimated**: 2-3 hours
@@ -155,67 +173,88 @@ Implement frame-accurate video control using WebCodecs API to achieve exact fram
 ### Scope
 
 - Create UI components for demo/testing
-- Implement playback controls
-- Add seeking slider
+- Integrate WebCodecs decoder for frame stepping/seeking (exact positioning)
+- Integrate HTML5 video element for continuous playback (smooth motion)
+- Implement smooth mode switching (stepping ↔ playback) with state synchronization
 
 ### Deliverables
 
 - [ ] `components/WebCodecsPlayer.tsx`:
+  - Canvas element for WebCodecs frame display (stepping/seeking mode)
+  - HTML5 video element for continuous playback (playback mode)
+  - Mode switching logic (show canvas when stepping, video when playing)
   - File upload input
-  - Canvas element for video display
-  - Frame counter display
+  - Frame counter display (Frame X / Total)
   - Loading/error states
+  - Decode latency display (last operation ms)
+  - Cache hit/miss statistics
 - [ ] `components/FrameStepper.tsx`:
   - Play/Pause button
   - Fine step forward/backward (1 frame)
   - Coarse step forward/backward (5 frames)
   - Seeking slider (0 to totalFrames-1)
   - Current frame / total frames display
-- [ ] Decode latency metrics display
+- [ ] User-facing demo (`npm run dev` from frontend/)
 
 ### Acceptance Criteria
 
 - UI loads and displays correctly
 - File upload triggers decoder initialization
+- WebCodecs canvas visible during stepping/seeking, HTML5 video visible during playback
+- Smooth transition between modes (position synchronized on mode switch)
 - All buttons functional (play/pause, step, seek)
 - Frame counter shows exact values
 - Seeking slider provides exact frame positioning
+- Decode latency displayed for each operation
+- Cache statistics visible (hit rate %)
 - Error messages display clearly for unsupported browsers
+- Demo is intuitive and demonstrates exact frame accuracy
 
 ---
 
-## Phase 6: Test Video Generation
+## Phase 5: Test Video Generation
 
 **Status**: Not Started  
 **Estimated**: 30 minutes
 
 ### Scope
 
-- Generate H.265/HEVC test video to complement existing H.264 videos
+- Generate optimized test videos with GOP=30
+- Generate H.265/HEVC test video to complement existing H.264
 
 ### Deliverables
 
-- [ ] `tests/fixtures/generate_test_videos.sh` updated with H.265 generation
-- [ ] `test_30fps_10s_hevc.mp4` generated with burned-in frame counter
+- [ ] `tests/fixtures/generate_test_videos.sh` updated with:
+  - H.264 generation with GOP=30 (replace existing)
+  - H.265 generation with GOP=30
+  - Burned-in frame counter for visual validation
 
-### Command
+### Commands
 
 ```bash
+# H.264 with GOP=30
 ffmpeg -f lavfi -i testsrc=duration=10:size=1920x1080:rate=30 \
   -vf "drawtext=fontsize=100:fontcolor=white:x=100:y=100:text='Frame %{n}'" \
-  -c:v libx265 -preset fast \
-  tests/fixtures/videos/test_30fps_10s_hevc.mp4
+  -c:v libx264 -g 30 -keyint_min 30 -sc_threshold 0 -crf 23 -preset fast \
+  tests/fixtures/videos/test_30fps_10s_gop30.mp4
+
+# H.265 with GOP=30
+ffmpeg -f lavfi -i testsrc=duration=10:size=1920x1080:rate=30 \
+  -vf "drawtext=fontsize=100:fontcolor=white:x=100:y=100:text='Frame %{n}'" \
+  -c:v libx265 -x265-params keyint=30:min-keyint=30:scenecut=0 -crf 23 -preset fast \
+  tests/fixtures/videos/test_30fps_10s_hevc_gop30.mp4
 ```
 
 ### Acceptance Criteria
 
-- H.265 video generated successfully
-- Frame counter visible and accurate
-- Video plays in supported browsers
+- H.264 video generated with GOP=30 (verified with ffprobe)
+- H.265 video generated with GOP=30 (verified with ffprobe)
+- Frame counters visible and accurate
+- Videos play correctly in supported browsers
 
 ---
 
-## Phase 7: Cross-Browser Testing
+## Phase 6: Cross-Browser Testing
 
 **Status**: Not Started  
 **Estimated**: 3-4 hours
@@ -224,21 +263,23 @@ ffmpeg -f lavfi -i testsrc=duration=10:size=1920x1080:rate=30 \
 
 - Create Playwright test suite with exact frame assertions
 - Validate across Chrome, Firefox, Safari
-- Measure and document performance
+- Measure and document performance with GOP=30 videos
 
 ### Deliverables
 
 - [ ] `tests/spikes/test_webcodecs_frame_control.spec.ts` with tests:
-  - Decoder initialization (H.264 and H.265)
-  - Single frame step forward (exact)
-  - Single frame step backward (exact)
-  - Coarse step (5 frames, exact)
-  - Seeking to arbitrary frame (exact)
+  - Decoder initialization (H.264 and H.265, both GOP=30)
+  - Single frame step forward (exact, <50ms)
+  - Single frame step backward within cache (exact, <10ms)
+  - Single frame step backward outside cache (exact, <300ms)
+  - Coarse step (5 frames, exact, <50ms if cached)
+  - Seeking to arbitrary frame (exact, <300ms worst case)
   - Play/Pause functionality
-  - Decode latency measurement (<50ms)
-  - Memory leak detection
+  - Decode latency measurement by scenario
+  - Memory leak detection (cache eviction working)
+  - Cache hit/miss rate measurement
 - [ ] Tests pass with **exact assertions** (no ±1 tolerance)
-- [ ] Performance metrics documented
+- [ ] Performance metrics documented by scenario
 
 ### Test Pattern (CRITICAL)
 
@@ -251,14 +292,16 @@ expect(actualFrame).toBe(expectedFrame); // NOT ±1
 
 - All tests pass in Chrome, Firefox, Safari
 - Tests use exact frame assertions (0 tolerance)
-- Decode latency consistently <50ms for cached frames
-- No memory leaks detected over extended use
+- Cache hit latency <10ms consistently
+- Cache miss latency <300ms (GOP=30 guarantee)
+- No memory leaks detected over extended use (50+ seeks)
 - Feature detection works correctly
 - Performance metrics captured and documented
+- Cache hit rate >80% for typical usage (local frame stepping)
 
 ---
 
-## Phase 8: Documentation
+## Phase 7: Documentation
 
 **Status**: Not Started  
 **Estimated**: 1-2 hours
@@ -271,10 +314,17 @@ expect(actualFrame).toBe(expectedFrame); // NOT ±1
 ### Deliverables
 
 - [ ] Update `docs/spike/WEBCODECS_FRAME_CONTROL.md` with:
+  - Server-side video optimization strategy (GOP=30 rationale)
+  - Simple LRU cache approach (vs complex dual cache)
   - Implementation summary
   - API patterns (VideoDecoder setup, frame decode, memory management)
+  - Keyframe-aware seeking algorithm
   - Gotchas and pitfalls discovered
-  - Performance metrics (decode latency, memory usage, browser differences)
+  - Performance metrics by scenario:
+    - Cache hit: <10ms
+    - Cache miss (forward): <300ms
+    - Cache miss (backward, large jump): <300ms
+  - Memory usage: 60-120MB (cache size dependent)
   - Browser compatibility matrix
   - Recommendations for Phase 1 integration
   - Code examples with annotations
@@ -283,11 +333,13 @@ expect(actualFrame).toBe(expectedFrame); // NOT ±1
 ### Acceptance Criteria
 
 - Documentation is concise with no redundancy
+- Server-side optimization strategy clearly explained
 - All implementation patterns documented
-- Known limitations clearly stated
-- Performance metrics included
+- Known limitations clearly stated (GOP dependency, memory usage)
+- Performance metrics included with GOP=30 context
 - Browser compatibility matrix complete
 - Clear recommendations for Phase 1
+- Backend re-encoding documented for Phase 1 implementation
 
 ---
 
@@ -295,44 +347,49 @@ expect(actualFrame).toBe(expectedFrame); // NOT ±1
 
 **Must Have**:
 
-- [ ] WebCodecs VideoDecoder decodes H.264 MP4 files successfully
-- [ ] WebCodecs VideoDecoder decodes H.265 MP4 files successfully
+- [ ] Backend video optimization validates GOP analysis and re-encoding
+- [ ] WebCodecs VideoDecoder decodes GOP=30 H.264 MP4 files successfully
+- [ ] WebCodecs VideoDecoder decodes GOP=30 H.265 MP4 files successfully
 - [ ] Frame stepping with **exact frame accuracy (0 tolerance)**
-- [ ] Play/Pause functionality works correctly
+- [ ] Simple LRU cache (60-120 frames) implemented and tested
 - [ ] Seeking slider provides exact frame positioning
 - [ ] Frame counter displays exact frame numbers
+- [ ] User-facing demo working (`npm run dev`)
 - [ ] Tests pass with exact assertions in Chrome, Firefox, Safari
-- [ ] Decode latency <50ms for cached frames, measured and documented
-- [ ] Memory management verified (no leaks)
+- [ ] Cache hit latency <10ms, miss latency <300ms (GOP=30 videos)
+- [ ] Memory management verified (no leaks, cache eviction working)
 - [ ] Clear error screen for unsupported browsers
 
 **Should Have**:
 
 - [ ] Decode latency documented by scenario (cache hit/miss, codec, resolution)
-- [ ] LRU cache measurably improves performance
+- [ ] Cache hit rate measured (target: >80% for typical usage)
+- [ ] Processing time for backend re-encoding measured on Pi 4
 - [ ] Documentation captures all learnings and browser compatibility
+- [ ] Server-side optimization strategy validated and documented
 
 ---
 
 ## Risk Mitigation
 
-| Risk                                      | Mitigation                                                          |
-| ----------------------------------------- | ------------------------------------------------------------------- |
-| Browser support gaps                      | Feature detection + clear error message with upgrade guidance       |
-| Codec configuration extraction complexity | Use mp4box.js (proven library)                                      |
-| Memory leaks from VideoFrame              | Strict cleanup patterns, verify with tests                          |
-| Decode latency >50ms                      | LRU cache for sequential steps, accept higher latency for far seeks |
-| H.265 decode performance                  | Document differences, acceptable if <100ms                          |
+| Risk                                           | Mitigation                                                                   |
+| ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| Browser support gaps                           | Feature detection + clear error message with upgrade guidance                |
+| Codec configuration extraction complexity      | Use mp4box.js (proven library)                                               |
+| Memory leaks from VideoFrame                   | Strict cleanup patterns in cache eviction, verify with tests                 |
+| Decode latency >300ms                          | Server-side GOP=30 guarantee + LRU cache ensures predictable performance     |
+| H.265 decode performance                       | Document differences, acceptable if <300ms (same as H.264 with GOP=30)       |
+| Backend re-encoding too slow on Pi 4           | Use hardware encoding (v4l2m2m), fallback to software with ultrafast preset  |
+| Large videos consume excessive memory in cache | Configurable cache size (60-120 frames), eviction working, ~60-120MB bounded |
 
 ---
 
 ## Next Steps After Completion
 
-1. **Task 0.4** (Dual Video Sync) - Simplified with deterministic frame control
-2. **Phase 1 Integration** - Migrate patterns into main application
-3. **Update PROJECT_PLAN.md** - Mark Task 0.3 complete, update requirements status
+1. **Update PROJECT_PLAN.md** - Mark Task 0.3 complete, update requirements status
+2. **Task 0.4** (Dual Video Sync) - Simplified with deterministic frame control
 
 ---
 
-**Last Updated**: 2025-11-15  
+**Last Updated**: 2025-11-18  
 **Confidence Level**: 9/10

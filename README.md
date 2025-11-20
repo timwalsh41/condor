@@ -23,6 +23,16 @@ The Golf Swing Analyzer is an open-source platform for frame-accurate video anal
 - **FFmpeg**: For generating test videos
 - **Playwright Browsers**: For cross-browser testing
 
+### Backend Spike Environment
+
+```bash
+# Navigate to backend services tests directory
+cd backend/services/tests
+
+# Run the unit tests
+pytest -v .
+```
+
 ### Frontend Spike Environment
 
 ```bash

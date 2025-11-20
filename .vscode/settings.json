@@ -20,5 +20,8 @@
         "copilot/oswe-vscode-prime"
       ]
     }
-  }
+  },
+  "python.testing.pytestArgs": ["backend"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }

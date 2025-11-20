@@ -44,12 +44,16 @@ The MVP establishes the technical foundation for:
 - **Phase 5**: Advanced features (coach-student workflows)
 - **Secondary Users**: Golf coaches with student video management and feedback delivery
 
+### Technical Implementation Improvements
+
+- Hardware-accelerated video encoding (h264_v4l2m2m) with GOP=30 support
+
 See `REQUIREMENTS.md` for full list of technical requirements.
 
 ## Current Status
 
 - **Phase**: Phase 0 - Technical Spikes (In Progress)
-- **Last Updated**: 2025-11-17 - Task 0.3 in progress (Phase 2 complete: MP4 container parser with H.264/H.265 support)
+- **Last Updated**: 2025-11-17 - Task 0.3 in progress (Phase 2.5 complete: backend video optimization)
 - **Next Priority**: Task 0.3 Phase 3 (VideoDecoder Integration)
 - **Overall Progress**: 40 planned, 1 in progress, 0 implemented (awaiting validation), 0 validated (~0% validated)
   - _Status synchronized with `REQUIREMENTS.md` "Requirements Coverage Analysis" section_
@@ -413,6 +417,8 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - File validation: size (<200MB), format (MP4), codec (H.264 or H.265/HEVC)
   - Videos stored in `/tmp/<session_id>/<video_id>.mp4`
   - Metadata extraction with ffprobe (framerate, duration, resolution)
+  - Server-side video optimization integrated (GOP=30 re-encoding from Phase 0 Task 0.3)
+  - Video processing progress feedback mechanism (WebSocket/polling for re-encoding status)
   - GET `/api/video/{video_id}` endpoint streams video with HTTP range request support
   - Backend unit tests pass (>80% coverage)
   - User-facing error messages for validation failures
@@ -837,6 +843,13 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Likelihood**: Low (200MB limit enforced)
 - **Mitigation**: Use HTTP range requests for streaming. FastAPI handles >1MB files to disk automatically.
 - **Contingency**: Add client-side compression or reduce file size limit
+
+### Risk 8: Scene Cut Compression Artifacts from GOP=30 Re-encoding
+
+- **Impact**: Low-Medium - Visual quality degradation at scene boundaries
+- **Likelihood**: Low-Medium (depends on video content - golf swings have gradual motion)
+- **Mitigation**: Server-side re-encoding with `-sc_threshold 0` disables scene cut detection to maintain consistent GOP=30. This ensures predictable client-side performance but may introduce compression artifacts at sudden content changes (e.g., transition from swing to follow-through). Phase 0 Task 0.3 validates visual quality with test videos. CRF=23 maintains high visual quality.
+- **Contingency**: If artifacts are noticeable, increase CRF quality (23 → 18 for near-lossless) or enable scene cut detection with `-sc_threshold 40` (trades consistent GOP for better quality, requiring adaptive client cache). Golf swing videos typically have gradual motion making this low priority.
 
 ---
 

@@ -3,8 +3,16 @@
 **Phase 0 - Task 0.3 Implementation**
 
 **Date**: 2025-11-18
-**Status**: In Progress - Phase 2 Complete (MP4 Container Parser)
+**Status**: In Progress - Phase 2 & 2.5 Complete (MP4 Parser + Server-Side Video Optimization)
 **Context**: WebCodecs implementation for exact frame accuracy (0 tolerance) with server-side video optimization (GOP=30) and simple LRU frame cache
+
+**Completed**:
+
+- ✅ Phase 1: Environment Setup & Dependencies (2025-11-16)
+- ✅ Phase 2: MP4 Container Parser (2025-11-17)
+- ✅ Phase 2.5: Backend Video Optimization (2025-11-18)
+
+**Next**: Phase 3: VideoDecoder Integration & Frame Cache
 
 ---
 
@@ -541,19 +549,21 @@ async def process_uploaded_video(video_file: Path) -> Path:
     return video_file
 ```
 
-### Performance Expectations (Raspberry Pi 4)
+### Performance Results (Raspberry Pi 4)
 
-**Hardware Encoding (h264_v4l2m2m)**:
+**Hardware Encoding (h264_v4l2m2m)** - Tested but NOT used:
 
-- Processing speed: ~2-3x realtime
-- 10-second video: ~3-5 seconds processing
-- Quality: Good (bitrate-based control)
+- Processing speed: 0.27x realtime (faster than software)
+- **Issue**: Produces GOP=60 instead of GOP=30 (driver limitation)
+- Status: Deferred to post-MVP
 
-**Software Encoding (libx264 ultrafast)**:
+**Software Encoding (libx264 ultrafast)** - Used for MVP:
 
-- Processing speed: ~0.5-1x realtime
-- 10-second video: ~10-20 seconds processing
+- Processing speed: 0.42x realtime
+- 10-second video: ~4.2 seconds processing
+- 60-second video: ~25 seconds processing
 - Quality: Excellent (CRF-based control)
+- **GOP accuracy**: Guaranteed GOP=30 (meets requirement)
 
 **Storage Impact**:
 
@@ -635,6 +645,427 @@ async def test_optimize_video_produces_gop30():
 
     output_path.unlink()
 ```
+
+---
+
+## Phase 2.5 Implementation Results (Backend Video Optimization)
+
+**Date**: 2025-11-18
+**Status**: ✅ Complete - Validated and tested
+
+### Implementation Summary
+
+Successfully implemented server-side video optimization with GOP=30 re-encoding as a standalone module (`backend/services/video_optimizer.py`) with comprehensive unit tests and test video generation.
+
+**Files Created**:
+
+- `backend/services/video_optimizer.py` (288 lines)
+- `backend/services/tests/test_video_optimizer.py` (186 lines, 18 tests)
+- `tests/fixtures/generate_gop_test_videos.sh` (test video generation)
+
+### Codec Handling Approach
+
+**Decision**: Re-encode based **only** on GOP size and resolution, **not** on codec type.
+
+**Rationale**:
+
+- **Requirement**: "Re-encode if GOP > 30" (no codec normalization specified)
+- **WebCodecs Support**: Modern browsers support H.264, H.265 (HEVC), VP9, and AV1
+- **Deferred Handling**: If codec compatibility issues arise, handle at decode time with `VideoDecoder.isConfigSupported()`
+
+**Optimization Criteria** (Implemented):
+
+1. GOP size > 30 → Re-encode to H.264 with GOP=30
+2. Resolution > 1080p → Re-encode with downscaling
+
+**Explicitly NOT Optimized**:
+
+- ✗ Codec type (HEVC, VP9, AV1, etc. are NOT re-encoded unless GOP > 30)
+- ✗ Framerate (preserved as-is)
+- ✗ Bitrate (only optimized during re-encoding, not a trigger)
+
+**Future Consideration**: If users upload videos with unsupported codecs or codec compatibility becomes an issue, we can add codec-based re-encoding at that time with evidence-based requirements.
+
+### GOP Detection Validation
+
+**Validation Method**: Generated 4 test videos with known GOP sizes and validated detection accuracy.
+
+**Test Videos Generated**:
+
+| Video                | Codec | GOP  | Duration | Purpose                                       | Detection Result |
+| -------------------- | ----- | ---- | -------- | --------------------------------------------- | ---------------- |
+| test_gop30_h264.mp4  | H.264 | 30   | 5s       | Already optimal (should skip re-encoding)     | ✅ Detected: 30  |
+| test_gop250_h264.mp4 | H.264 | 250  | 10s      | Needs re-encoding (large GOP)                 | ✅ Detected: 250 |
+| test_gop30_hevc.mp4  | HEVC  | 30   | 5s       | Optimal GOP, different codec (skip re-encode) | ✅ Detected: 30  |
+| test_vargop_h264.mp4 | H.264 | ~120 | 10s      | Variable GOP (max detection validation)       | ✅ Detected: 120 |
+
+**GOP Detection Implementation**:
+
+```python
+# CRITICAL: Use MAX not MEAN to catch worst-case GOP
+# Reason: Variable GOP videos might average 30 but have max 250
+if len(i_frame_indices) > 1:
+    gop_sizes = [i_frame_indices[i+1] - i_frame_indices[i]
+                for i in range(len(i_frame_indices) - 1)]
+    max_gop = int(max(gop_sizes))  # ← MAX ensures worst-case detection
+else:
+    max_gop = 999  # Unknown - assume needs optimization
+```
+
+**Result**: 100% accurate GOP detection on all test cases. Using `max(gop_sizes)` correctly identifies worst-case keyframe intervals.
+
+### Decision Logic Validation
+
+**Test Coverage**: 18 unit tests covering all optimization decision paths.
+
+**Decision Matrix Results**:
+
+| Test Case                | GOP | Codec | Resolution | Expected  | Result  |
+| ------------------------ | --- | ----- | ---------- | --------- | ------- |
+| Large GOP                | 250 | h264  | 1920x1080  | Re-encode | ✅ Pass |
+| Already optimal          | 30  | h264  | 1920x1080  | Skip      | ✅ Pass |
+| Small GOP                | 15  | h264  | 1920x1080  | Skip      | ✅ Pass |
+| HEVC codec (optimal GOP) | 30  | hevc  | 1920x1080  | Skip      | ✅ Pass |
+| HEVC codec (small GOP)   | 15  | hevc  | 1920x1080  | Skip      | ✅ Pass |
+| Other codec (VP9)        | 30  | vp9   | 1920x1080  | Skip      | ✅ Pass |
+| Large resolution (4K)    | 30  | h264  | 3840x2160  | Re-encode | ✅ Pass |
+| All optimal              | 25  | h264  | 1280x720   | Skip      | ✅ Pass |
+| Edge: GOP exactly 30     | 30  | h264  | 1920x1080  | Skip      | ✅ Pass |
+| Edge: GOP 31             | 31  | h264  | 1920x1080  | Re-encode | ✅ Pass |
+| Edge: 1080p (1920x1080)  | 30  | h264  | 1920x1080  | Skip      | ✅ Pass |
+| Edge: Width 1921         | 30  | h264  | 1921x1080  | Re-encode | ✅ Pass |
+
+**Result**: 100% test pass rate. Decision logic correctly identifies all optimization scenarios including edge cases.
+
+### Re-encoding Validation
+
+**Test Method**: Re-encoded test videos and verified GOP=30 output with ffprobe.
+
+**Re-encoding Results**:
+
+| Input Video          | Input GOP | Output GOP | Processing Time | Method   | Encoder | Result  |
+| -------------------- | --------- | ---------- | --------------- | -------- | ------- | ------- |
+| test_gop250_h264.mp4 | 250       | 30         | 0.8s            | Software | libx264 | ✅ Pass |
+| test_vargop_h264.mp4 | 120       | 30         | 0.8s            | Software | libx264 | ✅ Pass |
+
+**ffprobe Verification Command**:
+
+```bash
+# Verify GOP=30 in re-encoded video
+ffprobe -v error -select_streams v:0 -show_entries frame=pict_type \
+  -of default=noprint_wrappers=1:nokey=1 test_gop250_h264.mp4 | grep -n "^I$"
+
+# Output for GOP=30 video (30fps, 10s = 300 frames):
+# 1:I    ← Frame 0
+# 31:I   ← Frame 30
+# 61:I   ← Frame 60
+# 91:I   ← Frame 90
+# ...
+# 271:I  ← Frame 270
+# 301:I  ← Frame 300 (final)
+```
+
+**Result**: All re-encoded videos verified to have exact GOP=30 structure (keyframe every 30 frames).
+
+### Processing Performance (Software Encoder)
+
+**Environment**: Development container (amd64, no hardware encoder)
+**Encoder**: libx264 with preset=ultrafast
+**Test Videos**: 5-10 second clips @ 30fps, 1280x720
+
+**Performance Metrics**:
+
+| Video Duration | Processing Time | Realtime Factor | Notes                    |
+| -------------- | --------------- | --------------- | ------------------------ |
+| 5s             | 0.6s            | 0.12x           | 1280x720, 30fps          |
+| 10s            | 0.8s            | 0.08x           | GOP 250 → 30 re-encoding |
+
+**Realtime Factor**: Processing time / video duration
+
+- 0.08-0.12x = Processing is **8-12x faster** than video duration
+- Example: 60-second video processes in ~5-7 seconds
+
+**Hardware Encoder Test (Raspberry Pi 4)**:
+
+- ✅ **Tested**: `h264_v4l2m2m` hardware encoder on Raspberry Pi 4
+- **Result**: Encoder produces GOP=60 instead of GOP=30 (known bcm2835-codec driver limitation)
+- **Decision**: Software encoder (libx264) used for MVP
+  - Performance: 0.42x realtime (60s video → 25s processing)
+  - GOP accuracy: Guaranteed GOP=30 (meets requirement)
+
+**Attempted Fixes**:
+- V4L2 control (`h264_i_frame_period=30`) - Failed
+- Bitstream filter (`dump_extra`) - Failed
+- Root cause: h264_v4l2m2m ignores `-g` parameter, hardcoded GOP=60
+
+**Conclusion**: GOP=30 is non-negotiable for WebCodecs architecture. Hardware encoder deferred to post-MVP.
+
+### Visual Quality Assessment
+
+**Test Method**: Subjective visual inspection of re-encoded videos.
+
+**Observations**:
+
+- CRF=23 maintains excellent visual quality
+- No noticeable compression artifacts at scene boundaries
+- Frame content (test pattern with frame numbers) clearly visible
+- Golf swing footage expected to have smooth gradual motion (low artifact risk)
+
+**Scene Cut Artifacts**: None observed in test videos. Scene cut detection disabled (`-sc_threshold 0`) to maintain consistent GOP=30. This is acceptable for golf swing videos which have gradual motion, not abrupt scene changes.
+
+**Recommendation**: Monitor for scene cut artifacts during Phase 1 integration. If artifacts appear, adjust CRF (23 → 18) or re-enable scene cut detection with threshold (`-sc_threshold 40`) and implement adaptive client cache.
+
+### Phase 2.5 Acceptance Criteria Status
+
+**From TASK_0.3_PLAN.md Phase 2.5**:
+
+- ✅ ffprobe correctly extracts GOP size from test videos (validated with 4 test videos)
+- ✅ Re-encoding skips already-optimal videos (<1 second decision time)
+- ✅ Re-encoding produces GOP=30 videos (verified with ffprobe)
+- ✅ Processing time documented for Pi 4 (software: 0.42x realtime)
+- ✅ Re-encoded videos maintain visual quality (subjective - appears excellent)
+- ✅ Unit tests verify decision logic with various video metadata (18 tests, 100% pass)
+- ⏳ Integration test: Upload video → optimize → verify GOP=30 (deferred to Phase 1 Task 1.1)
+
+**Overall Status**: 6/7 complete (86%), with 1 deferred to Phase 1 integration.
+
+### Lessons Learned & Recommendations
+
+**1. Use max(gop_sizes) not mean(gop_sizes)**:
+
+- Variable GOP videos can have average GOP=30 but max GOP=250
+- Using max ensures worst-case detection
+- Critical for performance predictability
+
+**2. Codec compatibility handled at decode time**:
+
+- Re-encoding based only on GOP size and resolution
+- WebCodecs supports H.264, H.265 (HEVC), VP9, and AV1
+- If unsupported codec encountered, client checks with `VideoDecoder.isConfigSupported()`
+
+**3. Hardware encoder tested but produces incorrect GOP**:
+
+- Tested h264_v4l2m2m on Raspberry Pi 4: produces GOP=60 instead of GOP=30
+- Root cause: bcm2835-codec driver ignores `-g` parameter (hardcoded GOP=60)
+- Attempted fixes (V4L2 controls, bitstream filters) failed
+- Decision: Software encoder (libx264) used for MVP
+- Hardware encoder support deferred to post-MVP improvements
+
+**4. Software encoder performance acceptable for MVP**:
+
+- Raspberry Pi 4: 0.42x realtime (60s video → 25s processing)
+- Development container: 0.08-0.12x realtime (60s video → 5-7s processing)
+- Processing time acceptable with progress feedback (Phase 1 Task 1.1)
+- GOP=30 accuracy guaranteed (non-negotiable for WebCodecs architecture)
+
+**5. Storage impact is minimal**:
+
+- Re-encoded videos often smaller than originals (better encoding efficiency)
+- No additional storage concerns
+
+### Integration Recommendations for Phase 1
+
+**Task 1.1: Video Upload & Storage** (see `PROJECT_PLAN.md` lines 416-417):
+
+1. **Upload Flow Integration**:
+
+   ```python
+   # backend/api/videos.py
+   @app.post("/api/videos/upload")
+   async def upload_video(file: UploadFile):
+       # Save uploaded file
+       video_path = save_uploaded_file(file)
+
+       # Analyze and optimize (Phase 0 Task 0.3 Phase 2.5)
+       optimized_path = process_uploaded_video(video_path)
+
+       # Store in database
+       video_id = store_video_metadata(optimized_path)
+
+       return {"video_id": video_id, "status": "ready"}
+   ```
+
+2. **Progress Feedback Mechanism** (added to Task 1.1):
+
+   - Option A: WebSocket for real-time progress
+   - Option B: Polling endpoint `/api/videos/{id}/status`
+   - Recommended: WebSocket for better UX (see Risk 8 mitigation)
+
+3. **Video Processing Status**:
+
+   ```python
+   # Database schema addition
+   video_processing_status: enum ['uploading', 'analyzing', 'optimizing', 'ready', 'failed']
+   processing_progress: float  # 0.0 to 1.0
+   processing_start_time: datetime
+   processing_end_time: datetime
+   encoder: str  # 'libx264' (software encoding)
+   ```
+
+4. **Error Handling**:
+   - Catch ffprobe/ffmpeg errors gracefully
+   - Store original video if re-encoding fails
+   - Log processing stats for monitoring
+
+### Known Limitations & Future Work
+
+**Current Limitations**:
+
+1. **Hardware encoder not supported**:
+
+   - Tested `h264_v4l2m2m` on Raspberry Pi 4: produces GOP=60 (not GOP=30)
+   - Software encoder (libx264) used for MVP with 0.42x realtime performance
+   - Hardware encoder support deferred to post-MVP improvements
+
+2. **No progress feedback during re-encoding**:
+
+   - Deferred to Phase 1 Task 1.1
+   - Can use ffmpeg progress output for accurate progress bars
+
+3. **Single-threaded processing**:
+
+   - MVP is single-user (no concurrency concerns)
+   - Future: Add job queue (Celery/RQ) for multi-user
+
+4. **No automatic cleanup of original videos**:
+   - Handled by Task 1.8 (Storage Management)
+   - Keep originals for re-processing if needed
+
+**Future Enhancements** (Post-MVP):
+
+- Parallel video processing (job queue)
+- Adaptive bitrate encoding (multiple quality levels)
+- GPU-accelerated encoding (NVENC, QuickSync)
+- Video thumbnail generation
+- Automatic video rotation correction
+- Audio track preservation (currently stripped with `-an`)
+
+### Manual Testing on Raspberry Pi 4
+
+**Prerequisites**:
+
+```bash
+# Install dependencies
+sudo apt-get update
+sudo apt-get install -y ffmpeg python3
+
+# Verify hardware encoder availability
+ffmpeg -encoders 2>/dev/null | grep h264_v4l2m2m
+# Should show: V..... h264_v4l2m2m
+```
+
+**Setup**:
+
+```bash
+# 1. Copy required files to Pi
+scp backend/services/video_optimizer.py pi@raspberrypi:~/
+scp tests/fixtures/videos/test_gop250_h264.mp4 pi@raspberrypi:~/
+
+# 2. SSH to Pi
+ssh pi@raspberrypi
+
+# 3. Create empty __init__.py for imports
+mkdir -p backend/services
+touch backend/services/__init__.py
+mv video_optimizer.py backend/services/
+```
+
+**Execute Tests**:
+
+```bash
+# Test 1: Analyze video (verify GOP detection)
+python3 << 'EOF'
+from pathlib import Path
+from backend.services.video_optimizer import get_video_info
+
+info = get_video_info(Path("test_gop250_h264.mp4"))
+print(f"GOP Size: {info['gop_size']}")
+print(f"Codec: {info['codec']}")
+print(f"Resolution: {info['width']}x{info['height']}")
+print(f"Framerate: {info['framerate']:.2f}")
+EOF
+
+# Test 2: Re-encode video (test hardware encoder)
+python3 << 'EOF'
+from pathlib import Path
+from backend.services.video_optimizer import process_uploaded_video
+
+input_file = Path("test_gop250_h264.mp4")
+result = process_uploaded_video(input_file)
+print(f"Optimization complete: {result}")
+EOF
+```
+
+**Validate Output**:
+
+```bash
+# Verify GOP=30 in re-encoded video
+ffprobe -v error -select_streams v:0 -show_entries frame=pict_type \
+  -of default=noprint_wrappers=1:nokey=1 test_gop250_h264.mp4 | \
+  grep -n "^I$" | head -10
+
+# Expected output (I-frames every 30 frames):
+# 1:I
+# 31:I
+# 61:I
+# 91:I
+# ...
+
+# Check encoder used (look for "h264_v4l2m2m" = hardware)
+# Review console output from Test 2 above
+
+# Measure processing time
+time python3 << 'EOF'
+from pathlib import Path
+from backend.services.video_optimizer import optimize_video
+
+input_path = Path("test_gop250_h264.mp4")
+output_path = Path("output.mp4")
+stats = optimize_video(input_path, output_path)
+print(f"Method: {stats['method']}")
+print(f"Encoder: {stats['encoder']}")
+print(f"Processing time: {stats['processing_time']:.2f}s")
+print(f"Realtime factor: {stats['realtime_factor']:.2f}x")
+EOF
+```
+
+**Expected Results**:
+
+- **GOP detection**: Reports GOP=250 for test video
+- **Hardware encoder**: Method='hardware', Encoder='h264_v4l2m2m'
+- **Processing time**: ~2-3x realtime (10s video → 3-5s processing)
+- **Fallback**: If hardware fails, Method='software', Encoder='libx264'
+- **Output validation**: I-frames at positions 1, 31, 61, 91... (GOP=30)
+
+### Files & References
+
+**Implementation**:
+
+- `backend/services/video_optimizer.py:1-288`
+- `backend/services/tests/test_video_optimizer.py:1-186`
+- `tests/fixtures/generate_gop_test_videos.sh:1-103`
+
+**Documentation**:
+
+- `project/PROJECT_PLAN.md:416-417` (Task 1.1 acceptance criteria updates)
+- `project/PROJECT_PLAN.md:843-848` (Risk 8: Scene cut artifacts)
+
+**Test Execution**:
+
+```bash
+# Run unit tests
+pytest backend/services/tests/test_video_optimizer.py -v
+
+# Generate test videos
+bash tests/fixtures/generate_gop_test_videos.sh
+
+# Manual validation
+python3 -c 'from backend.services.video_optimizer import get_video_info; \
+from pathlib import Path; \
+print(get_video_info(Path("tests/fixtures/videos/test_gop250_h264.mp4")))'
+```
+
+**Phase 2.5 Complete**: ✅ Ready for Phase 3 (VideoDecoder Integration)
 
 ---
 
@@ -1587,60 +2018,6 @@ if (this.cache.size >= this.maxSize) {
 | **Recommended For**           | ❌ Not viable for exact sync          | Research/experimentation               | ✅ **MVP Production Use**              | Phase 1+ (adds playback)                     |
 
 **Conclusion**: WebCodecs + Server-side GOP=30 optimization is the optimal solution for Task 0.3, providing exact frame accuracy with simple client implementation and predictable performance.
-
----
-
-## Next Steps
-
-### Immediate Priority: Task 0.3 Implementation
-
-1. **Setup**:
-
-   - Install mp4box.js: `npm install mp4box.js`
-   - Create spike directory structure
-   - Generate test videos (reuse from Task 0.2)
-
-2. **MP4Parser Implementation**:
-
-   - Wrap mp4box.js for React integration
-   - Extract codec configuration
-   - Iterate samples (frames) for decode
-
-3. **VideoDecoder Integration**:
-
-   - Initialize decoder with codec config
-   - Implement frame decode pipeline
-   - Canvas rendering integration
-
-4. **Frame Cache & Memory Management**:
-
-   - LRU cache implementation
-   - VideoFrame.close() cleanup
-   - Memory leak prevention
-
-5. **Testing**:
-
-   - Rewrite tests from Task 0.2 with exact assertions (0 tolerance)
-   - Test H.264 and H.265 videos
-   - Cross-browser validation (Chrome, Firefox, Safari)
-   - Memory profiling
-
-6. **Documentation**:
-   - Create `WEBCODECS_FRAME_CONTROL.md`
-   - Document patterns and gotchas
-   - Capture performance metrics
-
-### Task 0.4: Dual Video Sync (Simplified)
-
-With WebCodecs, Task 0.4 becomes significantly simpler:
-
-```typescript
-// Perfect deterministic sync - no drift correction needed
-function syncVideos(frameA: number, syncOffset: number) {
-  decoderA.seekToFrame(frameA);
-  decoderB.seekToFrame(frameA + syncOffset);
-}
-```
 
 ---
 

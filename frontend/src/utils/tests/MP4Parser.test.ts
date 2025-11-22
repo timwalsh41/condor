@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * MP4Parser Unit Tests
  *

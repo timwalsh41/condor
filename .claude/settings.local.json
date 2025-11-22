@@ -39,7 +39,9 @@
       "Bash(DISPLAY=:99 timeout 15 npx playwright test:*)",
       "Bash(npx tsx:*)",
       "Bash(npm test:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": []
   }

@@ -237,7 +237,7 @@ export class MP4Parser {
     const sampleEntry = fullTrack.mdia.minf.stbl.stsd.entries[0];
 
     // Extract avcC or hvcC box data
-    let configBox = sampleEntry.avcC || sampleEntry.hvcC;
+    const configBox = sampleEntry.avcC || sampleEntry.hvcC;
 
     if (!configBox) {
       throw new MP4ParseError(

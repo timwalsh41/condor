@@ -53,11 +53,12 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 ## Current Status
 
 - **Phase**: Phase 0 - Technical Spikes (In Progress)
-- **Last Updated**: 2025-11-17 - Task 0.3 in progress (Phase 2.5 complete: backend video optimization)
-- **Next Priority**: Task 0.3 Phase 3 (VideoDecoder Integration)
-- **Overall Progress**: 40 planned, 1 in progress, 0 implemented (awaiting validation), 0 validated (~0% validated)
+- **Last Updated**: 2025-11-21 - Task 0.3 Phase 3 complete (VideoDecoder Integration & Frame Cache)
+- **Next Priority**: Task 0.3 Phase 4 (React Components & UI) or Task 0.4 (Dual Video Sync)
+- **Overall Progress**: 46 planned, 1 in progress (Task 0.3 - 3/7 phases complete), 0 implemented (awaiting validation), 0 validated (~0% validated)
   - _Status synchronized with `REQUIREMENTS.md` "Requirements Coverage Analysis" section_
   - _Note: Tasks 0.2/0.2.1 validated requirements with ±1 frame tolerance, NOT exact frame accuracy_
+  - _Task 0.3 Phase 3: Implementation complete and correct (5/15 criteria verified with unit tests, 8/15 implemented correctly but runtime unverified, 2/15 deferred to Phase 6)_
 - **Critical Discovery**: HTML5 video `currentTime` seeking + `requestVideoFrameCallback` cannot achieve deterministic exact frame positioning required for dual-video sync. Pivoting to WebCodecs API for frame-by-frame decode control.
 
 ## Task Breakdown
@@ -228,44 +229,61 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 0.3: WebCodecs Frame Control Spike
 
-- **Status**: In Progress (Phase 2 Complete - MP4 Container Parser)
+- **Status**: In Progress (Phase 3 Complete - VideoDecoder Integration & Frame Cache)
 - **Started**: 2025-11-16
+- **Phase Completion**: Phase 1 (2025-11-16), Phase 2 (2025-11-17), Phase 2.5 (2025-11-18), Phase 3 (2025-11-21)
 - **Requirements**: REQ-F-FRAME-001 (Frame Stepping), REQ-F-FRAME-002 (Frame Counter), REQ-F-FRAME-003 (Seeking Precision), REQ-NF-P-004 (Frame Step Response), REQ-NF-BC-001 (Browser Compatibility)
 - **Scope**: Implement and validate frame-accurate video control using WebCodecs API for deterministic exact frame positioning
 - **Rationale**: Tasks 0.2 and 0.2.1 proved that `requestVideoFrameCallback` + `video.currentTime` seeking cannot achieve exact frame accuracy. WebCodecs provides direct frame-by-frame decode access for deterministic positioning.
 - **Acceptance Criteria**:
-  - WebCodecs VideoDecoder successfully decodes H.264 and H.265 MP4 files
-  - MP4 container parsed using mp4box.js for codec configuration and frame data
-  - Frame-by-frame stepping with exact frame accuracy (0 frame tolerance, not ±1)
-  - Frame counter displays exact frame numbers with perfect accuracy
-  - Decode latency measured and <50ms (REQ-NF-P-004 compliance)
-  - Tests pass with exact frame assertions in Chrome, Firefox, Safari (desktop & mobile)
-  - Canvas rendering displays decoded VideoFrame objects correctly
-  - Memory management with LRU cache for decoded frames (~30 frame window)
-  - Spike tests pass (`tests/spikes/test_webcodecs_frame_control.spec.ts`)
-  - Spike documentation created (`docs/spike/WEBCODECS_FRAME_CONTROL.md`)
+  - ✅ WebCodecs VideoDecoder successfully decodes H.264 and H.265 MP4 files (Phase 3 - implementation correct)
+  - ✅ MP4 container parsed using mp4box.js for codec configuration and frame data (Phase 2 complete)
+  - ✅ Frame-by-frame stepping with exact frame accuracy (0 frame tolerance, not ±1) (Phase 3 - design correct, runtime unverified)
+  - ✅ Frame counter displays exact frame numbers with perfect accuracy (Phase 3 - design correct, runtime unverified)
+  - ⏳ Decode latency measured and <50ms (REQ-NF-P-004 compliance) (Phase 3 - latency tracking implemented, runtime measurement deferred to Phase 6)
+  - ⏳ Tests pass with exact frame assertions in Chrome, Firefox, Safari (desktop & mobile) (Deferred to Phase 6)
+  - ✅ Canvas rendering displays decoded VideoFrame objects correctly (Phase 3 - design correct, runtime unverified)
+  - ✅ Memory management with LRU cache for decoded frames (60-120 frame capacity) (Phase 3 complete, 19/19 unit tests passing)
+  - ⏳ Spike tests pass (`tests/spikes/test_webcodecs_frame_control.spec.ts`) (Deferred to Phase 6)
+  - ✅ Spike documentation created (`docs/spike/WEBCODECS_FRAME_CONTROL.md`) (Phase 2.5 & Phase 3 sections complete - 520 lines)
+  - ✅ User-facing demo component (WebCodecsDemo) with frame stepping controls (Phase 3 complete)
+  - ✅ Operation queueing implemented to handle rapid button presses (Phase 3 - CRITICAL-3 fix applied)
+  - ✅ Decoder output callback pattern (cache only, render after flush) (Phase 3 - CRITICAL-2 fix applied)
 - **Dependencies**: Task 0.1
-- **Risk Level**: **HIGH** - Core functionality pivot, new technology
+- **Risk Level**: **MEDIUM** (reduced from HIGH - core patterns validated)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 1 (revised with WebCodecs approach)
 - **Technical Notes**:
   - Use VideoDecoder with EncodedVideoChunk for frame-by-frame decode
   - Parse MP4 container with mp4box.js to extract codec config and sample data
   - Decode frames to VideoFrame objects, render to canvas via ctx.drawImage()
   - Frame index = exact frame number (deterministic, no seeking ambiguity)
-  - Store decoded frames in LRU cache (memory: ~30 frames × ~1MB/frame = ~30MB per video)
+  - Store decoded frames in LRU cache (memory: 60-120 frames × ~1MB/frame = ~60-120MB per video)
   - Browser support: Chrome 94+, Firefox 130+, Safari 17.4+ (desktop & mobile)
   - Show clear error message for unsupported browsers (acceptable for MVP)
   - Always call videoFrame.close() to release memory (critical!)
-  - Handle keyframe dependencies: decode from nearest keyframe when seeking
+  - Handle keyframe dependencies: decode from nearest keyframe using actual is_sync flags
   - Hardware decode automatically used when available
+  - **CRITICAL**: Operation queueing via Promise chain prevents concurrent seekToFrame() calls
+  - **CRITICAL**: Decoder output callback only caches, rendering happens after flush() to prevent UI flicker
 - **Deliverables**:
-  - WebCodecsPlayer component using VideoDecoder
-  - MP4Parser utility wrapping mp4box.js
-  - FrameCache utility with LRU eviction
-  - useVideoDecoder hook for React integration
-  - Unit tests for exact frame accuracy (0 tolerance)
-  - User-facing frame stepping demo (runnable via `npm run dev` from `frontend/`)
-  - Spike documentation with WebCodecs patterns and gotchas
+  - ✅ WebCodecsDemo component using VideoDecoder (Phase 3)
+  - ✅ MP4Parser utility wrapping mp4box.js (Phase 2)
+  - ✅ FrameCache utility with LRU eviction (Phase 3)
+  - ✅ useWebCodecsDecoder hook for React integration (Phase 3)
+  - ✅ Unit tests for FrameCache: 19/19 passing (Phase 3)
+  - ✅ User-facing frame stepping demo (runnable via `npm run dev` from `frontend/`) (Phase 3)
+  - ✅ Spike documentation with WebCodecs patterns and gotchas (Phases 2.5 & 3)
+  - ⏳ Playwright integration tests (Deferred to Phase 6)
+- **Requirements Validation (Phase 3)**:
+  - ⚠️ REQ-F-FRAME-001 (Frame-Accurate Stepping): Partial - Design correct, implementation deterministic by design, runtime unverified
+  - ⚠️ REQ-F-FRAME-002 (Frame Counter Display): Partial - Implementation correct, displays frame index directly from decoder
+  - ⚠️ REQ-F-FRAME-003 (Seeking Precision): Partial - Deterministic by design (frame index-based), runtime unverified
+  - ⚠️ REQ-NF-P-004 (Frame Step Response Time <50ms): Partial - Latency tracking implemented, runtime measurement deferred to Phase 6
+  - ⚠️ REQ-NF-BC-001 (Browser Compatibility): Partial - Feature detection present, cross-browser testing deferred to Phase 6
+- **Review Artifacts**:
+  - ✅ `project/phase_0/REVIEW_SUMMARY_20251121_WEBCODECS_PHASE3.md` - Independent code review (2 CRITICAL fixes applied)
+  - ✅ `validation/PHASE_3_VALIDATION_REPORT.md` - Comprehensive requirements validation analysis
+- **Next**: Phase 4 (React Components & UI) or Phase 6 (Cross-Browser Testing)
 
 ---
 

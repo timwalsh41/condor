@@ -170,7 +170,7 @@ def optimize_video(input_path: Path, output_path: Path) -> Dict:
 
     Raises:
         subprocess.CalledProcessError: If ffmpeg fails
-        subprocess.TimeoutExpired: If encoding exceeds 5 minute timeout
+        subprocess.TimeoutExpired: If encoding exceeds 1 minute timeout
     """
     start_time = time.time()
     video_duration = get_video_duration(input_path)
@@ -189,7 +189,7 @@ def optimize_video(input_path: Path, output_path: Path) -> Dict:
         '-an',                       # Remove audio
         '-movflags', '+faststart',   # Web-optimized
         str(output_path)
-    ], capture_output=True, timeout=300, check=True)
+    ], capture_output=True, timeout=60, check=True)
 
     elapsed = time.time() - start_time
     logger.info(f"Software encoding successful: {elapsed:.1f}s")

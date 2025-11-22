@@ -221,50 +221,151 @@ During Phase 3 implementation, independent code review identified and fixed:
 
 ---
 
-## Phase 4: React Components & UI
+## Phase 4: Playback Implementation & Enhanced Demo
 
 **Status**: Not Started  
-**Estimated**: 2-3 hours
+**Estimated**: 3-4 hours
 
 ### Scope
 
-- Create UI components for demo/testing
-- Integrate WebCodecs decoder for frame stepping/seeking (exact positioning)
-- Integrate HTML5 video element for continuous playback (smooth motion)
-- Implement smooth mode switching (stepping ↔ playback) with state synchronization
+- Implement WebCodecs-based continuous playback with frame-accurate synchronization
+- Expand read-ahead cache from 10 to 60 frames (2-second buffer @ 30fps)
+- Add playback controls with variable speed support
+- Display comprehensive video metadata
+- Validate playback smoothness and frame accuracy
+
+### Rationale
+
+**WebCodecs for All Modes**: Frame-accurate dual-video sync during playback is non-negotiable. HTML5 video seeking cannot guarantee exact frame positioning (±1-2 frame error), which breaks sync. WebCodecs provides deterministic frame control for stepping, seeking, AND playback.
+
+**60-Frame Read-Ahead**:
+
+- Provides 2-second playback buffer @ 30fps
+- Enables smooth playback start (frames pre-decoded)
+- Uses 50% of 120-frame cache (60 forward, 60 backward)
+- Decoder continues filling cache during playback (parallel decode)
 
 ### Deliverables
 
-- [ ] `components/WebCodecsPlayer.tsx`:
-  - Canvas element for WebCodecs frame display (stepping/seeking mode)
-  - HTML5 video element for continuous playback (playback mode)
-  - Mode switching logic (show canvas when stepping, video when playing)
-  - File upload input
-  - Frame counter display (Frame X / Total)
-  - Loading/error states
-  - Decode latency display (last operation ms)
-  - Cache hit/miss statistics
-- [ ] `components/FrameStepper.tsx`:
-  - Play/Pause button
-  - Fine step forward/backward (1 frame)
-  - Coarse step forward/backward (5 frames)
-  - Seeking slider (0 to totalFrames-1)
-  - Current frame / total frames display
-- [ ] User-facing demo (`npm run dev` from frontend/)
+- [ ] **`hooks/useWebCodecsDecoder.ts` enhancements**:
+
+  - Increase read-ahead from 10 → 60 frames
+  - Add playback state: `isPlaying: boolean`
+  - Add playback rate control: `playbackRate: number` (0.1x - 2.0x)
+  - Add `play()` and `pause()` functions
+  - Add `setPlaybackRate(rate: number)` function
+  - Implement `requestAnimationFrame` playback loop:
+    - Calculate frame interval based on framerate and playbackRate
+    - Render from cache when available (instant)
+    - Decode in parallel to keep cache filled ahead of playback position
+  - Return playback state in hook interface
+
+- [ ] **`components/WebCodecsDemo.tsx` enhancements**:
+
+  - **Playback Controls**:
+    - Play/Pause button (toggles playback state)
+    - Playback rate dropdown (0.1x, 0.25x, 0.5x, 0.75x, 1.0x, 1.5x, 2.0x)
+    - Default: 1.0x (normal speed)
+  - **Video Metadata Table** (displayed on video load):
+    - Frame count (total frames)
+    - Frame rate (fps)
+    - Codec (H.264/H.265/etc)
+    - Resolution (width × height)
+    - Duration (seconds)
+    - GOP size (keyframe interval)
+    - File size (MB)
+  - **Cache hit/miss rate display** that live updates during seeking/stepping/playback
+  - **Existing Controls** (keep current):
+    - Fine step forward/backward (±1 frame)
+    - Coarse step forward/backward (±5 frames)
+    - Seeking slider (frame-accurate)
+    - Frame counter (Frame X / Total)
+    - Cache statistics (size, hits, misses, hit rate)
+    - Decode latency (ms)
+
+- [ ] User-facing demo validates all functionality (`npm run dev`)
 
 ### Acceptance Criteria
 
-- UI loads and displays correctly
-- File upload triggers decoder initialization
-- WebCodecs canvas visible during stepping/seeking, HTML5 video visible during playback
-- Smooth transition between modes (position synchronized on mode switch)
-- All buttons functional (play/pause, step, seek)
-- Frame counter shows exact values
-- Seeking slider provides exact frame positioning
-- Decode latency displayed for each operation
-- Cache statistics visible (hit rate %)
-- Error messages display clearly for unsupported browsers
-- Demo is intuitive and demonstrates exact frame accuracy
+- **Playback Functionality**:
+
+  - [ ] Play/Pause button starts/stops continuous playback
+  - [ ] Playback uses WebCodecs decoder (no HTML5 video element)
+  - [ ] Frame-accurate playback (renders exact frame N at correct time)
+  - [ ] Playback rate selector changes speed (0.1x - 2.0x)
+  - [ ] Smooth playback at 1.0x speed (no dropped frames)
+  - [ ] Slow-motion playback works correctly (0.1x, 0.25x, 0.5x, 0.75x)
+  - [ ] Fast playback works correctly (1.5x, 2.0x if performance allows)
+  - [ ] Playback stops at end of video
+
+- **Cache Behavior**:
+
+  - [ ] Read-ahead increased to 60 frames
+  - [ ] Cache fills during playback (parallel decode future frames ahead of current position)
+  - [ ] Playback renders from cache (instant, no decode latency)
+  - [ ] Cache miss handled gracefully (wait for decode, continue)
+  - [ ] Cache statistics reflect 60-frame read-ahead
+
+- **Metadata Display**:
+
+  - [ ] Metadata table appears on video load
+  - [ ] All 7 properties displayed correctly
+  - [ ] GOP size shows 30 for optimized videos
+  - [ ] Codec string matches video (e.g., "avc1.64001f" for H.264 High)
+
+- **Integration**:
+
+  - [ ] Can step while paused, then play
+  - [ ] Can pause during playback, then step
+  - [ ] Seeking works during playback (pauses first)
+  - [ ] Playback rate changes apply immediately
+  - [ ] All existing controls still functional
+
+- **Performance** (GOP=30 videos):
+  - [ ] Playback smooth at 1.0x (30fps) - measured in Phase 6
+  - [ ] Slow-motion smooth (0.25x = 7.5fps) - easier than 30fps
+  - [ ] Cache keeps up with playback (no stalls)
+
+### Implementation Notes
+
+**Playback Loop Pattern**:
+
+```typescript
+function playbackLoop(timestamp: number) {
+  if (!isPlaying) return;
+
+  const elapsed = timestamp - lastFrameTime;
+  const frameInterval = 1000 / framerate / playbackRate;
+
+  if (elapsed >= frameInterval) {
+    const nextFrame = currentFrame + 1;
+
+    if (nextFrame >= totalFrames) {
+      setIsPlaying(false); // End of video
+      return;
+    }
+
+    // Try cache first (fast path)
+    if (cache.has(nextFrame)) {
+      renderFrameToCanvas(cache.get(nextFrame));
+      setCurrentFrame(nextFrame);
+    } else {
+      // Cache miss - decode synchronously
+      await seekToFrame(nextFrame); // Decodes target + 60 ahead
+    }
+
+    lastFrameTime = timestamp;
+  }
+
+  requestAnimationFrame(playbackLoop);
+}
+```
+
+**Cache Strategy**:
+
+- 120 total frames: 60 forward (playback buffer), 60 backward (stepping)
+- During playback: Render from cache, decode 60 frames ahead in parallel
+- After cache miss: 60-frame buffer refills, playback continues smoothly
 
 ---
 
@@ -330,10 +431,16 @@ ffmpeg -f lavfi -i testsrc=duration=10:size=1920x1080:rate=30 \
   - Single frame step backward outside cache (exact, <300ms)
   - Coarse step (5 frames, exact, <50ms if cached)
   - Seeking to arbitrary frame (exact, <300ms worst case)
-  - Play/Pause functionality
+  - **Playback functionality** (WebCodecs-based):
+    - Continuous playback at 1.0x speed (smooth, no dropped frames)
+    - Playback rate changes (0.25x - 2.0x)
+    - Frame-accurate playback (correct frame at correct time)
+    - Play/pause transitions
+    - Playback performance with 60-frame read-ahead
   - Decode latency measurement by scenario
   - Memory leak detection (cache eviction working)
-  - Cache hit/miss rate measurement
+  - Cache hit/miss rate measurement (target: >80% during playback)
+    - Live update rate on display in demo
 - [ ] Tests pass with **exact assertions** (no ±1 tolerance)
 - [ ] Performance metrics documented by scenario
 
@@ -370,32 +477,35 @@ expect(actualFrame).toBe(expectedFrame); // NOT ±1
 ### Deliverables
 
 - [ ] Update `docs/spike/WEBCODECS_FRAME_CONTROL.md` with:
+  - WebCodecs-only architecture (stepping, seeking, AND playback)
   - Server-side video optimization strategy (GOP=30 rationale)
-  - Simple LRU cache approach (vs complex dual cache)
+  - 60-frame read-ahead cache strategy for playback
   - Implementation summary
-  - API patterns (VideoDecoder setup, frame decode, memory management)
+  - API patterns (VideoDecoder setup, frame decode, memory management, playback loop)
   - Keyframe-aware seeking algorithm
   - Gotchas and pitfalls discovered
   - Performance metrics by scenario:
     - Cache hit: <10ms
-    - Cache miss (forward): <300ms
-    - Cache miss (backward, large jump): <300ms
-  - Memory usage: 60-120MB (cache size dependent)
+    - Cache miss: <300ms
+    - Playback smoothness at various rates (0.1x - 2.0x)
+  - Memory usage: 120MB (60 forward, 60 backward)
   - Browser compatibility matrix
-  - Recommendations for Phase 1 integration
+  - Recommendations for dual-video sync (Phase 1)
   - Code examples with annotations
   - Test results summary
 
 ### Acceptance Criteria
 
 - Documentation is concise with no redundancy
-- Server-side optimization strategy clearly explained
+- WebCodecs-only architecture clearly explained (no hybrid approach references)
+- Server-side optimization strategy justified
 - All implementation patterns documented
+- Playback implementation patterns included
 - Known limitations clearly stated (GOP dependency, memory usage)
-- Performance metrics included with GOP=30 context
+- Performance metrics included for stepping, seeking, AND playback
 - Browser compatibility matrix complete
-- Clear recommendations for Phase 1
-- Backend re-encoding documented for Phase 1 implementation
+- Clear recommendations for Phase 1 dual-video integration
+- Backend re-encoding integrated with upload flow
 
 ---
 
@@ -407,19 +517,24 @@ expect(actualFrame).toBe(expectedFrame); // NOT ±1
 - [ ] WebCodecs VideoDecoder decodes GOP=30 H.264 MP4 files successfully
 - [ ] WebCodecs VideoDecoder decodes GOP=30 H.265 MP4 files successfully
 - [ ] Frame stepping with **exact frame accuracy (0 tolerance)**
-- [ ] Simple LRU cache (60-120 frames) implemented and tested
+- [ ] 60-frame read-ahead cache implemented (2-second playback buffer)
 - [ ] Seeking slider provides exact frame positioning
 - [ ] Frame counter displays exact frame numbers
+- [ ] **Continuous playback using WebCodecs** (frame-accurate, variable speed)
+- [ ] **Playback rate control** (0.1x - 2.0x)
+- [ ] **Video metadata display** (7 properties including GOP size)
 - [ ] User-facing demo working (`npm run dev`)
 - [ ] Tests pass with exact assertions in Chrome, Firefox, Safari
 - [ ] Cache hit latency <10ms, miss latency <300ms (GOP=30 videos)
+- [ ] **Playback smooth at 1.0x speed** (30fps, no dropped frames)
 - [ ] Memory management verified (no leaks, cache eviction working)
 - [ ] Clear error screen for unsupported browsers
 
 **Should Have**:
 
-- [ ] Decode latency documented by scenario (cache hit/miss, codec, resolution)
-- [ ] Cache hit rate measured (target: >80% for typical usage)
+- [ ] Decode latency documented by scenario (cache hit/miss, codec, resolution, playback)
+- [ ] Cache hit rate measured (target: >80% during stepping and playback)
+- [ ] Playback performance at different rates (0.1x - 2.0x)
 - [ ] Processing time for backend re-encoding measured on Pi 4
 - [ ] Documentation captures all learnings and browser compatibility
 - [ ] Server-side optimization strategy validated and documented

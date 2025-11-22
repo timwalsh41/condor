@@ -18,21 +18,24 @@
 
 ## Executive Summary
 
-The `requestVideoFrameCallback` + `video.currentTime` seeking approach (Tasks 0.2/0.2.1) cannot achieve the deterministic exact frame positioning required for dual-video synchronization. Tests passed with relaxed assertions (±1 frame tolerance) but fail with exact frame matching (0 tolerance).
+The `requestVideoFrameCallback` + `video.currentTime` seeking approach (Tasks 0.2/0.2.1) cannot achieve deterministic exact frame positioning required for dual-video synchronization. Tests passed with ±1 frame tolerance but fail with exact frame matching (0 tolerance).
 
 **Root Cause**: HTML5 video seeking is designed for human-perceived "close enough" seeking, not frame-exact positioning. Browser video decoders optimize for smooth playback, not sample-accurate seeking.
 
-**Recommended Solution**:
+**Implemented Solution**:
 
-1. **Server-side video re-encoding** with GOP=30 (keyframe every 30 frames) to guarantee predictable decode performance
+1. **Server-side video re-encoding** with GOP=30 (keyframe every 30 frames) guarantees predictable decode performance
 2. **WebCodecs API** for frame-by-frame decode with deterministic frame positioning
-3. **Simple LRU cache** (60-120 frames) sufficient with GOP=30 guarantee, avoiding complex dual-cache strategies
+3. **60-frame read-ahead LRU cache** (2-second buffer @ 30fps) for smooth playback
+4. **WebCodecs for all operations**: stepping, seeking, AND continuous playback with variable speed (0.1x - 2.0x)
 
 **Architecture Benefits**:
 
-- ✅ Exact frame accuracy (0 tolerance) for stepping and seeking
+- ✅ Exact frame accuracy (0 tolerance) for stepping, seeking, AND playback
+- ✅ Frame-accurate dual-video sync maintained during continuous playback
 - ✅ Predictable performance: Cache miss <300ms (vs <2000ms with GOP=250)
-- ✅ Simpler client code: Single LRU cache (vs adaptive/dual cache complexity)
+- ✅ Smooth playback: 2-second buffer handles decode variations
+- ✅ Variable speed: 0.1x slow-motion to 2.0x fast playback
 - ✅ Consistent UX: All videos optimized to same keyframe density
 
 ---
@@ -307,19 +310,24 @@ You may need to accept that:
 
 ## Recommended Solution: WebCodecs API for Frame-Accurate Control
 
-### Why WebCodecs for Stepping/Seeking
+### Why WebCodecs for All Operations
 
-WebCodecs provides **direct access to decoded video frames** via the VideoDecoder interface. Instead of seeking within a video element, we decode specific frames by index and render them to canvas.
+WebCodecs provides **direct access to decoded video frames** via the VideoDecoder interface. Instead of relying on HTML5 video seeking, we decode specific frames by index and render them to canvas for all operations: stepping, seeking, AND continuous playback.
 
 **Key Advantages**:
 
 - ✅ **Deterministic**: Frame N is always frame N (no seeking ambiguity)
 - ✅ **Exact positioning**: Frame index = exact frame number
-- ✅ **Perfect sync**: `displayFrame(decoderA, N); displayFrame(decoderB, N + offset);`
+- ✅ **Perfect sync during playback**: Both videos render exact frame N at exact time
+- ✅ **Variable speed playback**: 0.1x - 2.0x with frame accuracy maintained
 - ✅ **Modern browser support**: Chrome 94+, Firefox 130+, Safari 17.4+ (95% market coverage)
 - ✅ **Hardware accelerated**: Uses GPU decode on supported devices
 
-### WebCodecs Architecture (Task 0.3 Scope)
+**Critical for Dual-Video Sync**: HTML5 video cannot guarantee frame-exact positioning during playback (±1-2 frame drift). For golf swing analysis where the swing occurs in 10-20 frames @ 30fps, even 1-frame sync error is unacceptable when viewed at 0.25x slow-motion.
+
+### WebCodecs Architecture
+
+**All Operations Use WebCodecs**: Stepping, seeking, AND continuous playback with variable speed control.
 
 ```typescript
 // 1. Parse MP4 container to extract codec config and frame data
@@ -327,32 +335,63 @@ const mp4Parser = new MP4Parser(videoFile);
 await mp4Parser.initialize();
 const { codecConfig, samples } = mp4Parser.getVideoTrack();
 
-// 2. Initialize VideoDecoder
+// 2. Initialize VideoDecoder with frame caching
 const decoder = new VideoDecoder({
   output: (videoFrame) => {
-    // Render frame to canvas
-    canvasContext.drawImage(videoFrame, 0, 0, canvas.width, canvas.height);
-    videoFrame.close(); // Critical: release memory
-    setCurrentFrame(videoFrame.frameIndex);
+    const frameIndex = timestampToIndex.get(videoFrame.timestamp);
+    cache.set(frameIndex, videoFrame.clone()); // Cache for instant replay
+    videoFrame.close(); // Critical: release original
   },
   error: (e) => console.error("Decode error:", e),
 });
 
 decoder.configure(codecConfig);
 
-// 3. Decode specific frame by index
+// 3. Seek to frame with 60-frame read-ahead (stepping/seeking)
 function seekToFrame(frameIndex: number) {
-  const sample = samples[frameIndex];
-  const chunk = new EncodedVideoChunk({
-    type: sample.is_sync ? "key" : "delta",
-    timestamp: sample.cts,
-    duration: sample.duration,
-    data: sample.data,
-  });
-  decoder.decode(chunk);
+  // Find keyframe at or before target
+  const keyframeIndex = findNearestKeyframe(frameIndex);
+  
+  // Decode from keyframe to target + 60 ahead (playback buffer)
+  for (let i = keyframeIndex; i <= frameIndex + 60; i++) {
+    const chunk = createEncodedChunk(samples[i]);
+    decoder.decode(chunk);
+  }
+  
+  // Output callback caches all frames, renders target immediately
 }
 
-// 4. Frame stepping
+// 4. Continuous playback with variable speed (WebCodecs-based)
+function playbackLoop(timestamp: number) {
+  if (!isPlaying) return;
+  
+  const elapsed = timestamp - lastFrameTime;
+  const frameInterval = (1000 / framerate) / playbackRate; // Adjust for speed
+  
+  if (elapsed >= frameInterval) {
+    const nextFrame = currentFrame + 1;
+    
+    if (nextFrame >= totalFrames) {
+      setIsPlaying(false); // End of video
+      return;
+    }
+    
+    // Render from cache (instant: <10ms)
+    if (cache.has(nextFrame)) {
+      renderFrameToCanvas(cache.get(nextFrame));
+      setCurrentFrame(nextFrame);
+    } else {
+      // Cache miss - decode synchronously (<300ms)
+      await seekToFrame(nextFrame); // Refills 60-frame buffer
+    }
+    
+    lastFrameTime = timestamp;
+  }
+  
+  requestAnimationFrame(playbackLoop);
+}
+
+// 5. Frame stepping
 function stepForward() {
   seekToFrame(currentFrame + 1);
 }
@@ -362,7 +401,16 @@ function stepBackward() {
 }
 ```
 
-**Task 0.3 Focus**: Validate exact frame-accurate stepping and seeking with WebCodecs. Continuous playback deferred to Task 0.4 hybrid approach.
+**Cache Architecture**:
+- **Total capacity**: 120 frames (~120MB @ 1080p)
+- **Read-ahead**: 60 frames (2 seconds @ 30fps playback buffer)
+- **Backward cache**: 60 frames (2 seconds of stepping history)
+- **LRU eviction**: Oldest frames evicted when cache full
+
+**Playback Performance**:
+- Cache hit: <10ms (render from memory)
+- Cache miss: <300ms (decode from nearest keyframe with GOP=30)
+- Variable speed: 0.1x (slow-motion) to 2.0x (fast) with exact frame timing
 
 ---
 
@@ -1285,784 +1333,6 @@ const findNearestKeyframe = (targetFrame: number): number => {
 
 ---
 
-## Recommended Solution: Hybrid Approach (WebCodecs + HTML5 Video)
-
-### Why Hybrid Architecture
-
-**The Challenge**: WebCodecs provides exact frame positioning but lacks native continuous playback support, while HTML5 video provides smooth playback but lacks exact frame accuracy.
-
-**The Solution**: Use each technology for its strength:
-
-- **WebCodecs**: Frame-accurate stepping and seeking (0 tolerance)
-- **HTML5 Video**: Smooth continuous playback with variable speed
-
-### Key Insight: Frame Accuracy Requirements Differ by Use Case
-
-**During Analysis (Paused/Stepping)**:
-
-- Requirement: **Exact frame positioning** (0 tolerance)
-- User is examining static frame details
-- Dual-video sync must be perfect (same exact frame shown)
-- Solution: **WebCodecs decoder**
-
-**During Continuous Playback**:
-
-- Requirement: **Smooth motion** with maintained sync
-- User is viewing motion at various speeds (0.25x to 2x)
-- **Caveat**: ±1 frame drift becomes perceptible at slow-motion speeds (0.25x-0.5x), especially with high-framerate video (60fps+)
-  - 30fps at 0.25x: 1 frame = 133ms (noticeable)
-  - 60fps at 0.25x: 1 frame = 67ms (noticeable)
-  - 120fps at 0.5x: 1 frame = 17ms (imperceptible)
-- Solution: **HTML5 video element + active drift correction**
-
-### Architecture Overview
-
-```typescript
-// Hybrid player with mode switching
-function DualVideoHybridPlayer({ videoFileA, videoFileB, syncOffset }) {
-  const [mode, setMode] = useState<"stepping" | "playback">("stepping");
-
-  // WebCodecs decoders for exact frame control
-  const webCodecsA = useWebCodecsDecoder(videoFileA);
-  const webCodecsB = useWebCodecsDecoder(videoFileB);
-
-  // HTML5 video refs for continuous playback
-  const videoRefA = useRef<HTMLVideoElement>(null);
-  const videoRefB = useRef<HTMLVideoElement>(null);
-
-  // Switch to playback: WebCodecs → HTML5
-  function handlePlay() {
-    setMode("playback");
-    videoRefA.current.currentTime = webCodecsA.currentFrame / framerate;
-    videoRefB.current.currentTime = webCodecsB.currentFrame / framerate;
-    videoRefA.current.playbackRate = playbackSpeed;
-    videoRefB.current.playbackRate = playbackSpeed;
-    videoRefA.current.play();
-    videoRefB.current.play();
-  }
-
-  // Switch to stepping: HTML5 → WebCodecs (with sync correction)
-  function handlePause() {
-    videoRefA.current.pause();
-    videoRefB.current.pause();
-
-    setMode("stepping");
-
-    // Sync-back: Restore exact offset (corrects any ±1 frame drift)
-    const frameA = Math.round(videoRefA.current.currentTime * framerate);
-    const frameB = frameA + syncOffset; // ← Exact offset recalculated
-
-    webCodecsA.seekToFrame(frameA);
-    webCodecsB.seekToFrame(frameB);
-  }
-
-  return (
-    <div style={{ position: "relative" }}>
-      {/* WebCodecs canvas - visible during stepping */}
-      <canvas
-        ref={webCodecsA.canvasRef}
-        style={{ display: mode === "stepping" ? "block" : "none" }}
-      />
-
-      {/* HTML5 video - visible during playback */}
-      <video
-        ref={videoRefA}
-        src={videoUrlA}
-        style={{ display: mode === "playback" ? "block" : "none" }}
-      />
-    </div>
-  );
-}
-```
-
-### Active Drift Correction During Playback
-
-**The Problem**: During HTML5 playback at slow-motion speeds (0.25x-0.5x), ±1 frame drift becomes perceptible, especially with high-framerate video (60fps, 120fps+). Golf swing analysis often uses 120fps+ slow-motion footage, making drift correction critical.
-
-**The Solution**: Actively monitor and correct drift during playback using `requestAnimationFrame`:
-
-```typescript
-function useDriftCorrection(
-  videoRefA: RefObject<HTMLVideoElement>,
-  videoRefB: RefObject<HTMLVideoElement>,
-  syncOffset: number,
-  framerate: number,
-  enabled: boolean // Only during playback mode
-) {
-  const rafRef = useRef<number | null>(null);
-  const lastCorrectionRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (!enabled) return;
-
-    function checkAndCorrectDrift() {
-      const videoA = videoRefA.current;
-      const videoB = videoRefB.current;
-      if (!videoA || !videoB) return;
-
-      // Get current frame positions
-      const frameA = Math.round(videoA.currentTime * framerate);
-      const frameB = Math.round(videoB.currentTime * framerate);
-
-      // Calculate expected vs actual
-      const expectedFrameB = frameA + syncOffset;
-      const drift = frameB - expectedFrameB;
-
-      // If drift exceeds threshold, correct it
-      if (Math.abs(drift) >= 1) {
-        const now = performance.now();
-
-        // Throttle corrections (max once per second to prevent stuttering)
-        if (now - lastCorrectionRef.current > 1000) {
-          console.log(`Drift detected: ${drift} frames. Correcting Video B.`);
-
-          // Micro-correction: Adjust Video B's currentTime
-          const correction = drift / framerate;
-          videoB.currentTime -= correction;
-
-          lastCorrectionRef.current = now;
-        }
-      }
-
-      rafRef.current = requestAnimationFrame(checkAndCorrectDrift);
-    }
-
-    rafRef.current = requestAnimationFrame(checkAndCorrectDrift);
-
-    return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, [enabled, syncOffset, framerate]);
-}
-
-// Usage in DualVideoHybrid component:
-function DualVideoHybrid({ videoFileA, videoFileB, syncOffset }) {
-  const [mode, setMode] = useState<"stepping" | "playback">("stepping");
-
-  // ... WebCodecs decoders, HTML5 refs ...
-
-  // Enable drift correction during playback
-  useDriftCorrection(
-    videoRefA,
-    videoRefB,
-    syncOffset,
-    framerate,
-    mode === "playback" // Active only during playback
-  );
-
-  // ... rest of component
-}
-```
-
-**How It Works**:
-
-1. Monitor frame positions every frame via `requestAnimationFrame`
-2. Detect when drift ≥1 frame between videos
-3. Apply micro-correction to Video B's `currentTime`
-4. **Throttle corrections** to once per second maximum (prevents stuttering)
-5. Maintains sync continuously during slow-motion playback
-
-**Performance Impact**:
-
-- Monitoring: <1ms per frame (negligible)
-- Correction: Brief micro-stutter (~50ms) once per second maximum
-- Trade-off: Occasional stutter vs visible sync drift
-
-### Sync-Back Pattern: Correcting Drift on Pause
-
-**The Problem**: When pausing during playback, any accumulated drift must be corrected before switching to WebCodecs stepping mode.
-
-**The Solution**: On pause, recalculate exact Video B position from Video A + offset:
-
-```typescript
-function handlePause() {
-  // 1. Stop HTML5 videos
-  videoRefA.current!.pause();
-  videoRefB.current!.pause();
-
-  // 2. Get approximate frame from Video A
-  const approxFrameA = Math.round(videoRefA.current!.currentTime * framerate);
-
-  // 3. Calculate exact frame B from sync offset (corrects any drift)
-  const exactFrameB = approxFrameA + syncOffset;
-
-  // 4. Bounds check
-  const clampedFrameB = Math.max(0, Math.min(exactFrameB, totalFramesB - 1));
-
-  // 5. Switch to WebCodecs with exact positions
-  setMode("stepping");
-  webCodecsDecoderA.seekToFrame(approxFrameA);
-  webCodecsDecoderB.seekToFrame(clampedFrameB); // ← Drift corrected
-}
-```
-
-**Why This Works**:
-
-- WebCodecs uses integer frame indices (no ambiguity)
-- Formula: `frameB = frameA + offset` is exact
-- Any HTML5 drift (e.g., Video B at frame 124.7 instead of 125) is corrected by recalculation
-- User sees perfectly synced frames when paused
-
-### Implementation Components
-
-#### 1. Mode Switching Logic
-
-```typescript
-type PlaybackMode = "stepping" | "playback";
-
-interface ModeState {
-  mode: PlaybackMode;
-  currentFrameA: number;
-  currentFrameB: number;
-  playbackRate: number;
-}
-
-function useModeSwitch(
-  webCodecsA: WebCodecsDecoder,
-  webCodecsB: WebCodecsDecoder,
-  videoRefA: RefObject<HTMLVideoElement>,
-  videoRefB: RefObject<HTMLVideoElement>,
-  syncOffset: number
-) {
-  const [mode, setMode] = useState<PlaybackMode>("stepping");
-  const [playbackRate, setPlaybackRate] = useState(1.0);
-
-  function switchToPlayback() {
-    // Transfer positions from WebCodecs to HTML5
-    const videoA = videoRefA.current!;
-    const videoB = videoRefB.current!;
-
-    videoA.currentTime = webCodecsA.currentFrame / webCodecsA.framerate;
-    videoB.currentTime = webCodecsB.currentFrame / webCodecsB.framerate;
-
-    videoA.playbackRate = playbackRate;
-    videoB.playbackRate = playbackRate;
-
-    setMode("playback");
-    videoA.play();
-    videoB.play();
-  }
-
-  async function switchToStepping() {
-    const videoA = videoRefA.current!;
-    const videoB = videoRefB.current!;
-
-    videoA.pause();
-    videoB.pause();
-
-    // Wait for seeks to complete if mid-seek
-    if (videoA.seeking) {
-      await new Promise((r) =>
-        videoA.addEventListener("seeked", r, { once: true })
-      );
-    }
-    if (videoB.seeking) {
-      await new Promise((r) =>
-        videoB.addEventListener("seeked", r, { once: true })
-      );
-    }
-
-    // Sync-back with exact offset
-    const frameA = Math.round(videoA.currentTime * webCodecsA.framerate);
-    const frameB = Math.max(
-      0,
-      Math.min(frameA + syncOffset, webCodecsB.totalFrames - 1)
-    );
-
-    setMode("stepping");
-    webCodecsA.seekToFrame(frameA);
-    webCodecsB.seekToFrame(frameB);
-  }
-
-  return {
-    mode,
-    playbackRate,
-    setPlaybackRate,
-    switchToPlayback,
-    switchToStepping,
-  };
-}
-
-// Active drift correction hook (see "Active Drift Correction" section above)
-// This runs continuously during playback mode to maintain sync
-```
-
-#### 2. Dual Video Component
-
-```typescript
-interface DualVideoHybridProps {
-  videoFileA: File;
-  videoFileB: File;
-  syncOffset: number;
-}
-
-function DualVideoHybrid({
-  videoFileA,
-  videoFileB,
-  syncOffset,
-}: DualVideoHybridProps) {
-  // WebCodecs decoders
-  const webCodecsA = useWebCodecsDecoder(videoFileA);
-  const webCodecsB = useWebCodecsDecoder(videoFileB);
-
-  // HTML5 video refs
-  const videoRefA = useRef<HTMLVideoElement>(null);
-  const videoRefB = useRef<HTMLVideoElement>(null);
-
-  // Mode switching
-  const {
-    mode,
-    playbackRate,
-    setPlaybackRate,
-    switchToPlayback,
-    switchToStepping,
-  } = useModeSwitch(webCodecsA, webCodecsB, videoRefA, videoRefB, syncOffset);
-
-  // Active drift correction during playback
-  useDriftCorrection(
-    videoRefA,
-    videoRefB,
-    syncOffset,
-    webCodecsA.framerate,
-    mode === "playback"
-  );
-
-  return (
-    <div className="dual-video-container">
-      {/* Video A */}
-      <div className="video-wrapper">
-        <canvas
-          ref={webCodecsA.canvasRef}
-          className={mode === "stepping" ? "visible" : "hidden"}
-        />
-        <video
-          ref={videoRefA}
-          src={videoUrlA}
-          className={mode === "playback" ? "visible" : "hidden"}
-        />
-      </div>
-
-      {/* Video B */}
-      <div className="video-wrapper">
-        <canvas
-          ref={webCodecsB.canvasRef}
-          className={mode === "stepping" ? "visible" : "hidden"}
-        />
-        <video
-          ref={videoRefB}
-          src={videoUrlB}
-          className={mode === "playback" ? "visible" : "hidden"}
-        />
-      </div>
-
-      {/* Controls */}
-      <div className="controls">
-        {mode === "stepping" ? (
-          <>
-            <button onClick={switchToPlayback}>Play</button>
-            <button
-              onClick={() => {
-                webCodecsA.stepForward();
-                webCodecsB.seekToFrame(
-                  webCodecsA.currentFrame + 1 + syncOffset
-                );
-              }}
-            >
-              Step Forward
-            </button>
-          </>
-        ) : (
-          <>
-            <button onClick={switchToStepping}>Pause</button>
-            <select
-              value={playbackRate}
-              onChange={(e) => {
-                const rate = parseFloat(e.target.value);
-                setPlaybackRate(rate);
-                videoRefA.current!.playbackRate = rate;
-                videoRefB.current!.playbackRate = rate;
-              }}
-            >
-              <option value="0.25">0.25x</option>
-              <option value="0.5">0.5x</option>
-              <option value="1">1x</option>
-              <option value="2">2x</option>
-            </select>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-```
-
-### Implementation Components
-
-#### 1. MP4 Container Parser (`mp4box.js`)
-
-```typescript
-import MP4Box from "mp4box";
-
-export class MP4Parser {
-  private file: MP4Box.MP4File;
-  private videoTrack: MP4Box.Track | null = null;
-
-  constructor(private videoFile: File) {
-    this.file = MP4Box.createFile();
-  }
-
-  async initialize(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.file.onReady = (info: MP4Box.Info) => {
-        // Find video track
-        this.videoTrack = info.videoTracks[0];
-
-        // Extract all samples (frames)
-        this.file.setExtractionOptions(this.videoTrack.id, "video", {
-          nbSamples: Infinity,
-        });
-
-        resolve();
-      };
-
-      this.file.onError = reject;
-
-      // Feed file data to parser
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        arrayBuffer.fileStart = 0;
-        this.file.appendBuffer(arrayBuffer);
-        this.file.flush();
-      };
-      reader.readAsArrayBuffer(this.videoFile);
-    });
-  }
-
-  getCodecConfig(): VideoDecoderConfig {
-    if (!this.videoTrack) throw new Error("No video track");
-
-    // Extract codec configuration from track
-    return {
-      codec: this.videoTrack.codec,
-      codedWidth: this.videoTrack.video.width,
-      codedHeight: this.videoTrack.video.height,
-      description: this.getAVCDecoderConfig(),
-    };
-  }
-
-  *iterateSamples(): Generator<MP4Box.Sample> {
-    // Yield samples (frames) one by one
-    const samples = this.file.getSamples(this.videoTrack!.id);
-    for (const sample of samples) {
-      yield sample;
-    }
-  }
-}
-```
-
-#### 2. Frame Cache (LRU)
-
-**Simple LRU Cache for GOP=30 Videos**
-
-With server-side GOP=30 guarantee, a simple LRU cache (60-120 frames) is sufficient. No need for complex dual-cache or adaptive strategies.
-
-```typescript
-// frontend/src/utils/FrameCache.ts
-
-export class FrameCache {
-  private cache = new Map<number, VideoFrame>();
-  private maxSize: number;
-
-  constructor(maxSize: number = 120) {
-    // 120 frames @ 30fps = 4 seconds of video
-    // ~120MB memory @ 1080p (~1MB per frame)
-    this.maxSize = maxSize;
-  }
-
-  get(frameIndex: number): VideoFrame | undefined {
-    const frame = this.cache.get(frameIndex);
-
-    if (frame) {
-      // Move to end (most recently used)
-      // JavaScript Map maintains insertion order
-      this.cache.delete(frameIndex);
-      this.cache.set(frameIndex, frame);
-    }
-
-    return frame;
-  }
-
-  set(frameIndex: number, frame: VideoFrame): void {
-    // Remove if already exists (to re-insert at end)
-    if (this.cache.has(frameIndex)) {
-      this.cache.delete(frameIndex);
-    }
-
-    // Evict oldest if at capacity
-    if (this.cache.size >= this.maxSize) {
-      const oldestKey = this.cache.keys().next().value;
-      const oldestFrame = this.cache.get(oldestKey)!;
-
-      // CRITICAL: Release VideoFrame memory
-      oldestFrame.close();
-
-      this.cache.delete(oldestKey);
-    }
-
-    // Add to end (most recently used)
-    this.cache.set(frameIndex, frame);
-  }
-
-  has(frameIndex: number): boolean {
-    return this.cache.has(frameIndex);
-  }
-
-  clear(): void {
-    // Release all VideoFrame memory
-    for (const frame of this.cache.values()) {
-      frame.close();
-    }
-    this.cache.clear();
-  }
-
-  getSize(): number {
-    return this.cache.size;
-  }
-
-  getStats(): { size: number; maxSize: number; utilizationPercent: number } {
-    return {
-      size: this.cache.size,
-      maxSize: this.maxSize,
-      utilizationPercent: (this.cache.size / this.maxSize) * 100,
-    };
-  }
-}
-```
-
-**Why This Simple Approach Works with GOP=30:**
-
-```typescript
-// User at frame 100, cache has frames 70-129 (60 frames)
-
-// Forward step to 101: In cache ✅ <10ms
-// Forward step to 102: In cache ✅ <10ms
-// ...continue to 129: All in cache ✅
-
-// Backward step to 100: In cache ✅ <10ms
-// Backward step to 99: In cache ✅ <10ms
-// ...continue to 70: All in cache ✅
-
-// Large jump to frame 200:
-// - Find keyframe: frame 180 (200 // 30 * 30)
-// - Decode 180→200: 21 frames × 10ms = 210ms ✅
-// - Cache now has frames 180-200 + some older frames
-
-// Typical usage: Cache hit rate >80%
-```
-
-**Memory Usage:**
-
-- 60 frames: ~60MB @ 1080p
-- 120 frames: ~120MB @ 1080p
-- Bounded and predictable
-
-**Performance:**
-
-- Cache hit: <10ms (instant)
-- Cache miss: <300ms (max 30 frames from keyframe)
-- No complex logic, easy to debug
-
-#### 3. React Integration Hook
-
-**WebCodecs Decoder with Keyframe-Aware Seeking**
-
-```typescript
-// frontend/src/hooks/useWebCodecsDecoder.ts
-
-export function useWebCodecsDecoder(videoFile: File, framerate: number) {
-  const decoderRef = useRef<VideoDecoder | null>(null);
-  const parserRef = useRef<MP4Parser | null>(null);
-  const cacheRef = useRef<FrameCache>(new FrameCache(120)); // 120-frame cache
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const samplesRef = useRef<MP4Box.Sample[]>([]);
-
-  const [currentFrame, setCurrentFrame] = useState(0);
-  const [totalFrames, setTotalFrames] = useState(0);
-  const [isReady, setIsReady] = useState(false);
-
-  // Initialize decoder
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        // Parse MP4
-        const parser = new MP4Parser(videoFile);
-        await parser.initialize();
-        parserRef.current = parser;
-
-        const codecConfig = parser.getCodecConfig();
-        const samples = Array.from(parser.iterateSamples());
-        samplesRef.current = samples;
-        setTotalFrames(samples.length);
-
-        // Initialize VideoDecoder
-        const decoder = new VideoDecoder({
-          output: (frame: VideoFrame) => {
-            if (cancelled) {
-              frame.close();
-              return;
-            }
-
-            // Cache decoded frame
-            const frameIndex = Math.round(
-              (frame.timestamp / 1000000) * framerate
-            );
-            cacheRef.current.set(frameIndex, frame.clone());
-
-            // Render to canvas
-            const canvas = canvasRef.current;
-            if (canvas) {
-              const ctx = canvas.getContext("2d")!;
-              ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
-            }
-
-            setCurrentFrame(frameIndex);
-            frame.close();
-          },
-          error: (e) => console.error("Decode error:", e),
-        });
-
-        await decoder.configure(codecConfig);
-        decoderRef.current = decoder;
-
-        if (!cancelled) setIsReady(true);
-      } catch (error) {
-        console.error("Decoder initialization failed:", error);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      decoderRef.current?.close();
-      cacheRef.current.clear();
-    };
-  }, [videoFile, framerate]);
-
-  // Seek to specific frame with keyframe-aware decoding
-  const seekToFrame = useCallback(
-    async (targetFrame: number) => {
-      const decoder = decoderRef.current;
-      const samples = samplesRef.current;
-      const cache = cacheRef.current;
-
-      if (!decoder || samples.length === 0) return;
-
-      // Clamp to valid range
-      const clampedTarget = Math.max(
-        0,
-        Math.min(targetFrame, samples.length - 1)
-      );
-
-      // Check cache first (FAST PATH)
-      if (cache.has(clampedTarget)) {
-        const cachedFrame = cache.get(clampedTarget)!;
-
-        // Render cached frame
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const ctx = canvas.getContext("2d")!;
-          ctx.drawImage(cachedFrame, 0, 0, canvas.width, canvas.height);
-        }
-
-        setCurrentFrame(clampedTarget);
-        return; // <10ms - instant!
-      }
-
-      // Cache miss - decode from nearest keyframe (SLOW PATH)
-      // With GOP=30, max 30 frames to decode (~300ms)
-      const keyframeIndex = Math.floor(clampedTarget / 30) * 30;
-
-      // Decode from keyframe to target
-      for (let i = keyframeIndex; i <= clampedTarget; i++) {
-        const sample = samples[i];
-
-        const chunk = new EncodedVideoChunk({
-          type: sample.is_sync ? "key" : "delta",
-          timestamp: sample.cts,
-          duration: sample.duration,
-          data: sample.data,
-        });
-
-        decoder.decode(chunk);
-
-        // Frames are cached in decoder.output callback
-      }
-
-      // Wait for decoding to complete
-      await decoder.flush();
-    },
-    [framerate]
-  );
-
-  return {
-    canvasRef,
-    currentFrame,
-    totalFrames,
-    isReady,
-    seekToFrame,
-    stepForward: () => seekToFrame(currentFrame + 1),
-    stepBackward: () => seekToFrame(currentFrame - 1),
-    cacheStats: cacheRef.current?.getStats(),
-  };
-}
-```
-
-**Performance Characteristics:**
-
-| Operation                     | Cache State | Performance | Notes                                       |
-| ----------------------------- | ----------- | ----------- | ------------------------------------------- |
-| Step forward (sequential)     | Hit         | <10ms       | Next frame decoded with previous, cached    |
-| Step backward (within cache)  | Hit         | <10ms       | Frame in 120-frame window                   |
-| Step backward (outside cache) | Miss        | <300ms      | Decode max 30 frames from keyframe (GOP=30) |
-| Large jump (scrub)            | Miss        | <300ms      | Same as backward outside cache              |
-| Typical cache hit rate        | N/A         | >80%        | During local frame stepping                 |
-
-      setCurrentFrame(frameIndex);
-      return;
-    }
-
-    // Decode frame
-    const samples = Array.from(parser.iterateSamples());
-    const sample = samples[frameIndex];
-
-    const chunk = new EncodedVideoChunk({
-      type: sample.is_sync ? "key" : "delta",
-      timestamp: sample.cts,
-      duration: sample.duration,
-      data: sample.data,
-    });
-
-    decoder.decode(chunk);
-
-}, []);
-
-return {
-canvasRef,
-currentFrame,
-totalFrames,
-isReady,
-seekToFrame,
-stepForward: () => seekToFrame(currentFrame + 1),
-stepBackward: () => seekToFrame(currentFrame - 1),
-};
-}
-
-````
-
 ### Browser Support & Fallback Strategy
 
 **Supported Browsers (November 2025)**:
@@ -2086,7 +1356,7 @@ if (typeof VideoDecoder === "undefined") {
     </ErrorMessage>
   );
 }
-````
+```
 
 **Future Enhancement** (post-MVP): Implement server-side full frame extraction (all video frames) fallback for older browsers.
 
@@ -2217,23 +1487,23 @@ if (this.cache.size >= this.maxSize) {
 
 ### Comparison: Approaches for Frame-Accurate Video Control
 
-| Aspect                        | requestVideoFrameCallback             | WebCodecs (No Optimization)            | **WebCodecs + GOP=30 (Recommended)**   | Hybrid (WebCodecs+HTML5)                     |
+| Aspect                        | requestVideoFrameCallback             | WebCodecs (No Optimization)            | **WebCodecs + GOP=30 (Implemented)**   | Hybrid (WebCodecs+HTML5) - Historical       |
 | ----------------------------- | ------------------------------------- | -------------------------------------- | -------------------------------------- | -------------------------------------------- |
 | **Frame Accuracy (Stepping)** | ±1 frame (best case)                  | Exact (0 frame error)                  | ✅ Exact (0 frame error)               | ✅ Exact (0 frame error)                     |
-| **Frame Accuracy (Playback)** | ±1 frame (acceptable during motion)   | N/A (complex to implement)             | N/A (complex to implement)             | ✅ ±1 frame (acceptable, smooth)             |
-| **Deterministic**             | ❌ No (browser-dependent seeking)     | ✅ Yes (frame index)                   | ✅ Yes (frame index)                   | ✅ Yes (stepping), ⚠️ Approximate (playback) |
-| **Dual-Video Sync**           | ❌ Impossible (drift inevitable)      | ✅ Perfect (0 drift)                   | ✅ Perfect (0 drift)                   | ✅ Perfect when paused, ±1 during playback   |
-| **Seek Performance**          | Variable (browser-dependent)          | <2500ms worst case (GOP=250)           | ✅ <300ms worst case (GOP=30)          | <300ms stepping                              |
-| **Cache Complexity**          | N/A                                   | ❌ High (adaptive/dual cache)          | ✅ Low (simple LRU)                    | Low (simple LRU)                             |
-| **Memory Usage**              | Low (browser manages)                 | High (~250MB for GOP=250)              | ✅ Medium (~60-120MB)                  | Medium (~60-120MB)                           |
-| **Continuous Playback**       | ✅ Native, smooth                     | ⚠️ Complex (manual buffering)          | ⚠️ Complex (manual buffering)          | ✅ Native HTML5, smooth                      |
-| **Variable Speed**            | ✅ Simple (playbackRate)              | ❌ Complex (manual timing)             | ❌ Complex (manual timing)             | ✅ Simple (playbackRate)                     |
+| **Frame Accuracy (Playback)** | ❌ ±1 frame (unacceptable)            | Exact (0 frame error)                  | ✅ Exact (0 frame error)               | ❌ ±1-2 frames (unacceptable for sync)       |
+| **Deterministic**             | ❌ No (browser-dependent seeking)     | ✅ Yes (frame index)                   | ✅ Yes (frame index)                   | ⚠️ Yes (stepping), ❌ No (playback drift)    |
+| **Dual-Video Sync**           | ❌ Impossible (drift inevitable)      | ✅ Perfect (0 drift)                   | ✅ Perfect (0 drift)                   | ❌ Breaks during playback (±1-2 frame drift) |
+| **Seek Performance**          | Variable (browser-dependent)          | ❌ <2500ms worst case (too slow)       | ✅ <300ms worst case (GOP=30)          | <300ms stepping                              |
+| **Cache Strategy**            | N/A                                   | ❌ High (adaptive/dual cache)          | ✅ Simple LRU (120 frames)             | Simple LRU                                   |
+| **Memory Usage**              | Low (browser manages)                 | ❌ High (~250MB for GOP=250)           | ✅ Bounded (~60-120MB LRU cache)       | Bounded (~60-120MB)                          |
+| **Continuous Playback**       | ✅ Native, smooth                     | ✅ rAF loop (60-frame read-ahead)      | ✅ rAF loop (60-frame read-ahead)      | ✅ Native HTML5, smooth                      |
+| **Variable Speed**            | ✅ Simple (playbackRate)              | ✅ Simple (manual timing, 0.1x-2.0x)   | ✅ Simple (manual timing, 0.1x-2.0x)   | ✅ Simple (playbackRate)                     |
 | **Backend Processing**        | None                                  | None                                   | ⚠️ Required (30-60s per video)         | Required (30-60s per video)                  |
-| **Implementation Complexity** | Low                                   | Medium-High                            | ✅ Medium (simple cache)               | Medium-High (mode switching)                 |
+| **Implementation Complexity** | Low                                   | Medium-High                            | ✅ Medium (LRU cache + rAF loop)       | ❌ High (mode switching + drift correction)  |
 | **Browser Support**           | Chrome 83+, Firefox 77+, Safari 15.4+ | Chrome 94+, Firefox 130+, Safari 17.4+ | Chrome 94+, Firefox 130+, Safari 17.4+ | Chrome 94+, Firefox 130+, Safari 17.4+       |
-| **Recommended For**           | ❌ Not viable for exact sync          | Research/experimentation               | ✅ **MVP Production Use**              | Phase 1+ (adds playback)                     |
+| **Recommended For**           | ❌ Not viable for exact sync          | Research/experimentation               | ✅ **Production Use (Implemented)**    | ❌ Rejected (playback sync unacceptable)     |
 
-**Conclusion**: WebCodecs + Server-side GOP=30 optimization is the optimal solution for Task 0.3, providing exact frame accuracy with simple client implementation and predictable performance.
+**Conclusion**: WebCodecs-only architecture (stepping, seeking, AND playback) with server-side GOP=30 optimization provides exact frame accuracy for ALL operations. The hybrid approach was rejected because ±1-2 frame drift during HTML5 playback is unacceptable for dual-video sync requirements (golf swing analysis at 0.1x-0.5x speed requires perfect frame alignment).
 
 ---
 

@@ -427,7 +427,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 #### Task 1.1: Backend Skeleton + Video Upload
 
 - **Status**: Not Started
-- **Requirements**: REQ-F-UPLOAD-001, REQ-F-UPLOAD-002, REQ-F-UPLOAD-003, REQ-F-PLAYBACK-003
+- **Requirements**: REQ-F-UPLOAD-001, REQ-F-UPLOAD-002, REQ-F-UPLOAD-003, REQ-F-UPLOAD-004, REQ-F-PLAYBACK-003
 - **Scope**: Create FastAPI backend with video upload and streaming endpoints
 - **Acceptance Criteria**:
   - FastAPI app initialized with CORS, logging, Pydantic models
@@ -436,6 +436,10 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Videos stored in `/tmp/<session_id>/<video_id>.mp4`
   - Metadata extraction with ffprobe (framerate, duration, resolution)
   - Server-side video optimization integrated (GOP=30 re-encoding from Phase 0 Task 0.3)
+  - Video rotation support integrated into re-encoding pipeline (REQ-F-UPLOAD-004)
+  - FFmpeg transpose filter applied based on rotation parameter (0°, 90°, 180°, 270°)
+  - Rotation triggers re-encoding even if video already has GOP=30
+  - Metadata updated with post-rotation dimensions (width/height)
   - Video processing progress feedback mechanism (WebSocket/polling for re-encoding status)
   - GET `/api/video/{video_id}` endpoint streams video with HTTP range request support
   - Backend unit tests pass (>80% coverage)
@@ -449,18 +453,24 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - ffprobe command: `ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate,duration,width,height -of json`
   - r_frame_rate returns fraction like "30000/1001" - parse and divide
   - StreamingResponse with range request handling for seeking
+  - FFmpeg rotation: `transpose=1` (90° CW), `transpose=2` (90° CCW), `transpose=1,transpose=1` (180°)
+  - Rotation integrated into video_optimizer.py re-encoding pipeline
 
 ---
 
 #### Task 1.2: Frontend Skeleton + Video Upload UI
 
 - **Status**: Not Started
-- **Requirements**: REQ-F-UPLOAD-001, REQ-F-PLAYBACK-001
+- **Requirements**: REQ-F-UPLOAD-001, REQ-F-UPLOAD-004, REQ-F-PLAYBACK-001
 - **Scope**: Create React frontend with video upload component and basic player
 - **Acceptance Criteria**:
   - Vite + React 18 + TypeScript project structure
   - Zustand store for state management, Axios for API calls
   - VideoUpload component with file input and drag-and-drop
+  - VideoRotationControls component with thumbnail preview and rotation buttons (REQ-F-UPLOAD-004)
+  - First frame extraction via canvas for thumbnail display
+  - Live preview rotation via CSS transform (0°, 90°, 180°, 270°)
+  - Accept/Cancel workflow for rotation confirmation
   - Upload progress indicator
   - VideoPlayer component with HTML5 video element loading from backend
   - Error notifications for upload failures
@@ -472,6 +482,8 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - CSS: Tailwind recommended for speed
   - Video source: `/api/video/{video_id}`
   - Store video metadata (framerate, duration, video_id) in Zustand
+  - Rotation preview: Extract first frame to canvas, apply CSS `transform: rotate(Ndeg)` for live preview
+  - Store rotation angle (0, 90, 180, 270) in upload request payload
 
 ---
 

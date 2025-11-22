@@ -88,6 +88,31 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - MVP constraint - multi-framerate support deferred to Phase 3
   - In future phases, framerate of videos should be displayed or available for review
 
+#### REQ-F-UPLOAD-004: Video Rotation During Upload
+
+- **Description**: System shall support video rotation during upload processing
+- **Priority**: High
+- **Status**: Planned
+- **User Story**: As a user, I want to rotate my video during upload so that my swing videos are properly oriented for analysis
+- **Acceptance Criteria**:
+  - [ ] Thumbnail preview of first frame displayed after file selection
+  - [ ] Rotation controls: 90° CW and 90° CCW buttons
+  - [ ] Multiple rotations allowed (0°, 90°, 180°, 270° cumulative)
+  - [ ] Live thumbnail preview updates with each rotation
+  - [ ] Accept button applies rotation and proceeds with processing
+  - [ ] Cancel button discards upload
+  - [ ] Rotation controls available for both video channels
+  - [ ] Backend applies rotation during video re-encoding using FFmpeg transpose filter
+  - [ ] Rotated video dimensions updated in metadata
+- **Dependencies**: REQ-F-UPLOAD-001, REQ-F-UPLOAD-002
+- **Implementation Notes**:
+  - Frontend: Extract first frame via `<canvas>` + `<video>` element, apply CSS `transform: rotate()` for preview
+  - Backend: Integrate rotation into video_optimizer.py re-encoding pipeline
+  - FFmpeg transpose filter: `transpose=1` (90° CW), `transpose=2` (90° CCW), `transpose=1,transpose=1` (180°)
+  - Rotation applied before CRF=23 encoding, part of same processing step
+  - **CRITICAL**: If video requires rotation but does not otherwise require re-encoding (already GOP=30), rotation shall trigger re-encoding
+  - No significant additional processing time beyond current re-encoding (~25s for 60s video)
+
 ### Video Playback (REQ-F-PLAYBACK)
 
 #### REQ-F-PLAYBACK-001: Single Video Playback
@@ -1016,6 +1041,7 @@ None for MVP - all processing local
 | REQ-F-UPLOAD-001   | Local File Upload              | Critical | Planned | None                                           | 0/1   |
 | REQ-F-UPLOAD-002   | Temporary Storage              | Critical | Planned | REQ-F-UPLOAD-001                               | 1     |
 | REQ-F-UPLOAD-003   | Framerate Validation           | High     | Planned | REQ-F-UPLOAD-001                               | 1     |
+| REQ-F-UPLOAD-004   | Video Rotation During Upload   | High     | Planned | REQ-F-UPLOAD-001, REQ-F-UPLOAD-002             | 1     |
 | REQ-F-PLAYBACK-001 | Single Video Playback          | Critical | Planned | REQ-F-UPLOAD-001                               | 0/1   |
 | REQ-F-PLAYBACK-002 | Dual Video Display             | Critical | Planned | REQ-F-PLAYBACK-001                             | 0/1   |
 | REQ-F-PLAYBACK-003 | Video Streaming                | High     | Planned | REQ-F-UPLOAD-002                               | 1     |
@@ -1073,9 +1099,9 @@ None for MVP - all processing local
 
 ### Implementation Coverage
 
-**Total Requirements**: 47
+**Total Requirements**: 48
 
-- **Planned**: 42 (89%)
+- **Planned**: 43 (90%)
 - **In Progress**: 5 (11%)
   - REQ-F-FRAME-001: Frame Stepping (WebCodecs spike)
   - REQ-F-FRAME-002: Frame Counter Display (WebCodecs spike)
@@ -1109,13 +1135,13 @@ None for MVP - all processing local
 ### Priority Breakdown
 
 - **Critical**: 19 (0% Complete, 3 In Progress)
-- **High**: 22 (0% Complete, 2 In Progress)
+- **High**: 23 (0% Complete, 2 In Progress)
 - **Medium**: 6 (0% Complete)
 - **Low**: 2 (0% Complete)
 
 ### Requirements by Area
 
-- **Video Upload**: 3 requirements (0% Complete)
+- **Video Upload**: 4 requirements (0% Complete)
 - **Video Playback**: 3 requirements (0% Complete)
 - **Synchronization**: 4 requirements (0% Complete)
 - **Playback Mode**: 3 requirements (0% Complete)

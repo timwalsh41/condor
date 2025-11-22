@@ -16,7 +16,7 @@ echo "Generating GOP test videos..."
 echo "1. Generating GOP=30 test video (H.264, 30fps, 5 seconds)..."
 ffmpeg -y -f lavfi -i testsrc=duration=5:size=1280x720:rate=30 \
   -vf "drawtext=fontsize=60:fontcolor=white:x=100:y=100:text='GOP30 Frame %{n}'" \
-  -c:v libx264 \
+  -c:v libx264 -pix_fmt yuv420p \
   -g 30 -keyint_min 30 -sc_threshold 0 \
   -crf 23 -preset fast \
   -an \
@@ -26,7 +26,7 @@ ffmpeg -y -f lavfi -i testsrc=duration=5:size=1280x720:rate=30 \
 echo "2. Generating GOP=250 test video (H.264, 30fps, 10 seconds)..."
 ffmpeg -y -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 \
   -vf "drawtext=fontsize=60:fontcolor=white:x=100:y=100:text='GOP250 Frame %{n}'" \
-  -c:v libx264 \
+  -c:v libx264 -pix_fmt yuv420p \
   -g 250 -keyint_min 250 -sc_threshold 0 \
   -crf 23 -preset fast \
   -an \
@@ -47,7 +47,7 @@ echo "4. Generating variable GOP test video (H.264, 30fps, 10 seconds)..."
 # Enable scene cut detection to create variable GOP
 ffmpeg -y -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 \
   -vf "drawtext=fontsize=60:fontcolor=white:x=100:y=100:text='VarGOP Frame %{n}'" \
-  -c:v libx264 \
+  -c:v libx264 -pix_fmt yuv420p \
   -g 120 -keyint_min 30 \
   -crf 23 -preset fast \
   -an \

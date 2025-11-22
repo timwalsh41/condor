@@ -47,9 +47,6 @@ npm run dev
 # Opens at http://localhost:5173
 # Use `npm run dev -- --host` when port forwarding outside of dev container
 
-# Run Playwright tests
-npx playwright test
-
 # Build for production
 npm run build
 ```

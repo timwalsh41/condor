@@ -37,6 +37,7 @@ export interface UseWebCodecsDecoderResult {
     hits: number;
     misses: number;
     hitRatePercent: number;
+    evictions: number;
   };
   /** Last operation latency in milliseconds */
   lastLatencyMs: number;
@@ -66,6 +67,7 @@ export function useWebCodecsDecoder(
   const cacheRef = useRef<FrameCache>(new FrameCache(cacheSize));
   const samplesRef = useRef<Sample[]>([]);
   const parserRef = useRef<MP4Parser | null>(null);
+  const codecConfigRef = useRef<VideoDecoderConfig | null>(null);
 
   // Track which frame we're seeking to (for output callback)
   const seekTargetRef = useRef<number | null>(null);
@@ -215,6 +217,8 @@ export function useWebCodecsDecoder(
    */
   const seekToFrame = useCallback(
     async (targetFrame: number) => {
+      console.log(`[SEEK] seekToFrame called: target=${targetFrame}`);
+
       // Chain this operation after previous one completes
       // Reason: Prevents dropped requests from rapid button presses
       pendingOperationRef.current = pendingOperationRef.current.then(
@@ -223,9 +227,39 @@ export function useWebCodecsDecoder(
           const samples = samplesRef.current;
           const cache = cacheRef.current;
 
+          console.log(
+            `[SEEK] Queue executing: decoder=${!!decoder}, samples=${
+              samples.length
+            }, state=${decoder?.state}`
+          );
+
           if (!decoder || samples.length === 0) {
-            console.warn("Decoder not ready");
+            console.warn("[SEEK] Decoder not ready");
             return;
+          }
+
+          // Attempt recovery if decoder is closed (Firefox error handling)
+          if (decoder.state === "closed") {
+            console.warn(
+              "[SEEK] Decoder closed, attempting reconfiguration..."
+            );
+            const config = codecConfigRef.current;
+            if (config) {
+              try {
+                decoder.configure(config);
+                console.log("[SEEK] Decoder reconfigured successfully");
+              } catch (reconfigErr) {
+                console.error("[SEEK] Reconfiguration failed:", reconfigErr);
+                setError(
+                  "Decoder closed and cannot be recovered. Please reload the video."
+                );
+                return;
+              }
+            } else {
+              console.error("[SEEK] No codec config available for recovery");
+              setError("Decoder closed. Please reload the video.");
+              return;
+            }
           }
 
           const startTime = performance.now();
@@ -237,8 +271,15 @@ export function useWebCodecsDecoder(
               Math.min(targetFrame, samples.length - 1)
             );
 
+            console.log(
+              `[SEEK] Clamped target: ${clampedTarget}, cached=${cache.has(
+                clampedTarget
+              )}`
+            );
+
             // Check cache first (FAST PATH: <10ms)
             if (cache.has(clampedTarget)) {
+              console.log(`[SEEK] Cache hit for frame ${clampedTarget}`);
               const cachedFrame = cache.get(clampedTarget)!;
               renderFrameToCanvas(cachedFrame);
               setCurrentFrame(clampedTarget);
@@ -248,6 +289,10 @@ export function useWebCodecsDecoder(
               setLastLatencyMs(latency);
               return;
             }
+
+            console.log(
+              `[SEEK] Cache miss for frame ${clampedTarget}, decoding from keyframe`
+            );
 
             // Cache miss - decode from keyframe
             // Set target for output callback
@@ -265,6 +310,10 @@ export function useWebCodecsDecoder(
                 break;
               }
             }
+
+            console.log(
+              `[SEEK] Found target CTS: ${targetCts} for frame ${clampedTarget}`
+            );
 
             if (targetCts === -1) {
               console.error(
@@ -292,6 +341,10 @@ export function useWebCodecsDecoder(
             // Find keyframe sample index (in decode order, at or before target)
             const keyframeSampleIndex = findNearestKeyframe(clampedTarget);
 
+            console.log(
+              `[SEEK] Keyframe at sample index ${keyframeSampleIndex}, target at ${targetSampleIndex}`
+            );
+
             // Read-ahead: decode a few more samples after target for cache warming
             // Add 10 samples (not frames) to account for potential B-frame reordering
             const readAheadEnd = Math.min(
@@ -299,13 +352,35 @@ export function useWebCodecsDecoder(
               samples.length - 1
             );
 
+            console.log(
+              `[SEEK] Decoder state before decode loop: ${decoder.state}`
+            );
+
+            // Final state check before decode
+            if (decoder.state !== "configured") {
+              console.error(
+                `[SEEK] Decoder not in configured state (${decoder.state}), cannot decode`
+              );
+              setError(
+                `Decoder in ${decoder.state} state. Please reload the video.`
+              );
+              return;
+            }
+
             // Issue decode commands from keyframe to target + read-ahead
             // Important: Decode in sample array order (decode order), not frame number order
             // Note: timestamp mapping already established during init
             for (let i = keyframeSampleIndex; i <= readAheadEnd; i++) {
               const chunk = createEncodedChunk(samples[i]);
+              console.log(
+                `[SEEK] Decoding sample ${i}, type=${chunk.type}, state=${decoder.state}`
+              );
               decoder.decode(chunk);
             }
+
+            console.log(
+              `[SEEK] Decode loop complete, decoder state: ${decoder.state}`
+            );
 
             // NOTE: No flush() - output callback renders target frame immediately
             // Reason: flush() resets decoder state requiring next frame to be keyframe
@@ -317,6 +392,8 @@ export function useWebCodecsDecoder(
             setLastLatencyMs(latency);
           } catch (err) {
             const message = err instanceof Error ? err.message : "Decode error";
+            console.error(`[SEEK] Error during seek:`, err);
+            console.error(`[SEEK] Decoder state at error: ${decoder?.state}`);
             setError(`Seek failed: ${message}`);
             console.error("Seek error:", err);
           }
@@ -398,6 +475,9 @@ export function useWebCodecsDecoder(
         const decoder = new VideoDecoder({
           output: (frame: VideoFrame) => {
             if (cancelled) {
+              console.log(
+                `[OUTPUT] Cancelled, closing frame ${frame.timestamp}`
+              );
               frame.close();
               return;
             }
@@ -406,9 +486,13 @@ export function useWebCodecsDecoder(
             // Reason: MP4 timestamps are in track timescale, not microseconds
             const frameIndex = timestampToIndexRef.current.get(frame.timestamp);
 
+            console.log(
+              `[OUTPUT] Received frame: timestamp=${frame.timestamp}, frameIndex=${frameIndex}, seekTarget=${seekTargetRef.current}`
+            );
+
             if (frameIndex === undefined) {
               console.warn(
-                `Unknown timestamp ${frame.timestamp}, skipping frame`
+                `[OUTPUT] Unknown timestamp ${frame.timestamp}, skipping frame`
               );
               frame.close();
               return;
@@ -425,13 +509,15 @@ export function useWebCodecsDecoder(
             // Reason: Async decode pipeline - output callback fires when frame ready
             // Read-ahead frames are cached but not rendered
             if (frameIndex === seekTargetRef.current) {
+              console.log(`[OUTPUT] Rendering target frame ${frameIndex}`);
               renderFrameToCanvas(cached);
               setCurrentFrame(frameIndex);
               setCacheStats(cacheRef.current.getStats());
             }
           },
           error: (err) => {
-            console.error("Decoder error:", err);
+            console.error("[DECODER ERROR]", err);
+            console.error(`[DECODER ERROR] Decoder state: ${decoder?.state}`);
             setError(`Decoder error: ${err.message}`);
           },
         });
@@ -444,6 +530,7 @@ export function useWebCodecsDecoder(
 
         decoder.configure(codecConfig);
         decoderRef.current = decoder;
+        codecConfigRef.current = codecConfig; // Store for potential reconfiguration
 
         if (cancelled) {
           decoder.close();

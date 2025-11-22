@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { checkWebCodecsSupport } from "../utils/featureDetection";
 
@@ -16,6 +16,7 @@ import { checkWebCodecsSupport } from "../utils/featureDetection";
  */
 export function WebCodecsDemo() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [sliderValue, setSliderValue] = useState<number>(0);
 
   const {
     canvasRef,
@@ -47,6 +48,21 @@ export function WebCodecsDemo() {
   const handleCoarseStepForward = async () => {
     await seekToFrame(Math.min(totalFrames - 1, currentFrame + 5));
   };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Update slider visual position immediately (responsive UI)
+    setSliderValue(Number(e.target.value));
+  };
+
+  const handleSliderRelease = async () => {
+    // Only seek when user releases the slider (prevents flooding)
+    await seekToFrame(sliderValue);
+  };
+
+  // Sync slider with currentFrame when stepping or when seek completes
+  useEffect(() => {
+    setSliderValue(currentFrame);
+  }, [currentFrame]);
 
   if (!support.isSupported) {
     return (
@@ -254,14 +270,17 @@ export function WebCodecsDemo() {
               type="range"
               min="0"
               max={totalFrames - 1}
-              value={currentFrame}
-              onChange={(e) => seekToFrame(Number(e.target.value))}
+              value={sliderValue}
+              onChange={handleSliderChange}
+              onMouseUp={handleSliderRelease}
+              onTouchEnd={handleSliderRelease}
               style={{ width: "100%", height: "30px" }}
             />
           </div>
 
           {/* Performance Metrics */}
           <div
+            data-testid="cache-stats"
             style={{
               padding: "15px",
               backgroundColor: "#f5f5f5",
@@ -289,6 +308,9 @@ export function WebCodecsDemo() {
                 <strong>Cache Hit Rate:</strong>{" "}
                 {cacheStats.hitRatePercent.toFixed(1)}% ({cacheStats.hits} hits,{" "}
                 {cacheStats.misses} misses)
+              </div>
+              <div style={{ marginTop: "5px" }}>
+                <strong>Evictions:</strong> {cacheStats.evictions}
               </div>
             </div>
           </div>

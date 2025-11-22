@@ -16,6 +16,7 @@ export class FrameCache {
   private maxSize: number;
   private hits = 0;
   private misses = 0;
+  private evictions = 0;
 
   /**
    * Create a new frame cache.
@@ -80,6 +81,7 @@ export class FrameCache {
           // CRITICAL: Release VideoFrame memory to prevent leak
           oldestFrame.close();
           this.cache.delete(oldestKey);
+          this.evictions++;
         }
       }
     }
@@ -138,6 +140,7 @@ export class FrameCache {
     hits: number;
     misses: number;
     hitRatePercent: number;
+    evictions: number;
   } {
     const total = this.hits + this.misses;
     const hitRate = total > 0 ? (this.hits / total) * 100 : 0;
@@ -149,6 +152,7 @@ export class FrameCache {
       hits: this.hits,
       misses: this.misses,
       hitRatePercent: hitRate,
+      evictions: this.evictions,
     };
   }
 
@@ -158,5 +162,6 @@ export class FrameCache {
   resetStats(): void {
     this.hits = 0;
     this.misses = 0;
+    this.evictions = 0;
   }
 }

@@ -219,6 +219,70 @@ describe('MP4Parser', () => {
     });
   });
 
+  describe('Video Metadata', () => {
+    test('should extract correct framerate from H.264 video', async () => {
+      const parser = new MP4Parser();
+      await parser.initialize(h264File);
+
+      const framerate = parser.getFramerate();
+
+      // Test video is 30fps
+      expect(framerate).toBeCloseTo(30, 1);
+    });
+
+    test('should extract correct framerate from H.265 video', async () => {
+      const parser = new MP4Parser();
+      await parser.initialize(h265File);
+
+      const framerate = parser.getFramerate();
+
+      // Test video is 30fps
+      expect(framerate).toBeCloseTo(30, 1);
+    });
+
+    test('should calculate GOP size from keyframe intervals', async () => {
+      const parser = new MP4Parser();
+      await parser.initialize(h264File);
+
+      const gopSize = parser.getGopSize();
+
+      // GOP size should be reasonable (typically 15-60 for 30fps video)
+      expect(gopSize).toBeGreaterThan(0);
+      expect(gopSize).toBeLessThanOrEqual(300); // Should not exceed total frames
+    });
+
+    test('should throw error when calling getFramerate() before initialize()', () => {
+      const parser = new MP4Parser();
+
+      expect(() => parser.getFramerate()).toThrow(MP4ParseError);
+      expect(() => parser.getFramerate()).toThrow('not initialized');
+    });
+
+    test('should throw error when calling getGopSize() before initialize()', () => {
+      const parser = new MP4Parser();
+
+      expect(() => parser.getGopSize()).toThrow(MP4ParseError);
+      expect(() => parser.getGopSize()).toThrow('No samples available');
+    });
+
+    test('should handle videos with single keyframe', async () => {
+      const parser = new MP4Parser();
+      await parser.initialize(h264File);
+
+      const gopSize = parser.getGopSize();
+      const samples = parser.getSamples();
+
+      // If only one keyframe, GOP size equals total frames
+      const keyframes = samples.filter((s) => s.is_sync);
+      if (keyframes.length === 1) {
+        expect(gopSize).toBe(samples.length);
+      } else {
+        expect(gopSize).toBeGreaterThan(0);
+        expect(gopSize).toBeLessThan(samples.length);
+      }
+    });
+  });
+
   describe('Sample Properties', () => {
     test('samples should be in decode order', async () => {
       const parser = new MP4Parser();

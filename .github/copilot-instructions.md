@@ -15,3 +15,5 @@
 - Use backticks around filenames, e.g. `REQUIREMENTS.md`
 - When updating/adding, review existing content in the document and strive to eliminate redundancy through consolidation
 - Technical documentation should reflect the current state of the project, not a historical record of changes; we can highlight key learnings but we should not capture the evolution of the design; that is covered through the project documentation (plan, etc.) and through the repository history
+
+# Custom Commands

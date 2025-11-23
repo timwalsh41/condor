@@ -9,10 +9,12 @@ import { checkWebCodecsSupport } from "../utils/featureDetection";
  * - Frame-by-frame stepping with exact positioning (0 frame error)
  * - Fine stepping (+/-1 frame)
  * - Coarse stepping (+/-5 frames)
+ * - Continuous playback with variable speed (0.1x - 2.0x)
+ * - Video metadata display (resolution, codec, GOP size, etc.)
  * - Performance metrics (latency, cache hit rate)
  * - Memory management (bounded cache, no leaks)
  *
- * Phase 0, Task 0.3, Phase 3 deliverable.
+ * Phase 0, Task 0.3, Phase 4 deliverable.
  */
 export function WebCodecsDemo() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -29,6 +31,12 @@ export function WebCodecsDemo() {
     stepBackward,
     cacheStats,
     lastLatencyMs,
+    isPlaying,
+    playbackRate,
+    play,
+    pause,
+    setPlaybackRate,
+    metadata,
   } = useWebCodecsDecoder(videoFile);
 
   // Check browser support
@@ -42,11 +50,23 @@ export function WebCodecsDemo() {
   };
 
   const handleCoarseStepBackward = async () => {
+    if (isPlaying) pause();
     await seekToFrame(Math.max(0, currentFrame - 5));
   };
 
   const handleCoarseStepForward = async () => {
+    if (isPlaying) pause();
     await seekToFrame(Math.min(totalFrames - 1, currentFrame + 5));
+  };
+
+  const handleFineStepBackward = async () => {
+    if (isPlaying) pause();
+    await stepBackward();
+  };
+
+  const handleFineStepForward = async () => {
+    if (isPlaying) pause();
+    await stepForward();
   };
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,8 +75,23 @@ export function WebCodecsDemo() {
   };
 
   const handleSliderRelease = async () => {
-    // Only seek when user releases the slider (prevents flooding)
+    // Pause and seek when user releases the slider
+    if (isPlaying) pause();
     await seekToFrame(sliderValue);
+  };
+
+  const handlePlayPause = () => {
+    if (isPlaying) {
+      pause();
+    } else {
+      play();
+    }
+  };
+
+  const handlePlaybackRateChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setPlaybackRate(Number(e.target.value));
   };
 
   // Sync slider with currentFrame when stepping or when seek completes
@@ -220,7 +255,7 @@ export function WebCodecsDemo() {
 
             {/* Fine Step Backward */}
             <button
-              onClick={stepBackward}
+              onClick={handleFineStepBackward}
               disabled={currentFrame === 0}
               style={{
                 padding: "15px",
@@ -237,7 +272,7 @@ export function WebCodecsDemo() {
 
             {/* Fine Step Forward */}
             <button
-              onClick={stepForward}
+              onClick={handleFineStepForward}
               disabled={currentFrame >= totalFrames - 1}
               style={{
                 padding: "15px",
@@ -253,6 +288,67 @@ export function WebCodecsDemo() {
             >
               Forward 1 Frame →
             </button>
+          </div>
+
+          {/* Playback Controls */}
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              alignItems: "center",
+              marginBottom: "20px",
+              maxWidth: "600px",
+            }}
+          >
+            <button
+              onClick={handlePlayPause}
+              disabled={currentFrame >= totalFrames - 1 && !isPlaying}
+              style={{
+                padding: "15px 30px",
+                fontSize: "16px",
+                fontWeight: "bold",
+                cursor:
+                  currentFrame >= totalFrames - 1 && !isPlaying
+                    ? "not-allowed"
+                    : "pointer",
+                backgroundColor: isPlaying ? "#FF5722" : "#4CAF50",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                minWidth: "120px",
+              }}
+            >
+              {isPlaying ? "⏸ Pause" : "▶ Play"}
+            </button>
+
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                fontWeight: "bold",
+              }}
+            >
+              Speed:
+              <select
+                value={playbackRate.toString()}
+                onChange={handlePlaybackRateChange}
+                style={{
+                  padding: "10px",
+                  fontSize: "14px",
+                  borderRadius: "4px",
+                  border: "1px solid #ccc",
+                }}
+              >
+                <option value="0.1">0.1x</option>
+                <option value="0.25">0.25x</option>
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1">1.0x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2.0x</option>
+              </select>
+            </label>
           </div>
 
           {/* Seek Slider */}
@@ -315,41 +411,133 @@ export function WebCodecsDemo() {
             </div>
           </div>
 
-          {/* Technical Info */}
-          <div
-            style={{
-              marginTop: "20px",
-              padding: "15px",
-              backgroundColor: "#fffff0",
-              border: "1px solid #ddd",
-              borderRadius: "4px",
-              maxWidth: "600px",
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>Technical Details</h3>
-            <ul style={{ fontSize: "14px", marginBottom: 0 }}>
-              <li>
-                <strong>Frame Accuracy:</strong> Exact (0 frame error) using
-                WebCodecs API
-              </li>
-              <li>
-                <strong>Keyframe Detection:</strong> Actual is_sync flags from
-                MP4 (not assumed GOP=30)
-              </li>
-              <li>
-                <strong>Cache Strategy:</strong> LRU (Least Recently Used) with{" "}
-                {cacheStats.maxSize} frame capacity
-              </li>
-              <li>
-                <strong>Memory Management:</strong> VideoFrame.close() called on
-                eviction (no leaks)
-              </li>
-              <li>
-                <strong>Expected Performance:</strong> Cache hit &lt;10ms, Cache
-                miss &lt;300ms (GOP=30)
-              </li>
-            </ul>
-          </div>
+          {/* Video Metadata */}
+          {metadata && (
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "15px",
+                backgroundColor: "#f0f8ff",
+                border: "1px solid #0066cc",
+                borderRadius: "4px",
+                maxWidth: "600px",
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Video Metadata</h3>
+              <table
+                style={{
+                  width: "100%",
+                  fontSize: "14px",
+                  fontFamily: "monospace",
+                  borderCollapse: "collapse",
+                }}
+              >
+                <tbody>
+                  <tr style={{ borderBottom: "1px solid #ddd" }}>
+                    <td
+                      style={{
+                        padding: "8px",
+                        fontWeight: "bold",
+                        width: "40%",
+                      }}
+                    >
+                      Resolution
+                    </td>
+                    <td style={{ padding: "8px" }}>
+                      {metadata.width} x {metadata.height}
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #ddd" }}>
+                    <td
+                      style={{
+                        padding: "8px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Codec
+                    </td>
+                    <td style={{ padding: "8px" }}>{metadata.codec}</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #ddd" }}>
+                    <td
+                      style={{
+                        padding: "8px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Total Frames
+                    </td>
+                    <td style={{ padding: "8px" }}>{metadata.totalFrames}</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #ddd" }}>
+                    <td
+                      style={{
+                        padding: "8px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Framerate
+                    </td>
+                    <td style={{ padding: "8px" }}>
+                      {metadata.framerate.toFixed(2)} fps
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #ddd" }}>
+                    <td
+                      style={{
+                        padding: "8px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Duration
+                    </td>
+                    <td style={{ padding: "8px" }}>
+                      {metadata.duration.toFixed(2)} seconds
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #ddd" }}>
+                    <td
+                      style={{
+                        padding: "8px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      GOP Size
+                    </td>
+                    <td style={{ padding: "8px" }}>
+                      {metadata.gopSize} frames
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #ddd" }}>
+                    <td
+                      style={{
+                        padding: "8px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      File Size
+                    </td>
+                    <td style={{ padding: "8px" }}>
+                      {metadata.fileSizeMB.toFixed(2)} MB
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style={{
+                        padding: "8px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Read-Ahead Buffer
+                    </td>
+                    <td style={{ padding: "8px" }}>
+                      60 frames (2s @ {metadata.framerate.toFixed(0)} fps)
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

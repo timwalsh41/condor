@@ -484,4 +484,67 @@ export class MP4Parser {
 
     return this.info;
   }
+
+  /**
+   * Get video framerate (frames per second)
+   *
+   * @returns Framerate in fps (e.g., 30, 60)
+   * @throws {MP4ParseError} If parser not initialized
+   */
+  getFramerate(): number {
+    if (!this.videoTrack) {
+      throw new MP4ParseError('Parser not initialized. Call initialize() first.');
+    }
+
+    const track = this.videoTrack;
+
+    // Framerate = samples / duration_in_seconds
+    // duration is in timescale units, so: duration_in_seconds = duration / timescale
+    // Therefore: framerate = nb_samples / (duration / timescale) = (nb_samples * timescale) / duration
+    if (track.nb_samples && track.duration && track.timescale) {
+      return (track.nb_samples * track.timescale) / track.duration;
+    }
+
+    // Fallback: use 30fps if calculation fails
+    console.warn('[MP4Parser] Could not calculate framerate, using default 30fps');
+    return 30;
+  }
+
+  /**
+   * Calculate average GOP (Group of Pictures) size
+   *
+   * GOP size is the distance between keyframes (I-frames).
+   * For GOP=30 optimized videos, this should return 30.
+   *
+   * @returns Average GOP size in frames
+   * @throws {MP4ParseError} If parser not initialized
+   */
+  getGopSize(): number {
+    if (this.samples.length === 0) {
+      throw new MP4ParseError('No samples available. Parser may not be initialized.');
+    }
+
+    // Find all keyframe indices
+    const keyframeIndices: number[] = [];
+    for (let i = 0; i < this.samples.length; i++) {
+      if (this.samples[i].is_sync) {
+        keyframeIndices.push(i);
+      }
+    }
+
+    // Need at least 2 keyframes to calculate distance
+    if (keyframeIndices.length < 2) {
+      return this.samples.length; // All frames (or close to it)
+    }
+
+    // Calculate distances between consecutive keyframes
+    const distances: number[] = [];
+    for (let i = 0; i < keyframeIndices.length - 1; i++) {
+      distances.push(keyframeIndices[i + 1] - keyframeIndices[i]);
+    }
+
+    // Return average distance
+    const sum = distances.reduce((a, b) => a + b, 0);
+    return Math.round(sum / distances.length);
+  }
 }

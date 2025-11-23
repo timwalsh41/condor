@@ -24,7 +24,7 @@ export interface UseWebCodecsDecoderResult {
   /** Error message if initialization or decode fails */
   error: string | null;
   /** Seek to specific frame index (0-based) */
-  seekToFrame: (frameIndex: number) => Promise<void>;
+  seekToFrame: (frameIndex: number, updateDisplay?: boolean) => Promise<void>;
   /** Step forward one frame */
   stepForward: () => Promise<void>;
   /** Step backward one frame */
@@ -41,6 +41,29 @@ export interface UseWebCodecsDecoderResult {
   };
   /** Last operation latency in milliseconds */
   lastLatencyMs: number;
+  /** True when video is playing (continuous playback) */
+  isPlaying: boolean;
+  /** Current playback rate (0.1x - 2.0x, default 1.0) */
+  playbackRate: number;
+  /** Start continuous playback at current playbackRate */
+  play: () => void;
+  /** Stop continuous playback */
+  pause: () => void;
+  /** Change playback speed (0.1x - 2.0x) */
+  setPlaybackRate: (rate: number) => void;
+  /** Video framerate (fps) */
+  framerate: number;
+  /** Video metadata (null until ready) */
+  metadata: {
+    duration: number;      // Duration in seconds
+    framerate: number;     // Frames per second
+    gopSize: number;       // GOP size (avg keyframe interval)
+    totalFrames: number;   // Total frame count
+    codec: string;         // Codec string (e.g., "avc1.64001f")
+    width: number;         // Video width in pixels
+    height: number;        // Video height in pixels
+    fileSizeMB: number;    // File size in megabytes
+  } | null;
 }
 
 /**
@@ -71,9 +94,22 @@ export function useWebCodecsDecoder(
 
   // Track which frame we're seeking to (for output callback)
   const seekTargetRef = useRef<number | null>(null);
+  const updateDisplayRef = useRef<boolean>(true);
 
   // Map timestamp to sample index (for frame identification in output callback)
   const timestampToIndexRef = useRef<Map<number, number>>(new Map());
+
+  // Playback state and refs
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackRate, setPlaybackRateState] = useState(1.0);
+  const [framerate, setFramerate] = useState(30); // Default, will be updated from video
+  const playbackLoopRef = useRef<number | null>(null);
+  const lastFrameTimeRef = useRef<number>(0);
+  // Refs for values accessed in rAF loop (avoid stale closures)
+  const isPlayingRef = useRef(false);
+  const playbackRateRef = useRef(1.0);
+  const currentFrameRef = useRef(0);
+  const totalFramesRef = useRef(0);
 
   const [currentFrame, setCurrentFrame] = useState(0);
   const [totalFrames, setTotalFrames] = useState(0);
@@ -81,6 +117,7 @@ export function useWebCodecsDecoder(
   const [error, setError] = useState<string | null>(null);
   const [cacheStats, setCacheStats] = useState(cacheRef.current.getStats());
   const [lastLatencyMs, setLastLatencyMs] = useState(0);
+  const [metadata, setMetadata] = useState<UseWebCodecsDecoderResult['metadata']>(null);
 
   // Promise chain for sequential operation processing
   // Reason: Queue all seek operations to process them sequentially,
@@ -216,8 +253,11 @@ export function useWebCodecsDecoder(
    * @param targetFrame - Frame index to seek to (0-based)
    */
   const seekToFrame = useCallback(
-    async (targetFrame: number) => {
-      console.log(`[SEEK] seekToFrame called: target=${targetFrame}`);
+    async (targetFrame: number, updateDisplay: boolean = true) => {
+      console.log(`[SEEK] seekToFrame called: target=${targetFrame}, updateDisplay=${updateDisplay}`);
+
+      // Store updateDisplay in ref for output callback access
+      updateDisplayRef.current = updateDisplay;
 
       // Chain this operation after previous one completes
       // Reason: Prevents dropped requests from rapid button presses
@@ -281,8 +321,12 @@ export function useWebCodecsDecoder(
             if (cache.has(clampedTarget)) {
               console.log(`[SEEK] Cache hit for frame ${clampedTarget}`);
               const cachedFrame = cache.get(clampedTarget)!;
-              renderFrameToCanvas(cachedFrame);
-              setCurrentFrame(clampedTarget);
+
+              if (updateDisplay) {
+                renderFrameToCanvas(cachedFrame);
+                setCurrentFrame(clampedTarget);
+              }
+
               setCacheStats(cache.getStats());
 
               const latency = performance.now() - startTime;
@@ -345,10 +389,10 @@ export function useWebCodecsDecoder(
               `[SEEK] Keyframe at sample index ${keyframeSampleIndex}, target at ${targetSampleIndex}`
             );
 
-            // Read-ahead: decode a few more samples after target for cache warming
-            // Add 10 samples (not frames) to account for potential B-frame reordering
+            // Read-ahead: decode 60 samples after target for playback buffer (2s @ 30fps)
+            // Note: samples ≈ frames for most videos (exact for non-B-frame videos)
             const readAheadEnd = Math.min(
-              targetSampleIndex + 10,
+              targetSampleIndex + 60,
               samples.length - 1
             );
 
@@ -424,6 +468,139 @@ export function useWebCodecsDecoder(
   }, [currentFrame, seekToFrame]);
 
   /**
+   * Start continuous playback at current playbackRate.
+   *
+   * Uses requestAnimationFrame loop to render frames at precise intervals
+   * based on framerate and playbackRate. Renders from cache (instant <10ms)
+   * and decodes ahead asynchronously to maintain 60-frame buffer.
+   */
+  const play = useCallback(() => {
+    if (isPlayingRef.current) return; // Already playing
+
+    console.log(`[PLAY] Starting playback at ${playbackRateRef.current}x speed`);
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+
+    // Will be initialized on first rAF callback
+    lastFrameTimeRef.current = 0;
+
+    function playbackLoop(timestamp: number) {
+      if (!isPlayingRef.current) {
+        console.log("[PLAYBACK] Stopped");
+        return;
+      }
+
+      // Initialize on first frame
+      if (lastFrameTimeRef.current === 0) {
+        lastFrameTimeRef.current = timestamp;
+      }
+
+      const elapsed = timestamp - lastFrameTimeRef.current;
+      const frameInterval =
+        1000 / framerate / playbackRateRef.current;
+
+      // Debug logging (only every 30 frames to avoid spam)
+      if (currentFrameRef.current % 30 === 0) {
+        console.log(
+          `[PLAYBACK] framerate=${framerate}, playbackRate=${playbackRateRef.current}x, ` +
+          `frameInterval=${frameInterval.toFixed(2)}ms, elapsed=${elapsed.toFixed(2)}ms`
+        );
+      }
+
+      if (elapsed >= frameInterval) {
+        const nextFrame = currentFrameRef.current + 1;
+
+        // End of video
+        if (nextFrame >= totalFramesRef.current) {
+          console.log("[PLAYBACK] End of video reached");
+          setIsPlaying(false);
+          isPlayingRef.current = false;
+          if (playbackLoopRef.current) {
+            cancelAnimationFrame(playbackLoopRef.current);
+            playbackLoopRef.current = null;
+          }
+          return;
+        }
+
+        // Render from cache (fast path)
+        const cache = cacheRef.current;
+        if (cache.has(nextFrame)) {
+          const cachedFrame = cache.get(nextFrame)!;
+          renderFrameToCanvas(cachedFrame);
+          setCurrentFrame(nextFrame);
+          currentFrameRef.current = nextFrame;
+          setCacheStats(cache.getStats());
+
+          // Decode ahead to keep buffer full (async, non-blocking)
+          // Only decode if not already in cache
+          // Use updateDisplay=false to prevent jumping to buffered frame
+          const bufferEnd = nextFrame + 60;
+          if (bufferEnd < totalFramesRef.current && !cache.has(bufferEnd)) {
+            seekToFrame(bufferEnd, false).catch((err) =>
+              console.error("[PLAYBACK] Buffer decode error:", err)
+            );
+          }
+        } else {
+          // Cache miss - decode synchronously and wait
+          console.log(`[PLAYBACK] Cache miss at frame ${nextFrame}, decoding...`);
+          seekToFrame(nextFrame)
+            .then(() => {
+              console.log(`[PLAYBACK] Cache miss resolved, continuing`);
+              // Frame will be rendered by next iteration
+            })
+            .catch((err) => {
+              console.error("[PLAYBACK] Decode error during playback:", err);
+              setError(`Playback error: ${err.message}`);
+              setIsPlaying(false);
+              isPlayingRef.current = false;
+            });
+        }
+
+        lastFrameTimeRef.current = timestamp;
+      }
+
+      playbackLoopRef.current = requestAnimationFrame(playbackLoop);
+    }
+
+    playbackLoopRef.current = requestAnimationFrame(playbackLoop);
+  }, [framerate, renderFrameToCanvas, seekToFrame]);
+
+  /**
+   * Stop continuous playback.
+   */
+  const pause = useCallback(() => {
+    console.log("[PAUSE] Stopping playback");
+    setIsPlaying(false);
+    isPlayingRef.current = false;
+
+    if (playbackLoopRef.current) {
+      cancelAnimationFrame(playbackLoopRef.current);
+      playbackLoopRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Change playback speed.
+   *
+   * @param rate - Playback rate (0.1x - 2.0x)
+   */
+  const setPlaybackRate = useCallback((rate: number) => {
+    const clampedRate = Math.max(0.1, Math.min(2.0, rate));
+    console.log(`[PLAYBACK] Setting playback rate to ${clampedRate}x`);
+    setPlaybackRateState(clampedRate);
+    playbackRateRef.current = clampedRate;
+  }, []);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    currentFrameRef.current = currentFrame;
+  }, [currentFrame]);
+
+  useEffect(() => {
+    totalFramesRef.current = totalFrames;
+  }, [totalFrames]);
+
+  /**
    * Initialize decoder when video file changes.
    */
   useEffect(() => {
@@ -457,6 +634,29 @@ export function useWebCodecsDecoder(
         const samples = parser.getSamples();
         samplesRef.current = samples;
         setTotalFrames(samples.length);
+
+        // Extract framerate from video
+        const videoFramerate = parser.getFramerate();
+        setFramerate(videoFramerate);
+        console.log(`[INIT] Video framerate: ${videoFramerate} fps`);
+
+        // Extract video metadata
+        const videoTrack = parser.getVideoTrackInfo();
+        const gopSize = parser.getGopSize();
+        const duration = samples.length / videoFramerate;
+        const fileSizeMB = videoFile.size / 1024 / 1024; // Convert bytes to MB
+
+        setMetadata({
+          duration,
+          framerate: videoFramerate,
+          gopSize,
+          totalFrames: samples.length,
+          codec: videoTrack.codec || 'unknown',
+          width: videoTrack.video.width,
+          height: videoTrack.video.height,
+          fileSizeMB,
+        });
+        console.log(`[INIT] Video metadata: ${videoTrack.video.width}x${videoTrack.video.height}, ${samples.length} frames, GOP=${gopSize}`);
 
         // Build timestamp to frame number mapping
         // Reason: sample.number is NOT presentation frame number
@@ -505,10 +705,10 @@ export function useWebCodecsDecoder(
             // CRITICAL: Close original frame to release memory
             frame.close();
 
-            // Render immediately if this is the target frame
+            // Render immediately if this is the target frame AND updateDisplay is true
             // Reason: Async decode pipeline - output callback fires when frame ready
-            // Read-ahead frames are cached but not rendered
-            if (frameIndex === seekTargetRef.current) {
+            // Read-ahead frames are cached but not rendered (updateDisplay=false)
+            if (frameIndex === seekTargetRef.current && updateDisplayRef.current) {
               console.log(`[OUTPUT] Rendering target frame ${frameIndex}`);
               renderFrameToCanvas(cached);
               setCurrentFrame(frameIndex);
@@ -566,6 +766,13 @@ export function useWebCodecsDecoder(
     return () => {
       cancelled = true;
 
+      // Stop playback if active
+      if (playbackLoopRef.current) {
+        cancelAnimationFrame(playbackLoopRef.current);
+        playbackLoopRef.current = null;
+      }
+      isPlayingRef.current = false;
+
       // Close decoder
       if (decoderRef.current) {
         decoderRef.current.close();
@@ -580,6 +787,7 @@ export function useWebCodecsDecoder(
 
       // Reset state
       setIsReady(false);
+      setIsPlaying(false);
       setCurrentFrame(0);
       setTotalFrames(0);
       samplesRef.current = [];
@@ -609,5 +817,12 @@ export function useWebCodecsDecoder(
     stepBackward,
     cacheStats,
     lastLatencyMs,
+    isPlaying,
+    playbackRate,
+    play,
+    pause,
+    setPlaybackRate,
+    framerate,
+    metadata,
   };
 }

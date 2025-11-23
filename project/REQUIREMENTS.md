@@ -303,14 +303,14 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall support frame-accurate forward/backward stepping with exact frame accuracy (0 frame tolerance)
 - **Priority**: Critical
-- **Status**: In Progress (WebCodecs spike)
+- **Status**: In Progress
 - **User Story**: As a golfer, I want to step through my swing frame-by-frame for detailed analysis
 - **Acceptance Criteria**:
-  - [ ] Coarse step forward button (5 frames exactly, 0 frame error)
-  - [ ] Coarse step backward button (5 frames exactly, 0 frame error)
-  - [ ] Fine step forward button (1 frame exactly, 0 frame error)
-  - [ ] Fine step backward button (1 frame exactly, 0 frame error)
-  - [ ] Frame counter updates accurately with each step (0 frame error)
+  - [x] Coarse step forward button (5 frames exactly, 0 frame error) - Task 0.3 Phase 6 ✅
+  - [x] Coarse step backward button (5 frames exactly, 0 frame error) - Task 0.3 Phase 6 ✅
+  - [x] Fine step forward button (1 frame exactly, 0 frame error) - Task 0.3 Phase 6 ✅
+  - [x] Fine step backward button (1 frame exactly, 0 frame error) - Task 0.3 Phase 6 ✅
+  - [x] Frame counter updates accurately with each step (0 frame error) - Task 0.3 Phase 6 ✅
   - [ ] Stepping maintains sync offset in Playback Mode (deferred to Phase 1)
   - [ ] Stepping works independently in Sync Mode (deferred to Phase 1)
 - **Dependencies**: REQ-F-PLAYBACK-001
@@ -320,14 +320,14 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall display exact frame numbers with 0 frame error
 - **Priority**: High
-- **Status**: In Progress (WebCodecs spike)
+- **Status**: Validated
 - **User Story**: As a golfer, I want to see exact frame numbers to reference specific positions
 - **Acceptance Criteria**:
-  - [ ] Frame counter displayed for each video
-  - [ ] Counter updates in real-time during playback
-  - [ ] Counter updates immediately on seek/step
-  - [ ] Counter shows format: "Frame X of Y"
-  - [ ] Counter accuracy: 0 frame error (exact frame number)
+  - [x] Frame counter displayed for each video - Task 0.3 single video demo ✅
+  - [x] Counter updates in real-time during playback - Task 0.3 Phase 5 ✅
+  - [x] Counter updates immediately on seek/step - Task 0.3 Phase 6 ✅
+  - [x] Counter shows format: "Frame X of Y" - Task 0.3 demo ✅
+  - [x] Counter accuracy: 0 frame error (exact frame number) - Task 0.3 Phase 6 ✅
 - **Dependencies**: REQ-F-FRAME-001
 - **Implementation Notes**: Frame index from VideoDecoder provides exact frame numbers. Previous approach calculated from `currentTime` which introduced rounding errors.
 
@@ -335,14 +335,14 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall provide exact frame-accurate seeking with deterministic behavior across browsers
 - **Priority**: Critical
-- **Status**: In Progress (WebCodecs spike)
+- **Status**: In Progress
 - **User Story**: As a user, I want seeking to be exact and deterministic regardless of which browser I use
 - **Acceptance Criteria**:
-  - [ ] Scrubber/seek bar targets specific frame index
-  - [ ] Seeking lands on exact target frame (0 frame error)
-  - [ ] Works consistently in Chrome 94+, Firefox 130+, Safari 17.4+
-  - [ ] No drift after multiple seek operations (0 frame cumulative error)
-  - [ ] Deterministic behavior: seeking to frame N always displays frame N
+  - [ ] Scrubber/seek bar targets specific frame index - UI component pending Phase 1
+  - [x] Seeking lands on exact target frame (0 frame error) - Task 0.3 Phase 6 ✅
+  - [x] Works consistently in Chrome 94+, Firefox 130+, Safari 17.4+ - Task 0.3 Phase 6 ✅
+  - [x] No drift after multiple seek operations (0 frame cumulative error) - Task 0.3 Phase 6 ✅
+  - [x] Deterministic behavior: seeking to frame N always displays frame N - Task 0.3 Phase 6 ✅
 - **Dependencies**: REQ-F-FRAME-001
 - **Implementation Notes**: WebCodecs VideoDecoder provides deterministic frame-by-frame decode. Keyframe dependencies handled by decoding from nearest keyframe. Previous approach using `video.currentTime` was non-deterministic.
 
@@ -589,13 +589,17 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: Frame stepping shall respond quickly
 - **Priority**: High
-- **Status**: In Progress (WebCodecs spike)
+- **Status**: In Progress
 - **Acceptance Criteria**:
-  - [ ] Frame decode + render latency ≤50ms (cached frames ≤10ms)
-  - [ ] No lag accumulation after multiple steps
-  - [ ] Works consistently across Chrome 94+, Firefox 130+, Safari 17.4+
-  - [ ] Hardware-accelerated decode utilized when available
+  - [-] Frame decode + render latency ≤50ms (cached frames ≤10ms) - Task 0.3 Phase 6: **cache hit meets requirement** (4-15ms), **cache miss does NOT meet requirement** (254-344ms) ⚠️
+  - [x] No lag accumulation after multiple steps - Task 0.3 Phase 6 validated ✅
+  - [x] Works consistently across Chrome 94+, Firefox 130+, Safari 17.4+ - Task 0.3 Phase 6 ✅
+  - [x] Hardware-accelerated decode utilized when available - WebCodecs auto-detects ✅
 - **Measurement Method**: Performance.now() timing of VideoDecoder output callback to canvas render. Automated Playwright tests validate latency across browsers.
+- **Implementation Notes**:
+  - Cache hit performance (4-15ms) meets the ≤10ms target for cached frames
+  - Cache miss performance (254-344ms) exceeds the ≤50ms requirement due to keyframe decode requirements (GOP=30 videos require decoding up to 30 frames from nearest keyframe)
+  - Requirement may need revision to separate cache hit vs cache miss criteria with realistic targets based on WebCodecs + GOP=30 architecture
 - **Dependencies**: REQ-F-FRAME-001
 
 #### REQ-NF-P-005: UI Interaction Response
@@ -616,14 +620,14 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall support modern desktop browsers
 - **Priority**: Critical
-- **Status**: Planned (WebCodecs browser validation pending)
+- **Status**: In Progress
 - **Acceptance Criteria**:
-  - [ ] Chrome 94+: WebCodecs frame control features functional
-  - [ ] Firefox 130+: WebCodecs frame control features functional
-  - [ ] Safari 17.4+: WebCodecs frame control features functional
-  - [ ] Edge 94+ (Chromium): WebCodecs frame control features functional
-  - [ ] Cross-browser consistency for frame stepping: 0 frame difference (exact frame accuracy)
-  - [ ] WebCodecs API (VideoDecoder, VideoFrame, EncodedVideoChunk) available and functional
+  - [x] Chrome 94+: WebCodecs frame control features functional - Task 0.3 Phase 6 ✅
+  - [x] Firefox 130+: WebCodecs frame control features functional - Task 0.3 Phase 6 ✅
+  - [x] Safari 17.4+: WebCodecs frame control features functional - Task 0.3 Phase 6 (WebKit) ✅
+  - [ ] Edge 94+ (Chromium): WebCodecs frame control features functional - Not explicitly tested (Chrome-based)
+  - [x] Cross-browser consistency for frame stepping: 0 frame difference (exact frame accuracy) - Task 0.3 Phase 6 ✅
+  - [x] WebCodecs API (VideoDecoder, VideoFrame, EncodedVideoChunk) available and functional - Task 0.3 Phase 6 ✅
   - [ ] All core features (upload, dual video, sync, annotations) validated across browsers (pending Phase 1 implementation)
 - **Measurement Method**:
   - Playwright automated test suite runs against all target browsers
@@ -1101,56 +1105,36 @@ None for MVP - all processing local
 
 **Total Requirements**: 48
 
-- **Planned**: 43 (90%)
-- **In Progress**: 5 (11%)
-  - REQ-F-FRAME-001: Frame Stepping (WebCodecs spike)
-  - REQ-F-FRAME-002: Frame Counter Display (WebCodecs spike)
-  - REQ-F-FRAME-003: Seeking Precision (WebCodecs spike)
-  - REQ-NF-P-004: Frame Stepping Response Time (WebCodecs spike)
-  - REQ-NF-M-001: Code Quality Standards (frontend TypeScript + ESLint)
+- **Planned**: 42 (88%)
+- **In Progress**: 5 (10%)
+  - REQ-F-FRAME-001: Frame Stepping (5/7 criteria)
+  - REQ-F-FRAME-003: Seeking Precision (4/5 criteria)
+  - REQ-NF-BC-001: Browser Compatibility (6/7 criteria)
+  - REQ-NF-P-004: Frame Stepping Response Time (3/4 criteria - cache hit meets requirement, cache miss does not)
+  - REQ-NF-M-001: Code Quality Standards
 - **Implemented (Awaiting Validation)**: 0 (0%)
-- **Validated**: 0 (0%)
-
-### Session 4 Progress (2025-11-14)
-
-- **Architectural Pivot**: WebCodecs API adopted for exact frame accuracy (0 tolerance)
-- **Deprecated Validations**: REQ-F-FRAME-001/002/003, REQ-NF-P-004 (achieved ±1 frame but failed 0 tolerance)
-- **Updated**: Browser requirements (Chrome 94+, Firefox 130+, Safari 17.4+)
-- **Added**: INT-002 mp4box.js integration requirement
-- **In Progress**: 5 requirements updated for WebCodecs spike (Task 0.3)
-
-### Session 3 Progress (2025-11-12)
-
-- **Validated (Deprecated)**: 4 requirements with ±1 frame tolerance (REQ-F-FRAME-001, REQ-F-FRAME-002, REQ-F-FRAME-003, REQ-NF-P-004)
-- **Critical Finding**: Exact frame accuracy (0 tolerance) not achievable with requestVideoFrameCallback approach
-
-### Session 2 Progress (2025-11-09)
-
-- **Implemented (Awaiting Validation)**: 5 requirements initially, pending test fixes
-
-### Session 1 Progress (2025-10-29)
-
-- **Implemented (Awaiting Validation)**: 5 requirements implemented but test environment blocked validation
+- **Validated**: 1 (2%)
+  - REQ-F-FRAME-002: Frame Counter Display
 
 ### Priority Breakdown
 
-- **Critical**: 19 (0% Complete, 3 In Progress)
-- **High**: 23 (0% Complete, 2 In Progress)
-- **Medium**: 6 (0% Complete)
-- **Low**: 2 (0% Complete)
+- **Critical**: 19 (0% Validated, 2 In Progress)
+- **High**: 23 (9% Validated, 2 In Progress)
+- **Medium**: 6 (0% Validated)
+- **Low**: 2 (0% Validated)
 
 ### Requirements by Area
 
-- **Video Upload**: 4 requirements (0% Complete)
-- **Video Playback**: 3 requirements (0% Complete)
-- **Synchronization**: 4 requirements (0% Complete)
-- **Playback Mode**: 3 requirements (0% Complete)
-- **Frame Control**: 3 requirements (0% Complete)
-- **Trimming**: 2 requirements (0% Complete)
-- **Annotations**: 5 requirements (0% Complete)
-- **Error Handling**: 2 requirements (0% Complete)
-- **Documentation**: 1 requirement (0% Complete)
-- **Non-Functional**: 21 requirements (0% Complete)
+- **Video Upload**: 4 requirements (0% Validated)
+- **Video Playback**: 3 requirements (0% Validated)
+- **Synchronization**: 4 requirements (0% Validated)
+- **Playback Mode**: 3 requirements (0% Validated)
+- **Frame Control**: 3 requirements (33% Validated, 2 In Progress)
+- **Trimming**: 2 requirements (0% Validated)
+- **Annotations**: 5 requirements (0% Validated)
+- **Error Handling**: 2 requirements (0% Validated)
+- **Documentation**: 1 requirement (0% Validated)
+- **Non-Functional**: 21 requirements (5% Validated - 1 of 21, 1 In Progress)
 
 ---
 

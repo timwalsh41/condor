@@ -17,3 +17,17 @@
 - Technical documentation should reflect the current state of the project, not a historical record of changes; we can highlight key learnings but we should not capture the evolution of the design; that is covered through the project documentation (plan, etc.) and through the repository history
 
 # Custom Commands
+
+Interpret the following commands when requested by the user:
+
+**PLAN_IMPLEMENTATION**
+
+- Review the listed input documents
+- Create a todo list for the implementation
+- Assess your confidence in completing the implementation correctly and with high quality; assign a score 0-100% that reflects the likelihood of success
+  - Remember that confidence/likelihood of success is distinct from complexity - we have have high likelihood of success in the face of high complexity as long as we have a sound approach, good test coverage, and appropriate risk mitigations
+- Raise any concerns, risks, or gaps that you perceive that have not been addressed already
+
+**CONTEXT_INIT**
+
+- Review the provided documents to familiarize yourself with the project context

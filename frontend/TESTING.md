@@ -17,7 +17,7 @@ npm run test:memory                      # Memory leak tests
 ### Unit Tests (Vitest)
 
 **Location**: `src/**/*.test.{ts,tsx}`  
-**Purpose**: Component logic, cache behavior
+**Purpose**: Component logic, cache behavior, utilities
 
 ```bash
 npm run test              # Run once
@@ -28,7 +28,13 @@ npm run test:ui           # Interactive UI
 ### Browser Tests (Playwright)
 
 **Location**: `tests/**/*.spec.ts`  
-**Purpose**: Frame stepping accuracy, memory leaks, cross-browser
+**Purpose**: Frame stepping accuracy (exact 0-tolerance), cache performance, memory validation, cross-browser compatibility
+
+**Test Files**:
+
+- `test_frame_stepping.spec.ts` - Frame-accurate stepping and seeking (6 tests)
+- `test_cache_performance.spec.ts` - Cache behavior and performance (4 tests)
+- `test_memory_leaks.spec.ts` - Memory leak detection with CDP (5 tests, Chrome-only)
 
 ```bash
 npm run test:e2e          # All browsers (Chrome/Firefox/WebKit)
@@ -37,6 +43,7 @@ npm run test:e2e:headed   # Visible browser (debug)
 
 # Specific browser or test
 npx playwright test --project=chrome
+npx playwright test test_frame_stepping.spec.ts
 npx playwright test --grep "step forward"
 ```
 
@@ -54,13 +61,37 @@ Test Files: 1 passed (1)
 ### Browser Tests
 
 ```
-✓ [chrome] test_memory_leaks.spec.ts:15 sequential (3.5s)
+✓ [chrome] test_frame_stepping.spec.ts:60 frame stepping (2.1s)
+✓ [firefox] test_frame_stepping.spec.ts:60 frame stepping (2.3s)
+✓ [webkit] test_frame_stepping.spec.ts:60 frame stepping (2.5s)
 18 passed (45s)
 ```
 
 **Pass**: All browsers green | **Fail**: `npx playwright show-report`
 
+### Frame Accuracy
+
+All tests validate **exact (0 tolerance)** frame positioning:
+
+```typescript
+expect(currentFrame).toBe(expectedFrame); // NOT ±1
+```
+
+**Frame Stepping Tests** (`test_frame_stepping.spec.ts`):
+
+- 6 tests × 3 browsers = 18 tests total
+- All tests require exact frame accuracy (non-negotiable)
+- Validates: fine stepping (±1 frame), coarse stepping (±5 frames), playback counter updates
+
+**Cache Performance Tests** (`test_cache_performance.spec.ts`):
+
+- 4 tests × 3 browsers = 12 tests total
+- Validates cache miss latency <500ms (headless), <300ms target (GOP=30)
+- Tests: forward seek beyond cache, backward seek with eviction, continuous playback, cache size limits
+
 ### Memory Leak Thresholds
+
+**Memory Leak Tests** (`test_memory_leaks.spec.ts`, Chrome-only):
 
 | Test              | Threshold      | Indicates               |
 | ----------------- | -------------- | ----------------------- |
@@ -68,31 +99,44 @@ Test Files: 1 passed (1)
 | Component unmount | > 5MB released | Cleanup working         |
 | 60 frame steps    | < 15MB total   | LRU functioning         |
 
-**GC Warnings**: "VideoFrame garbage collected" - Expected during cache hits (< 100 acceptable)
+**GC Warnings**: "VideoFrame garbage collected" - Expected during cache operations (< 100 acceptable)
+
+**Note**: Memory tests use Chrome DevTools Protocol. Chrome-only testing is sufficient as memory behavior should not vary across browsers.
 
 ## Troubleshooting
 
 **"Browser not found"**: `npx playwright install`  
 **Tests timeout**: Ensure `npm run dev` is running in another terminal  
-**Memory exceeds threshold**: Check cache size (default: 20 frames), run `npm run test:memory -- --headed`  
+**Memory exceeds threshold**: Check cache size (default: 120 frames), run `npm run test:memory -- --headed`  
+**WebKit slow seeks**: Expected, timeouts adjusted (15s for complex seeks)  
 **Import errors**: `rm -rf node_modules/.vite && npm run test`
 
 ## Manual Verification
+
+### Frame Accuracy
+
+```bash
+npm run dev
+# Upload tests/fixtures/videos/test_gop30_h264.mp4
+# Step forward/backward, verify burned-in frame numbers match UI exactly
+# Expected: 0-tolerance accuracy (exact frame match)
+```
 
 ### Memory Leaks
 
 ```bash
 npm run dev
 # Chrome → DevTools → Memory → Snapshot → Step 50 frames → GC → Snapshot
-# Expected: 5-10MB retained (cached frames)
+# Expected: 10-20MB retained (cached VideoFrames, 120-frame cache)
 ```
 
-### Frame Accuracy
+### Cache Performance
 
 ```bash
 npm run dev
-# Upload tests/fixtures/videos/test_30fps_10s.mp4
-# Step forward/backward, verify burned-in frame numbers match UI
+# Upload tests/fixtures/videos/test_gop30_h264_10s.mp4 (300 frames)
+# Seek frame 10 → 250 (beyond cache capacity)
+# Expected: <300ms latency, cache stats show evictions
 ```
 
 ## CI/CD
@@ -104,4 +148,4 @@ npm run test:e2e    # Playwright (headless, 2 retries)
 
 ## Coverage
 
-✅ Frame accuracy (±1) | ✅ Cache eviction | ✅ Memory leaks | ✅ Cross-browser | ✅ Lifecycle management
+✅ **Exact frame accuracy (0 tolerance)** | ✅ Cache eviction | ✅ Memory leaks (CDP profiling) | ✅ Cross-browser (Chrome/Firefox/WebKit) | ✅ Lifecycle management | ✅ Cache performance (<300ms GOP=30) | ✅ Continuous playback (variable speed 0.1x-2.0x)

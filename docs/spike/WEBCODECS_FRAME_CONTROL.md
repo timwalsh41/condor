@@ -353,31 +353,31 @@ decoder.configure(codecConfig);
 function seekToFrame(frameIndex: number) {
   // Find keyframe at or before target
   const keyframeIndex = findNearestKeyframe(frameIndex);
-  
+
   // Decode from keyframe to target + 60 ahead (playback buffer)
   for (let i = keyframeIndex; i <= frameIndex + 60; i++) {
     const chunk = createEncodedChunk(samples[i]);
     decoder.decode(chunk);
   }
-  
+
   // Output callback caches all frames, renders target immediately
 }
 
 // 4. Continuous playback with variable speed (WebCodecs-based)
 function playbackLoop(timestamp: number) {
   if (!isPlaying) return;
-  
+
   const elapsed = timestamp - lastFrameTime;
-  const frameInterval = (1000 / framerate) / playbackRate; // Adjust for speed
-  
+  const frameInterval = 1000 / framerate / playbackRate; // Adjust for speed
+
   if (elapsed >= frameInterval) {
     const nextFrame = currentFrame + 1;
-    
+
     if (nextFrame >= totalFrames) {
       setIsPlaying(false); // End of video
       return;
     }
-    
+
     // Render from cache (instant: <10ms)
     if (cache.has(nextFrame)) {
       renderFrameToCanvas(cache.get(nextFrame));
@@ -386,10 +386,10 @@ function playbackLoop(timestamp: number) {
       // Cache miss - decode synchronously (<300ms)
       await seekToFrame(nextFrame); // Refills 60-frame buffer
     }
-    
+
     lastFrameTime = timestamp;
   }
-  
+
   requestAnimationFrame(playbackLoop);
 }
 
@@ -404,12 +404,14 @@ function stepBackward() {
 ```
 
 **Cache Architecture**:
+
 - **Total capacity**: 120 frames (~120MB @ 1080p)
 - **Read-ahead**: 60 frames (2 seconds @ 30fps playback buffer)
 - **Backward cache**: 60 frames (2 seconds of stepping history)
 - **LRU eviction**: Oldest frames evicted when cache full
 
 **Playback Performance**:
+
 - Cache hit: <10ms (render from memory)
 - Cache miss: <300ms (decode from nearest keyframe with GOP=30)
 - Variable speed: 0.1x (slow-motion) to 2.0x (fast) with exact frame timing
@@ -1130,6 +1132,7 @@ print(get_video_info(Path("tests/fixtures/videos/test_gop250_h264.mp4")))'
 Successfully implemented WebCodecs VideoDecoder with frame-accurate seeking, handling the complexity of MP4 decode/presentation order and React lifecycle timing. Validated with manual browser testing showing correct frame identification and rendering.
 
 **Files Created**:
+
 - `frontend/src/utils/FrameCache.ts` (163 lines) - LRU cache for VideoFrames
 - `frontend/src/hooks/useWebCodecsDecoder.ts` (528 lines) - React hook for VideoDecoder
 - `frontend/src/components/FrameStepper.tsx` - Simple frame stepping demo
@@ -1144,6 +1147,7 @@ Successfully implemented WebCodecs VideoDecoder with frame-accurate seeking, han
 **Root Cause**: `flush()` resets decoder state completely, requiring the next frame to be a keyframe. This breaks the decode dependency chain needed for P-frames and B-frames.
 
 **Solution**: Remove `flush()` from seek operations. The async decode pipeline handles everything:
+
 ```typescript
 // ❌ WRONG - Causes keyframe errors
 decoder.decode(chunk);
@@ -1162,6 +1166,7 @@ decoder.decode(chunk); // Output callback fires when ready
 **The Problem**: MP4 samples are stored in **decode order**, not the order they should be displayed. This is due to B-frames (bi-directional frames) that depend on both previous AND future frames.
 
 **Example Decode Sequence**:
+
 ```
 Decode order:  I0, P3, B1, B2, P6, B4, B5
 Presentation:   0,  1,  2,  3,  4,  5,  6
@@ -1170,6 +1175,7 @@ Presentation:   0,  1,  2,  3,  4,  5,  6
 **Key Insight**: `sample.number` is the **sample array index** (decode position), NOT the presentation frame number. To get presentation order, you must sort by CTS (composition timestamp).
 
 **Implementation**:
+
 ```typescript
 // Build presentation order mapping at initialization
 const sortedByPts = [...samples]
@@ -1191,6 +1197,7 @@ const frameIndex = timestampToIndex.get(frame.timestamp);
 **The Bug**: Initially calculated frame index as `(frame.timestamp / 1000000) * framerate`, assuming microseconds. All frames rounded to index 0.
 
 **Reality**: MP4 timestamps (CTS) are in the video track's timescale units. For example:
+
 - 30fps video with 15360 timescale (512 units/frame)
 - Frame timestamps: 0, 512, 1024, 1536, 2048...
 - NOT: 0, 33333, 66666, 100000... (microseconds)
@@ -1204,6 +1211,7 @@ const frameIndex = timestampToIndex.get(frame.timestamp);
 **Root Cause**: React refs are `null` during the initial `useEffect` execution. The canvas ref isn't attached to the DOM until after the first render completes.
 
 **Solution**: Separate effect triggered by `isReady` state:
+
 ```typescript
 // First effect: Initialize decoder, decode frame 0
 useEffect(() => {
@@ -1227,6 +1235,7 @@ useEffect(() => {
 Rapid user interactions (e.g., clicking step forward 3 times quickly) can cause concurrent `seekToFrame()` calls. Without queueing, frames may render out of order.
 
 **Solution**: Promise chain serializes all operations:
+
 ```typescript
 const operationQueueRef = useRef<Promise<void>>(Promise.resolve());
 
@@ -1246,10 +1255,10 @@ const seekToFrame = useCallback(async (targetFrame: number) => {
 const seekToFrame = async (targetFrame: number) => {
   // 1. Find nearest keyframe before target
   const keyframe = findNearestKeyframe(targetFrame);
-  
+
   // 2. Set target for output callback
   seekTargetRef.current = targetFrame;
-  
+
   // 3. Decode from keyframe to target + read-ahead
   for (let i = keyframe; i <= targetFrame + 10; i++) {
     const sample = samples[timestampToSampleIndex.get(i)];
@@ -1261,26 +1270,27 @@ const seekToFrame = async (targetFrame: number) => {
     });
     decoder.decode(chunk);
   }
-  
+
   // 4. Output callback renders when target arrives
 };
 
 // Output callback
 output: (frame: VideoFrame) => {
   const frameIndex = timestampToIndex.get(frame.timestamp);
-  
+
   // Cache ALL decoded frames
   cache.set(frameIndex, frame.clone());
-  
+
   // Render ONLY target frame
   if (frameIndex === seekTargetRef.current) {
     renderFrameToCanvas(frame);
     setCurrentFrame(frameIndex);
   }
-}
+};
 ```
 
 **Key Points**:
+
 - Decode from keyframe (for P/B-frame dependencies) to target + 10 (read-ahead caching)
 - Output callback fires asynchronously as frames decode
 - `seekTargetRef` identifies which frame to render (all others cached for future use)
@@ -1292,10 +1302,10 @@ output: (frame: VideoFrame) => {
 const findNearestKeyframe = (targetFrame: number): number => {
   // 1. Get CTS for target frame
   const targetCts = sortedByPts[targetFrame].cts;
-  
+
   // 2. Find sample index in decode order
-  const sampleIndex = samples.findIndex(s => s.cts === targetCts);
-  
+  const sampleIndex = samples.findIndex((s) => s.cts === targetCts);
+
   // 3. Walk backward to nearest keyframe
   for (let i = sampleIndex; i >= 0; i--) {
     if (samples[i].is_sync) {
@@ -1312,6 +1322,7 @@ const findNearestKeyframe = (targetFrame: number): number => {
 **Unit Tests**: 19/19 passing (FrameCache.test.ts)
 
 **Browser Testing** (Manual validation with 150-frame test video):
+
 - ✅ Frame 0 renders on load (no black canvas)
 - ✅ Forward/backward 1-frame stepping accurate through all 150 frames
 - ✅ Forward/backward 5-frame stepping (coarse control) working
@@ -1345,6 +1356,7 @@ const findNearestKeyframe = (targetFrame: number): number => {
 Successfully implemented WebCodecs-based continuous playback with frame-accurate synchronization at variable speeds (0.1x - 2.0x). Playback uses requestAnimationFrame loop rendering from 60-frame read-ahead cache, maintaining exact frame accuracy for dual-video sync during continuous playback (not just stepping/seeking).
 
 **Key Components**:
+
 - **Playback controls**: Play/Pause button, 7-speed selector (0.1x, 0.25x, 0.5x, 0.75x, 1.0x, 1.5x, 2.0x)
 - **Video metadata display**: 7 properties (duration, framerate, GOP size, total frames, codec, resolution, read-ahead buffer)
 - **Enhanced cache**: 60-frame read-ahead (2-second buffer @ 30fps) for smooth playback
@@ -1353,6 +1365,7 @@ Successfully implemented WebCodecs-based continuous playback with frame-accurate
 ### Critical Implementation Patterns
 
 **requestAnimationFrame Playback Loop**:
+
 ```typescript
 function playbackLoop(timestamp: number) {
   // Initialize timing on first frame
@@ -1361,7 +1374,7 @@ function playbackLoop(timestamp: number) {
   }
 
   const elapsed = timestamp - lastFrameTimeRef.current;
-  const frameInterval = (1000 / framerate) / playbackRate;
+  const frameInterval = 1000 / framerate / playbackRate;
 
   if (elapsed >= frameInterval) {
     const nextFrame = currentFrame + 1;
@@ -1383,6 +1396,7 @@ function playbackLoop(timestamp: number) {
 ```
 
 **Decode-Only Buffering** (prevents frame jumps):
+
 ```typescript
 // seekToFrame with updateDisplay parameter
 async function seekToFrame(frameIndex: number, updateDisplay: boolean = true) {
@@ -1402,6 +1416,7 @@ async function seekToFrame(frameIndex: number, updateDisplay: boolean = true) {
 ### Test Results
 
 **Unit Tests**: 57/57 passing (100%)
+
 - 19 FrameCache tests
 - 25 MP4Parser tests (including metadata extraction)
 - 13 useWebCodecsDecoder tests (including playback state management)
@@ -1573,7 +1588,7 @@ if (this.cache.size >= this.maxSize) {
 
 ### Comparison: Approaches for Frame-Accurate Video Control
 
-| Aspect                        | requestVideoFrameCallback             | WebCodecs (No Optimization)            | **WebCodecs + GOP=30 (Implemented)**   | Hybrid (WebCodecs+HTML5) - Historical       |
+| Aspect                        | requestVideoFrameCallback             | WebCodecs (No Optimization)            | **WebCodecs + GOP=30 (Implemented)**   | Hybrid (WebCodecs+HTML5) - Historical        |
 | ----------------------------- | ------------------------------------- | -------------------------------------- | -------------------------------------- | -------------------------------------------- |
 | **Frame Accuracy (Stepping)** | ±1 frame (best case)                  | Exact (0 frame error)                  | ✅ Exact (0 frame error)               | ✅ Exact (0 frame error)                     |
 | **Frame Accuracy (Playback)** | ❌ ±1 frame (unacceptable)            | Exact (0 frame error)                  | ✅ Exact (0 frame error)               | ❌ ±1-2 frames (unacceptable for sync)       |

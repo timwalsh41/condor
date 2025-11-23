@@ -99,6 +99,24 @@ export function WebCodecsDemo() {
     setSliderValue(currentFrame);
   }, [currentFrame]);
 
+  // Expose test API on window object for Playwright tests
+  useEffect(() => {
+    if (isReady) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).__webCodecsTestAPI = {
+        seekToFrame,
+        getCurrentFrame: () => currentFrame,
+        getTotalFrames: () => totalFrames,
+        getFramerate: () => metadata?.framerate || 30,
+        isReady: () => isReady,
+      };
+    }
+    return () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).__webCodecsTestAPI;
+    };
+  }, [isReady, seekToFrame, currentFrame, totalFrames, metadata]);
+
   if (!support.isSupported) {
     return (
       <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
@@ -195,6 +213,7 @@ export function WebCodecsDemo() {
 
           {/* Frame Counter */}
           <div
+            data-testid="frame-counter"
             style={{
               fontSize: "24px",
               fontWeight: "bold",
@@ -202,7 +221,7 @@ export function WebCodecsDemo() {
               fontFamily: "monospace",
             }}
           >
-            Frame {currentFrame} / {totalFrames - 1}
+            Frame {currentFrame} of {totalFrames}
           </div>
 
           {/* Controls */}
@@ -217,6 +236,7 @@ export function WebCodecsDemo() {
           >
             {/* Coarse Step Backward */}
             <button
+              data-testid="step-backward-coarse"
               onClick={handleCoarseStepBackward}
               disabled={currentFrame === 0}
               style={{
@@ -235,6 +255,7 @@ export function WebCodecsDemo() {
 
             {/* Coarse Step Forward */}
             <button
+              data-testid="step-forward-coarse"
               onClick={handleCoarseStepForward}
               disabled={currentFrame >= totalFrames - 1}
               style={{
@@ -255,6 +276,7 @@ export function WebCodecsDemo() {
 
             {/* Fine Step Backward */}
             <button
+              data-testid="step-backward-fine"
               onClick={handleFineStepBackward}
               disabled={currentFrame === 0}
               style={{
@@ -272,6 +294,7 @@ export function WebCodecsDemo() {
 
             {/* Fine Step Forward */}
             <button
+              data-testid="step-forward-fine"
               onClick={handleFineStepForward}
               disabled={currentFrame >= totalFrames - 1}
               style={{
@@ -301,6 +324,7 @@ export function WebCodecsDemo() {
             }}
           >
             <button
+              data-testid="play-pause"
               onClick={handlePlayPause}
               disabled={currentFrame >= totalFrames - 1 && !isPlaying}
               style={{

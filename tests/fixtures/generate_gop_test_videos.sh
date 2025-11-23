@@ -12,6 +12,33 @@ mkdir -p "$VIDEO_DIR"
 
 echo "Generating GOP test videos..."
 
+# Test Video 0: 30fps 10-second baseline (for general testing)
+echo "0. Generating baseline test video (H.264, 30fps, 10 seconds)..."
+ffmpeg -y -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 \
+  -vf "drawtext=fontsize=60:fontcolor=white:x=100:y=100:text='30fps Frame %{n}'" \
+  -c:v libx264 -pix_fmt yuv420p \
+  -crf 23 -preset fast \
+  -an \
+  "$VIDEO_DIR/test_30fps_10s.mp4"
+
+# Test Video 0b: HEVC baseline
+echo "0b. Generating HEVC baseline test video (H.265, 30fps, 10 seconds)..."
+ffmpeg -y -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 \
+  -vf "drawtext=fontsize=60:fontcolor=white:x=100:y=100:text='30fps HEVC Frame %{n}'" \
+  -c:v libx265 \
+  -crf 23 -preset fast \
+  -an \
+  "$VIDEO_DIR/test_30fps_10s_hevc.mp4"
+
+# Test Video 0c: 60fps 5-second (for high framerate testing)
+echo "0c. Generating 60fps test video (H.264, 60fps, 5 seconds)..."
+ffmpeg -y -f lavfi -i testsrc=duration=5:size=1280x720:rate=60 \
+  -vf "drawtext=fontsize=60:fontcolor=white:x=100:y=100:text='60fps Frame %{n}'" \
+  -c:v libx264 -pix_fmt yuv420p \
+  -crf 23 -preset fast \
+  -an \
+  "$VIDEO_DIR/test_60fps_5s.mp4"
+
 # Test Video 1: GOP=30 (already optimal, should skip re-encoding)
 echo "1. Generating GOP=30 test video (H.264, 30fps, 5 seconds)..."
 ffmpeg -y -f lavfi -i testsrc=duration=5:size=1280x720:rate=30 \
@@ -52,6 +79,26 @@ ffmpeg -y -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 \
   -crf 23 -preset fast \
   -an \
   "$VIDEO_DIR/test_vargop_h264.mp4"
+
+# Test Video 5: GOP=30 10-second H.264 (for cache miss testing)
+echo "5. Generating GOP=30 10-second test video (H.264, 30fps, 10 seconds)..."
+ffmpeg -y -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 \
+  -vf "drawtext=fontsize=60:fontcolor=white:x=100:y=100:text='GOP30 10s Frame %{n}'" \
+  -c:v libx264 -pix_fmt yuv420p \
+  -g 30 -keyint_min 30 -sc_threshold 0 \
+  -crf 23 -preset fast \
+  -an \
+  "$VIDEO_DIR/test_gop30_h264_10s.mp4"
+
+# Test Video 6: GOP=30 10-second HEVC (for cache miss testing)
+echo "6. Generating GOP=30 10-second test video (H.265, 30fps, 10 seconds)..."
+ffmpeg -y -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 \
+  -vf "drawtext=fontsize=60:fontcolor=white:x=100:y=100:text='HEVC 10s Frame %{n}'" \
+  -c:v libx265 \
+  -x265-params keyint=30:min-keyint=30:scenecut=0 \
+  -crf 23 -preset fast \
+  -an \
+  "$VIDEO_DIR/test_gop30_hevc_10s.mp4"
 
 echo ""
 echo "Verifying GOP sizes with ffprobe..."

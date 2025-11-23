@@ -43,7 +43,8 @@
       "Bash(npx tsc:*)",
       "Bash(npm run lint:*)",
       "mcp__serena__initial_instructions",
-      "mcp__serena__find_symbol"
+      "mcp__serena__find_symbol",
+      "mcp__serena__think_about_collected_information"
     ],
     "deny": []
   }

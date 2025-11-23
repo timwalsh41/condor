@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, expect } from "@playwright/test";
 
 /**
@@ -14,6 +15,8 @@ import { test, expect } from "@playwright/test";
  */
 
 test.describe("Memory Leak Detection", () => {
+  const testVideoPath = '../tests/fixtures/videos/test_gop30_h264.mp4';
+
   test("should not leak VideoFrames during sequential frame stepping", async ({
     browser,
   }) => {
@@ -39,6 +42,20 @@ test.describe("Memory Leak Detection", () => {
     });
 
     await page.goto("/");
+
+    // Upload test video
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles(testVideoPath);
+
+    // Wait for WebCodecs decoder to be ready
+    await page.waitForFunction(
+      () => {
+        const api = (window as any).__webCodecsTestAPI;
+        return api && api.isReady();
+      },
+      { timeout: 10000 }
+    );
+
     await page.waitForSelector('[data-testid="frame-counter"]');
 
     // Wait for initial load and frame 0 to render
@@ -102,6 +119,20 @@ test.describe("Memory Leak Detection", () => {
     const client = await context.newCDPSession(page);
 
     await page.goto("/");
+
+    // Upload test video
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles(testVideoPath);
+
+    // Wait for WebCodecs decoder to be ready
+    await page.waitForFunction(
+      () => {
+        const api = (window as any).__webCodecsTestAPI;
+        return api && api.isReady();
+      },
+      { timeout: 10000 }
+    );
+
     await page.waitForSelector('[data-testid="frame-counter"]');
 
     // Step through several frames to populate cache
@@ -163,6 +194,20 @@ test.describe("Memory Leak Detection", () => {
     const client = await context.newCDPSession(page);
 
     await page.goto("/");
+
+    // Upload test video
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles(testVideoPath);
+
+    // Wait for WebCodecs decoder to be ready
+    await page.waitForFunction(
+      () => {
+        const api = (window as any).__webCodecsTestAPI;
+        return api && api.isReady();
+      },
+      { timeout: 10000 }
+    );
+
     await page.waitForSelector('[data-testid="frame-counter"]');
 
     // Initial snapshot
@@ -225,6 +270,20 @@ test.describe("Memory Leak Detection", () => {
     const client = await context.newCDPSession(page);
 
     await page.goto("/");
+
+    // Upload test video
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles(testVideoPath);
+
+    // Wait for WebCodecs decoder to be ready
+    await page.waitForFunction(
+      () => {
+        const api = (window as any).__webCodecsTestAPI;
+        return api && api.isReady();
+      },
+      { timeout: 10000 }
+    );
+
     await page.waitForSelector('[data-testid="frame-counter"]');
 
     // Step forward to build up cache
@@ -268,6 +327,20 @@ test.describe("Memory Leak Detection", () => {
      */
 
     await page.goto("/");
+
+    // Upload test video
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles(testVideoPath);
+
+    // Wait for WebCodecs decoder to be ready
+    await page.waitForFunction(
+      () => {
+        const api = (window as any).__webCodecsTestAPI;
+        return api && api.isReady();
+      },
+      { timeout: 10000 }
+    );
+
     await page.waitForSelector('[data-testid="frame-counter"]');
 
     // Check if cache stats are exposed (if implemented)

@@ -23,5 +23,7 @@
   },
   "python.testing.pytestArgs": ["backend"],
   "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true
+  "python.testing.pytestEnabled": true,
+  "editor.tabCompletion": "on",
+  "editor.inlineSuggest.enabled": false
 }

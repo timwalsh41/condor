@@ -800,6 +800,26 @@ if (this.cache.size >= this.maxSize) {
 
 ---
 
+## Browser-Specific Issues
+
+### Firefox: Hardware Decoder Encoding Validation
+
+**Issue**: Firefox fails during playback with "The given encoding is not supported" error, while Chrome/Brave work perfectly.
+
+**Root Cause**: [Firefox Bug #1918769](https://bugzilla.mozilla.org/show_bug.cgi?id=1918769) - Firefox's hardware H.264 decoder has stricter format validation than Chrome. It rejects H.264 streams that cannot be clearly identified as avcc or annexb format, particularly when encountering mid-stream parameter set changes (SPS/PPS) at GOP boundaries.
+
+**Solution**: Force software decoding for Firefox (`hardwareAcceleration: "prefer-software"`). The software decoder handles ambiguous formats more gracefully.
+
+**Status**: ✅ Confirmed working - Software decoding successfully resolves the playback error in Firefox.
+
+**Additional Context**:
+- Chrome/Brave use OpenH264 (more forgiving)
+- Firefox uses platform-specific decoders (stricter validation)
+- Hardware acceleration works fine in Brave, issue is Firefox-specific
+- See also: [W3C WebCodecs Issue #846](https://github.com/w3c/webcodecs/issues/846) (AVC3 in-band parameter sets)
+
+---
+
 ## References
 
 ### WebCodecs API Documentation

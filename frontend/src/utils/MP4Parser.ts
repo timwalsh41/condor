@@ -159,12 +159,19 @@ export class MP4Parser {
     // Extract description (avcC or hvcC box data)
     const description = this.extractDescription();
 
+    // Detect Firefox for hardware acceleration workaround
+    // Firefox's hardware decoder has stricter H.264 format validation than Chrome
+    // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1918769
+    const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+
     // Build VideoDecoderConfig
     const config: VideoDecoderConfig = {
       codec,
       codedWidth: track.video.width,
       codedHeight: track.video.height,
-      description
+      description,
+      // Use software decoder for Firefox to avoid "encoding not supported" errors
+      hardwareAcceleration: isFirefox ? 'prefer-software' : 'prefer-hardware'
     };
 
     return config;

@@ -401,6 +401,32 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
+#### Task 0.8: Spike Documentation
+
+- **Status**: Not Started
+- **Requirements**: REQ-NF-M-002 (Documentation Standards)
+- **Scope**: Document architecture and design implementation at completion of technical spike phase
+- **Acceptance Criteria**:
+  - Create `doc/ARCHITECTURE.md` following `.claude/doc-templates/ARCHITECTURE_TEMPLATE.md`
+    - Document implementation thoroughly
+    - Include component and sequence diagrams as appropriate
+    - Ensure that `ARCHITECTURE.md` reflects only the current architecture as-implemented
+      - Do not include alternative options
+      - Do not include prior implementations or changes
+      - These can be captured in `docs/spike/FRAME_CONTROL.md`
+  - Update `docs/spike/FRAME_CONTROL.md` to reflect the learnings and implemented architecture
+    - Concisely summarize the journey and learnings
+    - Provide complementary information and details as needed to complement `ARCHITECTURE.md`
+      - Avoid redundancy between the two documents
+  - Update README, TESTING, deployment instructions, etc.
+- **Dependencies**: Tasks 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7
+- **Risk Level**: N/A
+- **PRP Reference**: `PRPs/MVP_PRP.md`
+- **Technical Notes**:
+  - Perform a detailed review of the implementation to ensure the documentation is up to date and correct
+
+---
+
 #### Phase 0 Completion Criteria
 
 **Before proceeding to Phase 1, validate**:

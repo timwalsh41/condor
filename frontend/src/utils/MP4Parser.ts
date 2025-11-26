@@ -7,8 +7,8 @@
  * Supports H.264 (AVC) and H.265 (HEVC) codecs.
  */
 
-import { createFile } from 'mp4box';
-import type { MP4File, MP4Info, MP4VideoTrack, Sample } from 'mp4box';
+import { createFile } from "mp4box";
+import type { MP4File, MP4Info, MP4VideoTrack, Sample } from "mp4box";
 
 /**
  * Error thrown when MP4 parsing fails
@@ -16,7 +16,7 @@ import type { MP4File, MP4Info, MP4VideoTrack, Sample } from 'mp4box';
 export class MP4ParseError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'MP4ParseError';
+    this.name = "MP4ParseError";
   }
 }
 
@@ -57,7 +57,7 @@ export class MP4Parser {
       const timeout = setTimeout(() => {
         reject(
           new MP4ParseError(
-            'Failed to parse MP4 file: timeout waiting for file to be parsed. File may be invalid or corrupt.'
+            "Failed to parse MP4 file: timeout waiting for file to be parsed. File may be invalid or corrupt."
           )
         );
       }, 5000);
@@ -69,7 +69,7 @@ export class MP4Parser {
 
         // Find video track
         if (!info.videoTracks || info.videoTracks.length === 0) {
-          reject(new MP4ParseError('No video track found in MP4 file'));
+          reject(new MP4ParseError("No video track found in MP4 file"));
           return;
         }
 
@@ -78,7 +78,7 @@ export class MP4Parser {
 
         // Request extraction of all samples for this track
         mp4boxFile.setExtractionOptions(this.videoTrack.id, undefined, {
-          nbSamples: Infinity
+          nbSamples: Infinity,
         });
 
         // Start sample extraction
@@ -113,7 +113,7 @@ export class MP4Parser {
 
       reader.onload = (e) => {
         if (!e.target?.result) {
-          reject(new MP4ParseError('Failed to read file'));
+          reject(new MP4ParseError("Failed to read file"));
           return;
         }
 
@@ -132,7 +132,7 @@ export class MP4Parser {
 
       reader.onerror = () => {
         clearTimeout(timeout);
-        reject(new MP4ParseError('Failed to read file'));
+        reject(new MP4ParseError("Failed to read file"));
       };
 
       // Start reading file
@@ -148,7 +148,9 @@ export class MP4Parser {
    */
   getCodecConfig(): VideoDecoderConfig {
     if (!this.videoTrack || !this.info) {
-      throw new MP4ParseError('Parser not initialized. Call initialize() first.');
+      throw new MP4ParseError(
+        "Parser not initialized. Call initialize() first."
+      );
     }
 
     const track = this.videoTrack;
@@ -159,19 +161,23 @@ export class MP4Parser {
     // Extract description (avcC or hvcC box data)
     const description = this.extractDescription();
 
-    // Detect Firefox for hardware acceleration workaround
+    // Option: detect Firefox for hardware acceleration workaround
     // Firefox's hardware decoder has stricter H.264 format validation than Chrome
     // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1918769
-    const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+    // const isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
+    // In practice we will use software decoding for all browsers as that seems to
+    // be the most stable
 
     // Build VideoDecoderConfig
+    // (Note we are leaving the code commented in place to select prefer hardware
+    // or not to register a preference)
     const config: VideoDecoderConfig = {
       codec,
       codedWidth: track.video.width,
       codedHeight: track.video.height,
       description,
       // Use software decoder for Firefox to avoid "encoding not supported" errors
-      hardwareAcceleration: isFirefox ? 'prefer-software' : 'prefer-hardware'
+      hardwareAcceleration: "prefer-software", // isFirefox ? "prefer-software" : undefined, // "prefer-hardware",
     };
 
     return config;
@@ -185,7 +191,7 @@ export class MP4Parser {
    */
   private extractCodecString(): string {
     if (!this.videoTrack) {
-      throw new MP4ParseError('No video track available');
+      throw new MP4ParseError("No video track available");
     }
 
     const track = this.videoTrack;
@@ -202,15 +208,15 @@ export class MP4Parser {
     // This handles cases where mp4box.js doesn't provide codec string
     const codecType = track.type;
 
-    if (codecType === 'avc1' || codecType === 'avc3') {
+    if (codecType === "avc1" || codecType === "avc3") {
       // H.264 - use generic codec string
       // In practice, mp4box.js should provide the full string
-      return 'avc1.64001f'; // H.264 High Profile Level 3.1
+      return "avc1.64001f"; // H.264 High Profile Level 3.1
     }
 
-    if (codecType === 'hvc1' || codecType === 'hev1') {
+    if (codecType === "hvc1" || codecType === "hev1") {
       // H.265 - use generic codec string
-      return 'hvc1.1.6.L93.B0'; // H.265 Main Profile Level 3.1
+      return "hvc1.1.6.L93.B0"; // H.265 Main Profile Level 3.1
     }
 
     throw new MP4ParseError(
@@ -229,7 +235,7 @@ export class MP4Parser {
    */
   private extractDescription(): Uint8Array {
     if (!this.videoTrack || !this.mp4File) {
-      throw new MP4ParseError('No video track available');
+      throw new MP4ParseError("No video track available");
     }
 
     // Get the full track structure from mp4file to access the sample description
@@ -237,7 +243,7 @@ export class MP4Parser {
 
     if (!fullTrack?.mdia?.minf?.stbl?.stsd?.entries?.[0]) {
       throw new MP4ParseError(
-        'Cannot access sample description in MP4 file. File may be corrupt.'
+        "Cannot access sample description in MP4 file. File may be corrupt."
       );
     }
 
@@ -248,7 +254,9 @@ export class MP4Parser {
 
     if (!configBox) {
       throw new MP4ParseError(
-        `No codec configuration box found. Codec type: ${sampleEntry.box_name || 'unknown'}`
+        `No codec configuration box found. Codec type: ${
+          sampleEntry.box_name || "unknown"
+        }`
       );
     }
 
@@ -270,14 +278,14 @@ export class MP4Parser {
     // For avcC boxes, we need to serialize: version, profile, compatibility, level, and SPS/PPS NALUs
     // For hvcC boxes, similar but with HEVC-specific structure
 
-    if (configBox.box_name === 'AVCConfigurationBox') {
+    if (configBox.box_name === "AVCConfigurationBox") {
       return this.serializeAVCC(configBox);
-    } else if (configBox.box_name === 'HEVCConfigurationBox') {
+    } else if (configBox.box_name === "HEVCConfigurationBox") {
       return this.serializeHVCC(configBox);
     }
 
     throw new MP4ParseError(
-      `Unsupported configuration box type: ${configBox.box_name || 'unknown'}`
+      `Unsupported configuration box type: ${configBox.box_name || "unknown"}`
     );
   }
 
@@ -443,7 +451,7 @@ export class MP4Parser {
   getSamples(): Sample[] {
     if (!this.samples || this.samples.length === 0) {
       throw new MP4ParseError(
-        'No samples available. Parser may not be initialized or file has no video data.'
+        "No samples available. Parser may not be initialized or file has no video data."
       );
     }
 
@@ -458,7 +466,9 @@ export class MP4Parser {
    */
   getFrameCount(): number {
     if (!this.videoTrack) {
-      throw new MP4ParseError('Parser not initialized. Call initialize() first.');
+      throw new MP4ParseError(
+        "Parser not initialized. Call initialize() first."
+      );
     }
 
     return this.videoTrack.nb_samples || 0;
@@ -472,7 +482,9 @@ export class MP4Parser {
    */
   getVideoTrackInfo(): MP4VideoTrack {
     if (!this.videoTrack) {
-      throw new MP4ParseError('Parser not initialized. Call initialize() first.');
+      throw new MP4ParseError(
+        "Parser not initialized. Call initialize() first."
+      );
     }
 
     return this.videoTrack;
@@ -486,7 +498,9 @@ export class MP4Parser {
    */
   getFileInfo(): MP4Info {
     if (!this.info) {
-      throw new MP4ParseError('Parser not initialized. Call initialize() first.');
+      throw new MP4ParseError(
+        "Parser not initialized. Call initialize() first."
+      );
     }
 
     return this.info;
@@ -500,7 +514,9 @@ export class MP4Parser {
    */
   getFramerate(): number {
     if (!this.videoTrack) {
-      throw new MP4ParseError('Parser not initialized. Call initialize() first.');
+      throw new MP4ParseError(
+        "Parser not initialized. Call initialize() first."
+      );
     }
 
     const track = this.videoTrack;
@@ -513,7 +529,9 @@ export class MP4Parser {
     }
 
     // Fallback: use 30fps if calculation fails
-    console.warn('[MP4Parser] Could not calculate framerate, using default 30fps');
+    console.warn(
+      "[MP4Parser] Could not calculate framerate, using default 30fps"
+    );
     return 30;
   }
 
@@ -528,7 +546,9 @@ export class MP4Parser {
    */
   getGopSize(): number {
     if (this.samples.length === 0) {
-      throw new MP4ParseError('No samples available. Parser may not be initialized.');
+      throw new MP4ParseError(
+        "No samples available. Parser may not be initialized."
+      );
     }
 
     // Find all keyframe indices

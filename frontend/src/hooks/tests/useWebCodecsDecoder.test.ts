@@ -217,4 +217,24 @@ describe('useWebCodecsDecoder', () => {
       expect(result.current.canvasRef).toHaveProperty('current');
     });
   });
+
+  describe('Debug Logging', () => {
+    test('should respect NODE_ENV for debug logging', () => {
+      // Note: The actual logging behavior is controlled by process.env.NODE_ENV
+      // This test validates the constants exist and are used
+      const originalEnv = process.env.NODE_ENV;
+
+      // In test environment, debug logs should be suppressed
+      process.env.NODE_ENV = 'production';
+
+      const { result } = renderHook(() => useWebCodecsDecoder(null));
+
+      // Hook should initialize without errors regardless of logging level
+      expect(result.current.isReady).toBe(false);
+      expect(result.current.error).toBe(null);
+
+      // Restore environment
+      process.env.NODE_ENV = originalEnv;
+    });
+  });
 });

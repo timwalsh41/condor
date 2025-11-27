@@ -48,7 +48,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Limit workers to prevent memory issues with video decoding
+  // Each test can use 300MB+ (120-frame cache + browser overhead)
+  workers: process.env.CI ? 1 : 2, // Max 2 workers locally to prevent OOM
   reporter: "html",
 
   use: {

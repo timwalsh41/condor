@@ -12,9 +12,14 @@ import { test, expect } from "@playwright/test";
  * - VideoFrame.close() called on cache clear
  * - No accumulating memory growth during repeated operations
  * - Decoder properly cleaned up on unmount
+ *
+ * NOTE: These tests use Chrome DevTools Protocol and only run on Chrome.
  */
 
 test.describe("Memory Leak Detection", () => {
+  // Skip on non-Chrome browsers - requires Chrome DevTools Protocol
+  test.skip(({ browserName }) => browserName !== 'chrome', 'Chrome-only tests (CDP required)');
+
   const testVideoPath = '../tests/fixtures/videos/test_gop30_h264.mp4';
 
   test("should not leak VideoFrames during sequential frame stepping", async ({

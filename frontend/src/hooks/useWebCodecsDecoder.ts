@@ -8,6 +8,7 @@ import {
 import { MP4Parser } from "../utils/MP4Parser";
 import { FrameCache } from "../utils/FrameCache";
 import { CoordinateMapping } from "../utils/CoordinateMapping";
+import { calculateLookaheadRange } from "../utils/decodePlanning";
 import type { Sample } from "mp4box";
 
 /**
@@ -35,7 +36,7 @@ const CANVAS_RETRY_DELAY_MS = 10;
 /**
  * Debug logging control - only log in development mode.
  */
-const DEBUG = process.env.NODE_ENV === 'development';
+const DEBUG = process.env.NODE_ENV === "development";
 const debugLog = (...args: unknown[]) => DEBUG && console.log(...args);
 const debugWarn = (...args: unknown[]) => DEBUG && console.warn(...args);
 const debugError = (...args: unknown[]) => console.error(...args); // Always log errors
@@ -125,9 +126,10 @@ export function useWebCodecsDecoder(
 
   // Track which frame we're seeking to (for output callback)
   // Store target and updateDisplay together to avoid race conditions
-  const seekTargetRef = useRef<{ frame: number; updateDisplay: boolean } | null>(
-    null
-  );
+  const seekTargetRef = useRef<{
+    frame: number;
+    updateDisplay: boolean;
+  } | null>(null);
 
   // Coordinate mapping between Frame Number, CTS, and Sample Index (3-way isomorphism)
   // Replaces timestampToIndexRef and frameToTimestampRef with a single source of truth
@@ -187,7 +189,8 @@ export function useWebCodecsDecoder(
       if (samples.length === 0 || !coordinateMap) return 0;
 
       // Find sample index for this frame number (O(1) via coordinate mapping)
-      const targetSampleIndex = coordinateMap.getSampleFromFrame(targetFrameNumber);
+      const targetSampleIndex =
+        coordinateMap.getSampleFromFrame(targetFrameNumber);
 
       if (targetSampleIndex === undefined) {
         debugWarn(
@@ -296,11 +299,13 @@ export function useWebCodecsDecoder(
           const cache = cacheRef.current;
 
           try {
+            /*
             debugLog(
               `[SEEK] Queue executing: decoder=${!!decoder}, samples=${
                 samples.length
               }, state=${decoder?.state}`
             );
+            */
 
             if (!decoder || samples.length === 0) {
               debugWarn("[SEEK] Decoder not ready");
@@ -309,9 +314,7 @@ export function useWebCodecsDecoder(
 
             // Attempt recovery if decoder is closed (Firefox error handling)
             if (decoder.state === "closed") {
-              debugWarn(
-                "[SEEK] Decoder closed, attempting reconfiguration..."
-              );
+              debugWarn("[SEEK] Decoder closed, attempting reconfiguration...");
               const config = codecConfigRef.current;
               if (config) {
                 try {
@@ -341,15 +344,17 @@ export function useWebCodecsDecoder(
               Math.min(targetFrame, samples.length - 1)
             );
 
+            /*
             debugLog(
               `[SEEK] Clamped target: ${clampedTarget}, cached=${cache.has(
                 clampedTarget
               )}`
             );
+            */
 
             // Check cache first (FAST PATH: <10ms)
             if (cache.has(clampedTarget)) {
-              debugLog(`[SEEK] Cache hit for frame ${clampedTarget}`);
+              // debugLog(`[SEEK] Cache hit for frame ${clampedTarget}`);
               const cachedFrame = cache.get(clampedTarget)!;
 
               if (updateDisplay) {
@@ -383,7 +388,8 @@ export function useWebCodecsDecoder(
 
             // Find CTS and sample index for this frame number (O(1) via coordinate mapping)
             const targetCts = coordinateMap.getCts(clampedTarget);
-            const targetSampleIndex = coordinateMap.getSampleFromFrame(clampedTarget);
+            const targetSampleIndex =
+              coordinateMap.getSampleFromFrame(clampedTarget);
 
             debugLog(
               `[SEEK] Found target CTS: ${targetCts} for frame ${clampedTarget}`
@@ -403,27 +409,27 @@ export function useWebCodecsDecoder(
               `[SEEK] Keyframe at sample index ${keyframeSampleIndex}, target at ${targetSampleIndex}`
             );
 
-            // Read-ahead: decode LOOKAHEAD_FRAMES worth of frames after target
-            // Calculate which frame is LOOKAHEAD_FRAMES ahead in presentation order
-            const targetFramePlusLookahead = Math.min(
-              clampedTarget + LOOKAHEAD_FRAMES,
-              totalFramesRef.current - 1
+            // Calculate lookahead decode range
+            // This handles B-frame reordering where presentation order ≠ decode order
+            // See decodePlanning.ts for detailed explanation of the B-frame fix
+            const lookahead = calculateLookaheadRange(
+              clampedTarget,
+              targetSampleIndex,
+              coordinateMap,
+              samples,
+              LOOKAHEAD_FRAMES
             );
 
-            // Find the sample index for that frame (O(1) via coordinate mapping)
-            const lookaheadSampleIdx = coordinateMap.getSampleFromFrame(targetFramePlusLookahead);
-            const readAheadEnd = lookaheadSampleIdx !== undefined
-              ? lookaheadSampleIdx
-              : Math.min(targetSampleIndex + LOOKAHEAD_FRAMES, samples.length - 1);
-
-            if (lookaheadSampleIdx === undefined) {
+            if (lookahead.lookaheadSample === undefined) {
               debugWarn(
-                `[SEEK] Could not find sample for lookahead frame ${targetFramePlusLookahead}, using fallback`
+                `[SEEK] Could not find sample for lookahead frame ${lookahead.lookaheadFrame}, using fallback`
               );
             }
 
+            const readAheadEnd = lookahead.readAheadEnd;
+
             debugLog(
-              `[SEEK] Decode plan: target frame ${clampedTarget}, lookahead to frame ${targetFramePlusLookahead}`
+              `[SEEK] Decode plan: target frame ${clampedTarget}, lookahead to frame ${lookahead.lookaheadFrame}`
             );
             debugLog(
               `[SEEK] Sample indices: keyframe=${keyframeSampleIndex}, target=${targetSampleIndex}, readAhead=${readAheadEnd}`
@@ -572,9 +578,7 @@ export function useWebCodecsDecoder(
   const play = useCallback(() => {
     if (isPlayingRef.current) return; // Already playing
 
-    debugLog(
-      `[PLAY] Starting playback at ${playbackRateRef.current}x speed`
-    );
+    debugLog(`[PLAY] Starting playback at ${playbackRateRef.current}x speed`);
     setIsPlaying(true);
     isPlayingRef.current = true;
 
@@ -654,7 +658,9 @@ export function useWebCodecsDecoder(
             );
 
             debugLog(
-              `[PLAYBACK-BUFFER] Starting buffer fill: nextFrame=${nextFrame}, window=[${bufferStart}-${bufferEnd}], cacheSize=${cache.getSize()}, pendingCount=${pendingDecodes.size}`
+              `[PLAYBACK-BUFFER] Starting buffer fill: nextFrame=${nextFrame}, window=[${bufferStart}-${bufferEnd}], cacheSize=${cache.getSize()}, pendingCount=${
+                pendingDecodes.size
+              }`
             );
 
             // CRITICAL: Must decode samples sequentially from lastDecodedSample
@@ -663,20 +669,30 @@ export function useWebCodecsDecoder(
 
             // DEBUG: Log pending state before buffer fill
             debugLog(
-              `[PLAYBACK-BUFFER] Before buffer fill - pendingDecodes: [${Array.from(pendingDecodes).sort((a, b) => a - b).join(", ")}], ` +
-              `cacheSize: ${cache.getSize()}, lastDecodedSample: ${lastDecodedSampleRef.current}`
+              `[PLAYBACK-BUFFER] Before buffer fill - pendingDecodes: [${Array.from(
+                pendingDecodes
+              )
+                .sort((a, b) => a - b)
+                .join(", ")}], ` +
+                `cacheSize: ${cache.getSize()}, lastDecodedSample: ${
+                  lastDecodedSampleRef.current
+                }`
             );
 
-            const skippedFrames: Array<{frame: number, reason: string}> = [];
+            const skippedFrames: Array<{ frame: number; reason: string }> = [];
 
-            for (let frameNum = bufferStart; frameNum <= bufferEnd; frameNum++) {
+            for (
+              let frameNum = bufferStart;
+              frameNum <= bufferEnd;
+              frameNum++
+            ) {
               const inCache = cache.has(frameNum);
               const isPending = pendingDecodes.has(frameNum);
 
               if (inCache || isPending) {
                 skippedFrames.push({
                   frame: frameNum,
-                  reason: inCache ? "cached" : "pending"
+                  reason: inCache ? "cached" : "pending",
                 });
               }
 
@@ -691,8 +707,11 @@ export function useWebCodecsDecoder(
             if (skippedFrames.length > 0) {
               debugLog(
                 `[PLAYBACK-BUFFER] Skipped ${skippedFrames.length} frames: ` +
-                `${skippedFrames.slice(0, 5).map(f => `${f.frame}(${f.reason})`).join(", ")}` +
-                `${skippedFrames.length > 5 ? "..." : ""}`
+                  `${skippedFrames
+                    .slice(0, 5)
+                    .map((f) => `${f.frame}(${f.reason})`)
+                    .join(", ")}` +
+                  `${skippedFrames.length > 5 ? "..." : ""}`
               );
             }
 
@@ -702,18 +721,30 @@ export function useWebCodecsDecoder(
 
             debugLog(
               `[PLAYBACK-BUFFER] Decode range: startSample=${startSample}, maxSampleNeeded=${maxSampleNeeded}, ` +
-              `willDecode=${maxSampleNeeded >= startSample}`
+                `willDecode=${maxSampleNeeded >= startSample}`
             );
 
             if (maxSampleNeeded >= startSample) {
-              const skippedSamples: Array<{sample: number, frame: number, reason: string}> = [];
+              const skippedSamples: Array<{
+                sample: number;
+                frame: number;
+                reason: string;
+              }> = [];
 
-              for (let sampleIdx = startSample; sampleIdx <= maxSampleNeeded; sampleIdx++) {
+              for (
+                let sampleIdx = startSample;
+                sampleIdx <= maxSampleNeeded;
+                sampleIdx++
+              ) {
                 const sample = samples[sampleIdx];
                 const frameIndex = coordinateMap.getFrame(sample.cts);
 
                 if (frameIndex === undefined) {
-                  skippedSamples.push({sample: sampleIdx, frame: -1, reason: "no-frame-mapping"});
+                  skippedSamples.push({
+                    sample: sampleIdx,
+                    frame: -1,
+                    reason: "no-frame-mapping",
+                  });
                   continue;
                 }
 
@@ -727,21 +758,28 @@ export function useWebCodecsDecoder(
                   skippedSamples.push({
                     sample: sampleIdx,
                     frame: frameIndex,
-                    reason: inCache ? "cached" : "pending"
+                    reason: inCache ? "cached" : "pending",
                   });
                 }
               }
 
               debugLog(
                 `[PLAYBACK-BUFFER] Sequential decode plan: samples ${startSample}-${maxSampleNeeded}, ` +
-                `will decode ${samplesToDecode.length} samples: [${samplesToDecode.slice(0, 5).join(", ")}${samplesToDecode.length > 5 ? "..." : ""}]`
+                  `will decode ${
+                    samplesToDecode.length
+                  } samples: [${samplesToDecode.slice(0, 5).join(", ")}${
+                    samplesToDecode.length > 5 ? "..." : ""
+                  }]`
               );
 
               if (skippedSamples.length > 0) {
                 debugLog(
                   `[PLAYBACK-BUFFER] Skipped ${skippedSamples.length} samples in decode range: ` +
-                  `${skippedSamples.slice(0, 5).map(s => `s${s.sample}=f${s.frame}(${s.reason})`).join(", ")}` +
-                  `${skippedSamples.length > 5 ? "..." : ""}`
+                    `${skippedSamples
+                      .slice(0, 5)
+                      .map((s) => `s${s.sample}=f${s.frame}(${s.reason})`)
+                      .join(", ")}` +
+                    `${skippedSamples.length > 5 ? "..." : ""}`
                 );
               }
             }
@@ -757,7 +795,9 @@ export function useWebCodecsDecoder(
                 // Check again right before decoding (race condition protection)
                 if (cache.has(frameIndex) || pendingDecodes.has(frameIndex)) {
                   debugWarn(
-                    `[PLAYBACK-BUFFER] Skipping sample ${sampleIdx} (frame ${frameIndex}): already cached=${cache.has(frameIndex)} or pending=${pendingDecodes.has(frameIndex)}`
+                    `[PLAYBACK-BUFFER] Skipping sample ${sampleIdx} (frame ${frameIndex}): already cached=${cache.has(
+                      frameIndex
+                    )} or pending=${pendingDecodes.has(frameIndex)}`
                   );
                   continue;
                 }
@@ -830,21 +870,25 @@ export function useWebCodecsDecoder(
 
           // Call seekToFrame to rebuild cache from keyframe
           // This will decode from previous keyframe through nextFrame + LOOKAHEAD_FRAMES
-          seekToFrame(nextFrame, true).then(() => {
-            // Resume playback after seek completes
-            setIsPlaying(true);
-            isPlayingRef.current = true;
-            lastFrameTimeRef.current = 0; // Reset timing
+          seekToFrame(nextFrame, true)
+            .then(() => {
+              // Resume playback after seek completes
+              setIsPlaying(true);
+              isPlayingRef.current = true;
+              lastFrameTimeRef.current = 0; // Reset timing
 
-            // Restart playback loop (critical - otherwise playback never resumes!)
-            playbackLoopRef.current = requestAnimationFrame(playbackLoop);
-          }).catch((err) => {
-            debugError(
-              `[PLAYBACK] Failed to recover from cache miss at frame ${nextFrame}:`,
-              err
-            );
-            setError("Playback error: Unable to decode frame. Please reload.");
-          });
+              // Restart playback loop (critical - otherwise playback never resumes!)
+              playbackLoopRef.current = requestAnimationFrame(playbackLoop);
+            })
+            .catch((err) => {
+              debugError(
+                `[PLAYBACK] Failed to recover from cache miss at frame ${nextFrame}:`,
+                err
+              );
+              setError(
+                "Playback error: Unable to decode frame. Please reload."
+              );
+            });
 
           return; // Exit current playback loop iteration, will restart after seek
         }
@@ -970,10 +1014,14 @@ export function useWebCodecsDecoder(
         }
 
         // Helper function for async canvas retry (recommendation 4.2)
-        const waitForCanvas = async (maxRetries = MAX_CANVAS_RENDER_RETRIES): Promise<boolean> => {
+        const waitForCanvas = async (
+          maxRetries = MAX_CANVAS_RENDER_RETRIES
+        ): Promise<boolean> => {
           for (let i = 0; i < maxRetries; i++) {
             if (canvasRef.current) return true;
-            await new Promise(resolve => setTimeout(resolve, CANVAS_RETRY_DELAY_MS * (i + 1)));
+            await new Promise((resolve) =>
+              setTimeout(resolve, CANVAS_RETRY_DELAY_MS * (i + 1))
+            );
           }
           return false;
         };
@@ -982,9 +1030,7 @@ export function useWebCodecsDecoder(
         const decoder = new VideoDecoder({
           output: (frame: VideoFrame) => {
             if (cancelled) {
-              debugLog(
-                `[OUTPUT] Cancelled, closing frame ${frame.timestamp}`
-              );
+              debugLog(`[OUTPUT] Cancelled, closing frame ${frame.timestamp}`);
               frame.close();
               return;
             }
@@ -999,9 +1045,17 @@ export function useWebCodecsDecoder(
 
             const frameIndex = coordinateMap.getFrame(frame.timestamp);
 
+            /*
             debugLog(
-              `[OUTPUT] Received frame: timestamp=${frame.timestamp}, frameIndex=${frameIndex}, seekTarget=${JSON.stringify(seekTargetRef.current)}, decoderQueue=${decoderRef.current?.decodeQueueSize}, decoderState=${decoderRef.current?.state}`
+              `[OUTPUT] Received frame: timestamp=${
+                frame.timestamp
+              }, frameIndex=${frameIndex}, seekTarget=${JSON.stringify(
+                seekTargetRef.current
+              )}, decoderQueue=${
+                decoderRef.current?.decodeQueueSize
+              }, decoderState=${decoderRef.current?.state}`
             );
+            */
 
             if (frameIndex === undefined) {
               debugWarn(
@@ -1021,7 +1075,9 @@ export function useWebCodecsDecoder(
 
             if (wasPending) {
               debugLog(
-                `[OUTPUT] Frame ${frameIndex} removed from pending (${pendingDecodesRef.current.size} still pending), cacheSize=${cacheRef.current.getSize()}`
+                `[OUTPUT] Frame ${frameIndex} removed from pending (${
+                  pendingDecodesRef.current.size
+                } still pending), cacheSize=${cacheRef.current.getSize()}`
               );
             }
 
@@ -1048,10 +1104,12 @@ export function useWebCodecsDecoder(
                     `[OUTPUT] Canvas not mounted yet, will retry render`
                   );
 
-                  waitForCanvas().then(success => {
+                  waitForCanvas().then((success) => {
                     if (success && cacheRef.current.has(0)) {
                       const frame0 = cacheRef.current.get(0)!;
-                      debugLog(`[OUTPUT] Canvas now available, rendering frame 0`);
+                      debugLog(
+                        `[OUTPUT] Canvas now available, rendering frame 0`
+                      );
                       renderFrameToCanvas(frame0);
                     } else {
                       debugError(
@@ -1097,10 +1155,7 @@ export function useWebCodecsDecoder(
               "[DECODER ERROR] Current frame:",
               currentFrameRef.current
             );
-            debugError(
-              "[DECODER ERROR] Is playing:",
-              isPlayingRef.current
-            );
+            debugError("[DECODER ERROR] Is playing:", isPlayingRef.current);
             debugError(
               "[DECODER ERROR] Pending decodes:",
               pendingDecodesRef.current.size
@@ -1117,9 +1172,7 @@ export function useWebCodecsDecoder(
 
             // Check if Firefox auto-closed the decoder
             if (decoder?.state === "closed") {
-              debugError(
-                "[DECODER ERROR] ⚠️ Firefox closed the decoder automatically!"
-              );
+              debugError("[DECODER ERROR] ⚠️ Decoder was closed by browser!");
             }
 
             debugError(
@@ -1175,16 +1228,28 @@ export function useWebCodecsDecoder(
           if (frameIndex !== undefined) {
             pendingDecodesRef.current.add(frameIndex);
           } else {
-            debugWarn(`[INIT] Sample ${i} has CTS ${sample.cts} not found in coordinate mapping`);
+            debugWarn(
+              `[INIT] Sample ${i} has CTS ${sample.cts} not found in coordinate mapping`
+            );
           }
 
           decoder.decode(chunk);
           lastDecodedSampleRef.current = i; // Track decode progress
         }
 
-        const pendingFrames = Array.from(pendingDecodesRef.current).sort((a, b) => a - b);
+        const pendingFrames = Array.from(pendingDecodesRef.current).sort(
+          (a, b) => a - b
+        );
         debugLog(
-          `[INIT] Queued ${readAheadEnd + 1} samples (0-${readAheadEnd}), pending frames: ${pendingDecodesRef.current.size} [${pendingFrames.slice(0, 10).join(", ")}${pendingFrames.length > 10 ? "..." : ""}], lastDecodedSample=${lastDecodedSampleRef.current}, decoderQueue=${decoder.decodeQueueSize}`
+          `[INIT] Queued ${
+            readAheadEnd + 1
+          } samples (0-${readAheadEnd}), pending frames: ${
+            pendingDecodesRef.current.size
+          } [${pendingFrames.slice(0, 10).join(", ")}${
+            pendingFrames.length > 10 ? "..." : ""
+          }], lastDecodedSample=${lastDecodedSampleRef.current}, decoderQueue=${
+            decoder.decodeQueueSize
+          }`
         );
 
         // NOTE: Do NOT call flush() here - it resets decoder state requiring next decode to be keyframe

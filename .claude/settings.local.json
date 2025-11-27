@@ -44,7 +44,9 @@
       "Bash(npm run lint:*)",
       "mcp__serena__initial_instructions",
       "mcp__serena__find_symbol",
-      "mcp__serena__think_about_collected_information"
+      "mcp__serena__think_about_collected_information",
+      "Bash(DISPLAY=:99 timeout 300 npx playwright test:*)",
+      "Bash(DISPLAY=:99 timeout 180 npx playwright test:*)"
     ],
     "deny": []
   }

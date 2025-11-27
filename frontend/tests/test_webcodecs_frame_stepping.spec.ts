@@ -33,7 +33,7 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
     await page.goto("/");
 
     // Upload test video
-    const testVideoPath = "tests/fixtures/videos/test_gop30_h264.mp4";
+    const testVideoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
 
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(testVideoPath);

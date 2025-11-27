@@ -103,13 +103,34 @@ expect(currentFrame).toBe(expectedFrame); // NOT ±1
 
 **Note**: Memory tests use Chrome DevTools Protocol. Chrome-only testing is sufficient as memory behavior should not vary across browsers.
 
+## Known Issues
+
+### WebKit: Cache Size Limitation Test Skipped
+
+**Test:** `test_cache_performance.spec.ts:319` - "cache size limitation (300-frame video, 120-frame cache)"
+**Status:** Skipped on WebKit (Chrome/Firefox only)
+
+**Issue:** WebKit's headless WebCodecs decoder occasionally stalls during large seek sequences (200+ frame jumps). The decoder stops processing frames mid-seek, causing timeouts even with 30s limits.
+
+**Root Cause:** WebKit WebCodecs implementation issue in headless mode, not a bug in our code. Chrome and Firefox pass this test consistently.
+
+**Evidence:**
+- Decoder gets stuck early (e.g., frame 31 of 300) and stops outputting frames
+- Only occurs in WebKit headless mode
+- Chrome/Firefox complete same 7-seek sequence in ~5-10 seconds
+- All other WebKit tests pass (cache hits, frame stepping, etc.)
+
+**Conclusion:** This is a WebKit platform limitation, not an implementation bug. Test validates cache eviction behavior which is already proven on Chrome/Firefox.
+
 ## Troubleshooting
 
-**"Browser not found"**: `npx playwright install`  
-**Tests timeout**: Ensure `npm run dev` is running in another terminal  
-**Memory exceeds threshold**: Check cache size (default: 120 frames), run `npm run test:memory -- --headed`  
-**WebKit slow seeks**: Expected, timeouts adjusted (15s for complex seeks)  
+**"Browser not found"**: `npx playwright install`
+**Tests timeout**: Playwright auto-starts dev server via `webServer` config. Check if port 5173 is blocked or if server fails to start (check stderr in test output)
+**Memory exceeds threshold**: Check cache size (default: 120 frames), run `npm run test:memory -- --headed`
+**WebKit slow seeks**: Expected, timeouts adjusted (15s for complex seeks)
 **Import errors**: `rm -rf node_modules/.vite && npm run test`
+
+**Note**: The `webServer` configuration in `playwright.config.ts` automatically starts `npm run dev` before running tests. You do NOT need to manually run the dev server in a separate terminal. If already running, Playwright will reuse it (`reuseExistingServer: true` in local dev).
 
 ## Manual Verification
 

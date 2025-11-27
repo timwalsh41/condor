@@ -20,14 +20,34 @@
 
 Interpret the following commands when requested by the user:
 
-**PLAN_IMPLEMENTATION**
+**EXECUTE_PLANNED_TASK**
+
+This command refers you to a plan a planned task or phase, as well as reference documents to review that provide the context to guide the execution.
+
+**Arguments:**
+
+[0]: Task or phase identifier
+[1]: Project plan document to refer to for details on the scope and acceptance criteria for the phase/task
+[2+]: Additional documents to review for context
+
+**Instructions:**
 
 - Review the listed input documents
 - Create a todo list for the implementation
 - Assess your confidence in completing the implementation correctly and with high quality; assign a score 0-100% that reflects the likelihood of success
   - Remember that confidence/likelihood of success is distinct from complexity - we have have high likelihood of success in the face of high complexity as long as we have a sound approach, good test coverage, and appropriate risk mitigations
 - Raise any concerns, risks, or gaps that you perceive that have not been addressed already
+- Provide these to the user for review prior to starting implementation
 
-**CONTEXT_INIT**
+**CONTEXT_INITIALIZATION**
+
+This command initializes your context at the start of a work session
+
+**Arguments:**
+
+[0+]: List of documents to review for context
+
+**Instructions:**
 
 - Review the provided documents to familiarize yourself with the project context
+- Summarize the key takeaways and raise any questions or areas needing clarification

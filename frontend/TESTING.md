@@ -47,6 +47,37 @@ npx playwright test test_frame_stepping.spec.ts
 npx playwright test --grep "step forward"
 ```
 
+### Manual Tests
+
+#### Setup
+
+Start the dev server in host mode to share outside container:
+
+```bash
+cd frontend/
+npm run dev -- --host
+```
+
+Navigate a browser to `http://localhost:5173`
+
+#### Test procedure
+
+- Test suite - verify that the sync offset is maintained and all functions behave as expected
+  - Run playback and make sure the playback stops with the videos on the correct frames (repeat ~3-5x)
+  - Excercise step buttons (+/-1, +/-5)
+    - While hitting beginning & ending limit
+    - Without hitting beginning & ending limit
+  - Scrub to beginning and end point
+- Procedure:
+  - Load two test videos with frame numbers burned in, e.g. `test_gop30_h264.mp4`
+  - Advance video A by 5 frames (video A at frame 5, video B at frame 0, sync offset = -5)
+  - Switch from SYNC to PLAYBACK mode
+  - Run the test suite
+  - Return to SYNC mode, verify that videos return to sync point (video A at frame 5, video B at frame 0)
+  - Advance video B by 10 frames (video A at frame 5, video B at frame 10, sync offset = +5)
+  - Switch from SYNC to PLAYBACK mode
+  - Run the test suite
+
 ## Interpreting Results
 
 ### Unit Tests
@@ -115,6 +146,7 @@ expect(currentFrame).toBe(expectedFrame); // NOT ±1
 **Root Cause:** WebKit WebCodecs implementation issue in headless mode, not a bug in our code. Chrome and Firefox pass this test consistently.
 
 **Evidence:**
+
 - Decoder gets stuck early (e.g., frame 31 of 300) and stops outputting frames
 - Only occurs in WebKit headless mode
 - Chrome/Firefox complete same 7-seek sequence in ~5-10 seconds

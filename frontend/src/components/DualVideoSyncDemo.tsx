@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { Stage, Layer } from "react-konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { checkWebCodecsSupport } from "../utils/featureDetection";
 import {
@@ -56,11 +57,37 @@ export function DualVideoSyncDemo() {
   const videoARef = useRef(videoA);
   const videoBRef = useRef(videoB);
 
+  // Annotation canvas scale state (for CSS scaling to match video display size)
+  const [annotationScaleA, setAnnotationScaleA] = useState(1);
+
   // Update refs on every render to capture latest state
   useEffect(() => {
     videoARef.current = videoA;
     videoBRef.current = videoB;
   });
+
+  // Calculate annotation canvas scale to match video display size
+  useEffect(() => {
+    if (!videoA.canvasRef.current || !videoA.metadata) return;
+
+    const updateScale = () => {
+      const canvas = videoA.canvasRef.current;
+      if (!canvas) return;
+
+      const displayWidth = canvas.clientWidth;
+      const videoWidth = videoA.metadata!.width;
+      const scale = displayWidth / videoWidth;
+
+      setAnnotationScaleA(scale);
+    };
+
+    // Initial calculation
+    updateScale();
+
+    // Update on window resize
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, [videoA.canvasRef, videoA.metadata, videoA.isReady]);
 
   /**
    * Check if a video can step to the specified frame.
@@ -606,11 +633,38 @@ export function DualVideoSyncDemo() {
               <h3 style={{ marginTop: 0 }}>Video A</h3>
               {videoA.isReady ? (
                 <>
-                  <div style={{ border: "2px solid #333", backgroundColor: "#000" }}>
+                  <div style={{ border: "2px solid #333", backgroundColor: "#000", position: "relative" }}>
                     <canvas
                       ref={videoA.canvasRef}
+                      data-testid="video-canvas-a"
                       style={{ display: "block", maxWidth: "100%", height: "auto" }}
                     />
+                    {/* Annotation overlay canvas */}
+                    {videoA.metadata && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: "100%",
+                          pointerEvents: "none",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div style={{
+                          transform: `scale(${annotationScaleA})`,
+                          transformOrigin: "top left",
+                        }}>
+                          <Stage
+                            width={videoA.metadata.width}
+                            height={videoA.metadata.height}
+                          >
+                            <Layer />
+                          </Stage>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div
                     data-testid="frame-counter-a"

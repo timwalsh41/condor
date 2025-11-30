@@ -1,5 +1,10 @@
 # Task 0.5: Canvas Overlay Spike - Implementation Plan
 
+## Status:
+
+**Last Subtask Completed:** 0.5.1
+**Last Updated:** 2025-11-29
+
 ## Overview
 
 **Goal**: Validate canvas overlay for annotations over WebCodecs video with performance testing.

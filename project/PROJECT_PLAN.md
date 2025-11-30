@@ -420,6 +420,8 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Storage and cleanup working correctly
   - Backend performance acceptable (CPU, memory, disk I/O)
   - Deployment documentation created (`docs/deployment/SPIKE_DEPLOYMENT.md`)
+    - Include build instructions for frontend code
+    - All build errors resolved
 - **Dependencies**: Tasks 0.3, 0.4, 0.5
 - **Risk Level**: **LOW** - Pi 4 only runs backend, not client-side WebCodecs
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 2 (Task 2.6), REQ-NF-P-001 acceptance criteria

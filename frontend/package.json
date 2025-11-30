@@ -17,9 +17,11 @@
     "test:memory": "playwright test test_memory_leaks"
   },
   "dependencies": {
+    "konva": "^10.0.12",
     "mp4box": "^2.2.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-konva": "^19.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

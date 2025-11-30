@@ -63,7 +63,9 @@ Navigate a browser to `http://localhost:5173`
 #### Test procedure
 
 - Test suite - verify that the sync offset is maintained and all functions behave as expected
-  - Run playback and make sure the playback stops with the videos on the correct frames (repeat ~3-5x)
+  - Run playback and make sure the playback stops with the videos on the correct frames
+    - Repeat ~3-5x
+    - Try at different playback speeds
   - Excercise step buttons (+/-1, +/-5)
     - While hitting beginning & ending limit
     - Without hitting beginning & ending limit

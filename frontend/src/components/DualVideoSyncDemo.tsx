@@ -1,16 +1,21 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Stage, Layer, Line } from "react-konva";
+import { Stage, Layer, Line, Arrow, Ellipse } from "react-konva";
 import type Konva from "konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { AnnotationManager } from "../utils/AnnotationManager";
-import type { Annotation, AnnotationType } from "../types/annotations";
+import type {
+  Annotation,
+  AnnotationType,
+  DrawingState,
+  Point,
+} from "../types/annotations";
 import { checkWebCodecsSupport } from "../utils/featureDetection";
 import {
   initializePlayhead,
   advancePlayhead,
   calculateTargetFrames,
   calculatePlayheadRange,
-  type PlayheadState
+  type PlayheadState,
 } from "../utils/dualVideoPlayback";
 
 /**
@@ -29,9 +34,12 @@ export function DualVideoSyncDemo() {
   const [fileB, setFileB] = useState<File | null>(null);
 
   // Mode state
-  const [mode, setMode] = useState<'SYNC' | 'PLAYBACK'>('SYNC');
+  const [mode, setMode] = useState<"SYNC" | "PLAYBACK">("SYNC");
   const [syncOffset, setSyncOffset] = useState<number | null>(null);
-  const [syncPoints, setSyncPoints] = useState<{ frameA: number; frameB: number } | null>(null);
+  const [syncPoints, setSyncPoints] = useState<{
+    frameA: number;
+    frameB: number;
+  } | null>(null);
 
   // Scrub bar state (for responsive UI updates)
   const [sliderValueA, setSliderValueA] = useState<number>(0);
@@ -41,7 +49,9 @@ export function DualVideoSyncDemo() {
   // PLAYBACK mode state
   const [isPlayingBoth, setIsPlayingBoth] = useState(false);
   const [playbackRateBoth, setPlaybackRateBoth] = useState(1.0);
-  const [playheadState, setPlayheadState] = useState<PlayheadState | null>(null);
+  const [playheadState, setPlayheadState] = useState<PlayheadState | null>(
+    null
+  );
   const playheadStateRef = useRef<PlayheadState | null>(null);
   const playbackLoopRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
@@ -65,13 +75,12 @@ export function DualVideoSyncDemo() {
 
   // Annotation state for Video A
   const [annotationManager] = useState(() => new AnnotationManager());
-  const [selectedTool, setSelectedTool] = useState<AnnotationType>('freehand');
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentPoints, setCurrentPoints] = useState<number[]>([]);
+  const [selectedTool, setSelectedTool] = useState<AnnotationType>("freehand");
+  const [drawingState, setDrawingState] = useState<DrawingState>({
+    mode: "idle",
+  });
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-
-  // Tool selection will be used in future subtasks (0.5.3-0.5.5)
-  void setSelectedTool;
+  const [polylineMousePos, setPolylineMousePos] = useState<Point | null>(null);
 
   // Update refs on every render to capture latest state
   useEffect(() => {
@@ -98,52 +107,139 @@ export function DualVideoSyncDemo() {
     updateScale();
 
     // Update on window resize
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
   }, [videoA.canvasRef, videoA.metadata, videoA.isReady]);
 
-  // Annotation drawing handlers for Video A
-  const handleMouseDownA = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!videoA.isReady || selectedTool !== 'freehand') return;
+  // Keyboard support for polyline tool (Enter to finalize, Escape to cancel)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (annotationManager.isPolylineActive()) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          console.log("Polyline finalized via Enter key");
+          const annotation = annotationManager.finishDrawing();
+          if (annotation) {
+            setAnnotations(annotationManager.getAnnotations());
+          }
+          setDrawingState(annotationManager.getDrawingState());
+          setPolylineMousePos(null);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          console.log("Polyline cancelled via Escape key");
+          annotationManager.cancelDrawing();
+          setDrawingState(annotationManager.getDrawingState());
+          setPolylineMousePos(null);
+        }
+      }
+    };
 
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [annotationManager]);
+
+  // Annotation drawing handlers for Video A - thin adapters to AnnotationManager
+
+  // Helper to convert Konva position to Point
+  const getPoint = (e: Konva.KonvaEventObject<MouseEvent>): Point | null => {
     const stage = e.target.getStage();
     const pos = stage?.getPointerPosition();
-    if (!pos) return;
+    return pos ? { x: pos.x, y: pos.y } : null;
+  };
 
-    console.log('Drawing started at:', pos);
-    // Start new freehand line
-    setIsDrawing(true);
-    setCurrentPoints([pos.x, pos.y]);
+  // Helper to convert Point[] to flat number[] for Konva rendering
+  const pointsToKonva = (points: Point[]): number[] => {
+    return points.flatMap((p) => [p.x, p.y]);
+  };
+
+  // Mouse handlers for drag-based tools (freehand, oval, arrow)
+  const handleMouseDownA = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!videoA.isReady) return;
+
+    // Only handle drag-based tools in mouseDown
+    if (
+      !(["freehand", "oval", "arrow"] as AnnotationType[]).includes(
+        selectedTool
+      )
+    )
+      return;
+
+    const point = getPoint(e);
+    if (!point) return;
+
+    console.log(`${selectedTool} drawing started at:`, point);
+    annotationManager.startDrawing(selectedTool, point);
+    setDrawingState(annotationManager.getDrawingState());
   };
 
   const handleMouseMoveA = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!isDrawing || selectedTool !== 'freehand') return;
+    const point = getPoint(e);
+    if (!point) return;
 
-    const stage = e.target.getStage();
-    const pos = stage?.getPointerPosition();
-    if (!pos) return;
+    // Update polyline preview cursor position
+    if (annotationManager.isPolylineActive()) {
+      setPolylineMousePos(point);
+      return;
+    }
 
-    // Append new point to current line
-    setCurrentPoints([...currentPoints, pos.x, pos.y]);
+    // Handle drag-based drawing
+    if (!annotationManager.isDrawing()) return;
+    annotationManager.continueDrawing(point);
+    setDrawingState(annotationManager.getDrawingState());
   };
 
   const handleMouseUpA = () => {
-    if (!isDrawing || selectedTool !== 'freehand') return;
+    if (!annotationManager.isDrawing()) return;
 
-    // Finalize the annotation using AnnotationManager
-    const newAnnotation = annotationManager.createAndAddAnnotation(selectedTool, currentPoints);
-    
-    if (newAnnotation) {
-      console.log('Annotation created:', newAnnotation);
-      // Update React state to trigger re-render
-      setAnnotations(annotationManager.getAnnotations());
-    } else {
-      console.warn('Invalid annotation: points validation failed', { type: selectedTool, points: currentPoints });
+    // Don't finish polyline on mouseUp - polyline uses click/doubleClick/Enter
+    if (annotationManager.isPolylineActive()) {
+      setPolylineMousePos(null);
+      return;
     }
 
-    // Reset drawing state
-    setIsDrawing(false);
-    setCurrentPoints([]);
+    const annotation = annotationManager.finishDrawing();
+
+    if (annotation) {
+      console.log(`${annotation.type} annotation created:`, annotation);
+      setAnnotations(annotationManager.getAnnotations());
+    } else {
+      console.warn("Invalid annotation: points validation failed");
+    }
+
+    setDrawingState(annotationManager.getDrawingState());
+  };
+
+  // Click handler for polyline tool
+  const handleClickA = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!videoA.isReady || selectedTool !== "polyline") return;
+
+    const point = getPoint(e);
+    if (!point) return;
+
+    if (!annotationManager.isDrawing()) {
+      // Start new polyline
+      console.log("Polyline started at:", point);
+      annotationManager.startDrawing("polyline", point);
+    } else if (annotationManager.isPolylineActive()) {
+      // Add vertex to existing polyline
+      console.log("Polyline vertex added at:", point);
+      annotationManager.addPolylineVertex(point);
+    }
+
+    setDrawingState(annotationManager.getDrawingState());
+  };
+
+  // Double-click handler for polyline finalization
+  const handleDoubleClickA = () => {
+    if (!annotationManager.isPolylineActive()) return;
+
+    const annotation = annotationManager.finishDrawing();
+    if (annotation) {
+      console.log("Polyline finalized via double-click:", annotation);
+      setAnnotations(annotationManager.getAnnotations());
+    }
+    setDrawingState(annotationManager.getDrawingState());
+    setPolylineMousePos(null);
   };
 
   // Check browser support
@@ -180,7 +276,9 @@ export function DualVideoSyncDemo() {
 
   const handleCoarseStepForwardA = async () => {
     if (videoA.isPlaying) videoA.pause();
-    await videoA.seekToFrame(Math.min(videoA.totalFrames - 1, videoA.currentFrame + 5));
+    await videoA.seekToFrame(
+      Math.min(videoA.totalFrames - 1, videoA.currentFrame + 5)
+    );
   };
 
   const handleFineStepBackwardA = async () => {
@@ -193,7 +291,9 @@ export function DualVideoSyncDemo() {
     await videoA.stepForward();
   };
 
-  const handlePlaybackRateChangeA = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handlePlaybackRateChangeA = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
     videoA.setPlaybackRate(Number(e.target.value));
   };
 
@@ -213,7 +313,9 @@ export function DualVideoSyncDemo() {
 
   const handleCoarseStepForwardB = async () => {
     if (videoB.isPlaying) videoB.pause();
-    await videoB.seekToFrame(Math.min(videoB.totalFrames - 1, videoB.currentFrame + 5));
+    await videoB.seekToFrame(
+      Math.min(videoB.totalFrames - 1, videoB.currentFrame + 5)
+    );
   };
 
   const handleFineStepBackwardB = async () => {
@@ -226,7 +328,9 @@ export function DualVideoSyncDemo() {
     await videoB.stepForward();
   };
 
-  const handlePlaybackRateChangeB = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handlePlaybackRateChangeB = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
     videoB.setPlaybackRate(Number(e.target.value));
   };
 
@@ -273,12 +377,12 @@ export function DualVideoSyncDemo() {
     setSyncOffset(playhead.syncOffset);
     setSyncPoints({
       frameA: videoA.currentFrame,
-      frameB: videoB.currentFrame
+      frameB: videoB.currentFrame,
     });
 
     console.log(`[PLAYBACK MODE] Initialized playhead:`, playhead);
 
-    setMode('PLAYBACK');
+    setMode("PLAYBACK");
   };
 
   const switchToSyncMode = async () => {
@@ -289,11 +393,11 @@ export function DualVideoSyncDemo() {
     if (syncPoints) {
       await Promise.all([
         videoA.seekToFrame(syncPoints.frameA),
-        videoB.seekToFrame(syncPoints.frameB)
+        videoB.seekToFrame(syncPoints.frameB),
       ]);
     }
 
-    setMode('SYNC');
+    setMode("SYNC");
   };
 
   // PLAYBACK mode - Synchronized stepping
@@ -304,16 +408,18 @@ export function DualVideoSyncDemo() {
     const nextFrameB = nextFrameA + syncOffset;
 
     // Boundary check
-    if (nextFrameA >= videoA.totalFrames ||
-        nextFrameB >= videoB.totalFrames ||
-        nextFrameB < 0) {
+    if (
+      nextFrameA >= videoA.totalFrames ||
+      nextFrameB >= videoB.totalFrames ||
+      nextFrameB < 0
+    ) {
       return; // Can't step further
     }
 
     // Step both (seekToFrame checks cache first - instant if cached)
     await Promise.all([
       videoA.seekToFrame(nextFrameA),
-      videoB.seekToFrame(nextFrameB)
+      videoB.seekToFrame(nextFrameB),
     ]);
   };
 
@@ -330,7 +436,7 @@ export function DualVideoSyncDemo() {
 
     await Promise.all([
       videoA.seekToFrame(nextFrameA),
-      videoB.seekToFrame(nextFrameB)
+      videoB.seekToFrame(nextFrameB),
     ]);
   };
 
@@ -341,15 +447,17 @@ export function DualVideoSyncDemo() {
     const nextFrameB = nextFrameA + syncOffset;
 
     // Boundary check
-    if (nextFrameA >= videoA.totalFrames ||
-        nextFrameB >= videoB.totalFrames ||
-        nextFrameB < 0) {
+    if (
+      nextFrameA >= videoA.totalFrames ||
+      nextFrameB >= videoB.totalFrames ||
+      nextFrameB < 0
+    ) {
       return;
     }
 
     await Promise.all([
       videoA.seekToFrame(nextFrameA),
-      videoB.seekToFrame(nextFrameB)
+      videoB.seekToFrame(nextFrameB),
     ]);
   };
 
@@ -366,74 +474,85 @@ export function DualVideoSyncDemo() {
 
     await Promise.all([
       videoA.seekToFrame(nextFrameA),
-      videoB.seekToFrame(nextFrameB)
+      videoB.seekToFrame(nextFrameB),
     ]);
   };
 
   // PLAYBACK mode - Synchronized playback loop (using top-level playhead state)
-  const playbackLoopBoth = useCallback(async (timestamp: number) => {
-    // Read current playhead state from ref (not closure) to avoid stale data
-    const currentPlayhead = playheadStateRef.current;
+  const playbackLoopBoth = useCallback(
+    async (timestamp: number) => {
+      // Read current playhead state from ref (not closure) to avoid stale data
+      const currentPlayhead = playheadStateRef.current;
 
-    // Early exit check
-    if (!isPlayingRef.current || !currentPlayhead) {
-      return;
-    }
+      // Early exit check
+      if (!isPlayingRef.current || !currentPlayhead) {
+        return;
+      }
 
-    // Calculate next playhead position
-    const nextPosition = advancePlayhead(currentPlayhead, 1);
+      // Calculate next playhead position
+      const nextPosition = advancePlayhead(currentPlayhead, 1);
 
-    // Check if we've reached the boundary
-    if (nextPosition === null) {
-      console.log(`[PLAYBACK] ⛔ STOPPING PLAYBACK - boundary reached at position ${currentPlayhead.position}`);
-      stopPlayback();
-      return;
-    }
-
-    // Calculate target frames for both videos
-    const targets = calculateTargetFrames(nextPosition, currentPlayhead.syncOffset);
-
-    console.log(`[PLAYBACK] Advancing playhead ${currentPlayhead.position} → ${nextPosition}, ` +
-                `targets: A=${targets.frameA}, B=${targets.frameB}, offset=${currentPlayhead.syncOffset}`);
-
-    // Initialize timing on first frame
-    if (lastFrameTimeRef.current === 0) {
-      lastFrameTimeRef.current = timestamp;
-    }
-
-    const elapsed = timestamp - lastFrameTimeRef.current;
-    const frameInterval = 1000 / (videoA.metadata?.framerate || 30) / playbackRateBoth;
-
-    if (elapsed >= frameInterval) {
-      // Seek both videos to target frames
-      try {
-        await Promise.all([
-          videoA.seekToFrame(targets.frameA),
-          videoB.seekToFrame(targets.frameB)
-        ]);
-
-        // Update playhead state (THIS is our source of truth)
-        const newPlayheadState = {
-          ...currentPlayhead,
-          position: nextPosition
-        };
-        setPlayheadState(newPlayheadState);
-        playheadStateRef.current = newPlayheadState; // Update ref immediately
-
-        // Update timestamp only after both steps complete
-        lastFrameTimeRef.current = timestamp;
-      } catch (error) {
-        console.error('[PLAYBACK] Error during seek:', error);
+      // Check if we've reached the boundary
+      if (nextPosition === null) {
+        console.log(
+          `[PLAYBACK] ⛔ STOPPING PLAYBACK - boundary reached at position ${currentPlayhead.position}`
+        );
         stopPlayback();
         return;
       }
-    }
 
-    // Schedule next frame only if still playing
-    if (isPlayingRef.current) {
-      playbackLoopRef.current = requestAnimationFrame(playbackLoopBoth);
-    }
-  }, [playbackRateBoth, videoA, videoB]);
+      // Calculate target frames for both videos
+      const targets = calculateTargetFrames(
+        nextPosition,
+        currentPlayhead.syncOffset
+      );
+
+      console.log(
+        `[PLAYBACK] Advancing playhead ${currentPlayhead.position} → ${nextPosition}, ` +
+          `targets: A=${targets.frameA}, B=${targets.frameB}, offset=${currentPlayhead.syncOffset}`
+      );
+
+      // Initialize timing on first frame
+      if (lastFrameTimeRef.current === 0) {
+        lastFrameTimeRef.current = timestamp;
+      }
+
+      const elapsed = timestamp - lastFrameTimeRef.current;
+      const frameInterval =
+        1000 / (videoA.metadata?.framerate || 30) / playbackRateBoth;
+
+      if (elapsed >= frameInterval) {
+        // Seek both videos to target frames
+        try {
+          await Promise.all([
+            videoA.seekToFrame(targets.frameA),
+            videoB.seekToFrame(targets.frameB),
+          ]);
+
+          // Update playhead state (THIS is our source of truth)
+          const newPlayheadState = {
+            ...currentPlayhead,
+            position: nextPosition,
+          };
+          setPlayheadState(newPlayheadState);
+          playheadStateRef.current = newPlayheadState; // Update ref immediately
+
+          // Update timestamp only after both steps complete
+          lastFrameTimeRef.current = timestamp;
+        } catch (error) {
+          console.error("[PLAYBACK] Error during seek:", error);
+          stopPlayback();
+          return;
+        }
+      }
+
+      // Schedule next frame only if still playing
+      if (isPlayingRef.current) {
+        playbackLoopRef.current = requestAnimationFrame(playbackLoopBoth);
+      }
+    },
+    [playbackRateBoth, videoA, videoB]
+  );
 
   const startPlayback = () => {
     isPlayingRef.current = true;
@@ -491,26 +610,33 @@ export function DualVideoSyncDemo() {
     newPosition = Math.max(range.min, Math.min(range.max, newPosition));
 
     if (newPosition !== sliderValueBoth) {
-      console.log(`[SCRUB] Clamped position ${sliderValueBoth} → ${newPosition} (range: ${range.min}-${range.max})`);
+      console.log(
+        `[SCRUB] Clamped position ${sliderValueBoth} → ${newPosition} (range: ${range.min}-${range.max})`
+      );
       setSliderValueBoth(newPosition); // Update slider to show clamped value
     }
 
     // Calculate target frames
-    const targets = calculateTargetFrames(newPosition, playheadState.syncOffset);
+    const targets = calculateTargetFrames(
+      newPosition,
+      playheadState.syncOffset
+    );
 
     // Seek both videos to target frames
     await Promise.all([
       videoA.seekToFrame(targets.frameA),
-      videoB.seekToFrame(targets.frameB)
+      videoB.seekToFrame(targets.frameB),
     ]);
 
     // Update playhead state
     setPlayheadState({
       ...playheadState,
-      position: newPosition
+      position: newPosition,
     });
 
-    console.log(`[SCRUB] Moved playhead to ${newPosition}, targets: A=${targets.frameA}, B=${targets.frameB}`);
+    console.log(
+      `[SCRUB] Moved playhead to ${newPosition}, targets: A=${targets.frameA}, B=${targets.frameB}`
+    );
   };
 
   // Sync slider values with current frame positions
@@ -566,8 +692,8 @@ export function DualVideoSyncDemo() {
     <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
       <h1>Dual Video Synchronization Demo</h1>
       <p>
-        Synchronized dual-video playback with WebCodecs. Set sync points in SYNC mode,
-        then analyze with unified controls in PLAYBACK mode.
+        Synchronized dual-video playback with WebCodecs. Set sync points in SYNC
+        mode, then analyze with unified controls in PLAYBACK mode.
       </p>
 
       {/* Mode Indicator */}
@@ -577,19 +703,21 @@ export function DualVideoSyncDemo() {
           padding: "15px",
           marginTop: "20px",
           marginBottom: "20px",
-          backgroundColor: mode === 'SYNC' ? '#e3f2fd' : '#e8f5e9',
-          border: mode === 'SYNC' ? '2px solid #2196F3' : '2px solid #4CAF50',
+          backgroundColor: mode === "SYNC" ? "#e3f2fd" : "#e8f5e9",
+          border: mode === "SYNC" ? "2px solid #2196F3" : "2px solid #4CAF50",
           borderRadius: "4px",
           textAlign: "center",
         }}
       >
-        <h2 style={{ margin: 0, color: mode === 'SYNC' ? '#1976D2' : '#388E3C' }}>
-          {mode === 'SYNC' ? '🔵 SYNC MODE' : '🟢 PLAYBACK MODE'}
+        <h2
+          style={{ margin: 0, color: mode === "SYNC" ? "#1976D2" : "#388E3C" }}
+        >
+          {mode === "SYNC" ? "🔵 SYNC MODE" : "🟢 PLAYBACK MODE"}
         </h2>
         <p style={{ margin: "10px 0 0 0" }}>
-          {mode === 'SYNC'
-            ? 'Use independent controls to set synchronization points for each video'
-            : 'Videos synchronized - use unified controls to analyze together'}
+          {mode === "SYNC"
+            ? "Use independent controls to set synchronization points for each video"
+            : "Videos synchronized - use unified controls to analyze together"}
         </p>
       </div>
 
@@ -598,27 +726,42 @@ export function DualVideoSyncDemo() {
         <div style={{ marginBottom: "20px", textAlign: "center" }}>
           <button
             data-testid="mode-toggle"
-            onClick={mode === 'SYNC' ? switchToPlaybackMode : switchToSyncMode}
+            onClick={mode === "SYNC" ? switchToPlaybackMode : switchToSyncMode}
             style={{
               padding: "15px 30px",
               fontSize: "16px",
               fontWeight: "bold",
               cursor: "pointer",
-              backgroundColor: mode === 'SYNC' ? '#4CAF50' : '#2196F3',
+              backgroundColor: mode === "SYNC" ? "#4CAF50" : "#2196F3",
               color: "white",
               border: "none",
               borderRadius: "4px",
             }}
           >
-            {mode === 'SYNC' ? 'Switch to PLAYBACK Mode →' : '← Switch to SYNC Mode'}
+            {mode === "SYNC"
+              ? "Switch to PLAYBACK Mode →"
+              : "← Switch to SYNC Mode"}
           </button>
         </div>
       )}
 
       {/* File Upload */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "20px",
+          marginBottom: "20px",
+        }}
+      >
         <div>
-          <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
+          <label
+            style={{
+              display: "block",
+              marginBottom: "10px",
+              fontWeight: "bold",
+            }}
+          >
             Upload Video A (MP4):
           </label>
           <input
@@ -629,18 +772,38 @@ export function DualVideoSyncDemo() {
             style={{ padding: "10px", fontSize: "14px", width: "100%" }}
           />
           {fileA && !videoA.isReady && !videoA.error && (
-            <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "#eff", border: "1px solid #0cc" }}>
+            <div
+              style={{
+                marginTop: "10px",
+                padding: "10px",
+                backgroundColor: "#eff",
+                border: "1px solid #0cc",
+              }}
+            >
               Initializing decoder A...
             </div>
           )}
           {videoA.error && (
-            <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "#fee", border: "1px solid #c00" }}>
+            <div
+              style={{
+                marginTop: "10px",
+                padding: "10px",
+                backgroundColor: "#fee",
+                border: "1px solid #c00",
+              }}
+            >
               <strong>Error:</strong> {videoA.error}
             </div>
           )}
         </div>
         <div>
-          <label style={{ display: "block", marginBottom: "10px", fontWeight: "bold" }}>
+          <label
+            style={{
+              display: "block",
+              marginBottom: "10px",
+              fontWeight: "bold",
+            }}
+          >
             Upload Video B (MP4):
           </label>
           <input
@@ -651,12 +814,26 @@ export function DualVideoSyncDemo() {
             style={{ padding: "10px", fontSize: "14px", width: "100%" }}
           />
           {fileB && !videoB.isReady && !videoB.error && (
-            <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "#eff", border: "1px solid #0cc" }}>
+            <div
+              style={{
+                marginTop: "10px",
+                padding: "10px",
+                backgroundColor: "#eff",
+                border: "1px solid #0cc",
+              }}
+            >
               Initializing decoder B...
             </div>
           )}
           {videoB.error && (
-            <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "#fee", border: "1px solid #c00" }}>
+            <div
+              style={{
+                marginTop: "10px",
+                padding: "10px",
+                backgroundColor: "#fee",
+                border: "1px solid #c00",
+              }}
+            >
               <strong>Error:</strong> {videoB.error}
             </div>
           )}
@@ -667,17 +844,35 @@ export function DualVideoSyncDemo() {
       {(videoA.isReady || videoB.isReady) && (
         <div>
           {/* Canvases */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "20px",
+              marginBottom: "20px",
+            }}
+          >
             {/* Video A Canvas */}
             <div>
               <h3 style={{ marginTop: 0 }}>Video A</h3>
+
               {videoA.isReady ? (
                 <>
-                  <div style={{ border: "2px solid #333", backgroundColor: "#000", position: "relative" }}>
+                  <div
+                    style={{
+                      border: "2px solid #333",
+                      backgroundColor: "#000",
+                      position: "relative",
+                    }}
+                  >
                     <canvas
                       ref={videoA.canvasRef}
                       data-testid="video-canvas-a"
-                      style={{ display: "block", maxWidth: "100%", height: "auto" }}
+                      style={{
+                        display: "block",
+                        maxWidth: "100%",
+                        height: "auto",
+                      }}
                     />
                     {/* Annotation overlay canvas */}
                     {videoA.metadata && (
@@ -692,10 +887,12 @@ export function DualVideoSyncDemo() {
                           overflow: "hidden",
                         }}
                       >
-                        <div style={{
-                          transform: `scale(${annotationScaleA})`,
-                          transformOrigin: "top left",
-                        }}>
+                        <div
+                          style={{
+                            transform: `scale(${annotationScaleA})`,
+                            transformOrigin: "top left",
+                          }}
+                        >
                           <Stage
                             width={videoA.metadata.width}
                             height={videoA.metadata.height}
@@ -703,32 +900,175 @@ export function DualVideoSyncDemo() {
                             onMouseMove={handleMouseMoveA}
                             onMouseUp={handleMouseUpA}
                             onMouseLeave={handleMouseUpA} // Finish drawing if mouse leaves canvas
+                            onClick={handleClickA}
+                            onDblClick={handleDoubleClickA}
                           >
                             <Layer>
                               {/* Render completed annotations */}
-                              {annotations.map((annotation) => (
-                                <Line
-                                  key={annotation.id}
-                                  points={annotation.points}
-                                  stroke={annotation.color}
-                                  strokeWidth={annotation.strokeWidth}
-                                  lineCap="round"
-                                  lineJoin="round"
-                                  tension={0.5} // Smooth curves for freehand
-                                />
-                              ))}
-                              {/* Render current drawing in progress */}
-                              {isDrawing && currentPoints.length >= 2 && (
-                                <Line
-                                  points={currentPoints}
-                                  stroke="#FF0000"
-                                  strokeWidth={3}
-                                  lineCap="round"
-                                  lineJoin="round"
-                                  tension={0.5}
-                                  dash={[10, 5]} // Dashed line for preview
-                                />
-                              )}
+                              {annotations.map((annotation) => {
+                                switch (annotation.type) {
+                                  case "freehand":
+                                  case "polyline":
+                                    return (
+                                      <Line
+                                        key={annotation.id}
+                                        points={pointsToKonva(
+                                          annotation.points
+                                        )}
+                                        stroke={annotation.color}
+                                        strokeWidth={annotation.strokeWidth}
+                                        lineCap="round"
+                                        lineJoin="round"
+                                        tension={
+                                          annotation.type === "freehand"
+                                            ? 0.5
+                                            : 0
+                                        }
+                                      />
+                                    );
+                                  case "oval": {
+                                    // Points format: [start, end] where each is {x, y}
+                                    const start = annotation.points[0];
+                                    const end = annotation.points[1];
+                                    const centerX = (start.x + end.x) / 2;
+                                    const centerY = (start.y + end.y) / 2;
+                                    const radiusX =
+                                      Math.abs(end.x - start.x) / 2;
+                                    const radiusY =
+                                      Math.abs(end.y - start.y) / 2;
+                                    return (
+                                      <Ellipse
+                                        key={annotation.id}
+                                        x={centerX}
+                                        y={centerY}
+                                        radiusX={radiusX}
+                                        radiusY={radiusY}
+                                        stroke={annotation.color}
+                                        strokeWidth={annotation.strokeWidth}
+                                      />
+                                    );
+                                  }
+                                  case "arrow":
+                                    return (
+                                      <Arrow
+                                        key={annotation.id}
+                                        points={pointsToKonva(
+                                          annotation.points
+                                        )}
+                                        stroke={annotation.color}
+                                        strokeWidth={annotation.strokeWidth}
+                                        fill={annotation.color}
+                                        pointerLength={10}
+                                        pointerWidth={10}
+                                      />
+                                    );
+                                  default:
+                                    return null;
+                                }
+                              })}
+
+                              {/* Render live preview during drawing */}
+                              {drawingState.mode === "drag-drawing" &&
+                                drawingState.points.length >= 2 && (
+                                  <>
+                                    {drawingState.tool === "freehand" && (
+                                      <Line
+                                        points={
+                                          annotationManager.getPreviewPoints()!
+                                        }
+                                        stroke="#FF0000"
+                                        strokeWidth={3}
+                                        lineCap="round"
+                                        lineJoin="round"
+                                        tension={0.5}
+                                        dash={[10, 5]}
+                                      />
+                                    )}
+                                    {drawingState.tool === "oval" &&
+                                      drawingState.points.length === 2 && (
+                                        <Ellipse
+                                          x={
+                                            (drawingState.points[0].x +
+                                              drawingState.points[1].x) /
+                                            2
+                                          }
+                                          y={
+                                            (drawingState.points[0].y +
+                                              drawingState.points[1].y) /
+                                            2
+                                          }
+                                          radiusX={
+                                            Math.abs(
+                                              drawingState.points[1].x -
+                                                drawingState.points[0].x
+                                            ) / 2
+                                          }
+                                          radiusY={
+                                            Math.abs(
+                                              drawingState.points[1].y -
+                                                drawingState.points[0].y
+                                            ) / 2
+                                          }
+                                          stroke="#FF0000"
+                                          strokeWidth={3}
+                                          dash={[10, 5]}
+                                        />
+                                      )}
+                                    {drawingState.tool === "arrow" &&
+                                      drawingState.points.length === 2 && (
+                                        <Arrow
+                                          points={
+                                            annotationManager.getPreviewPoints()!
+                                          }
+                                          stroke="#FF0000"
+                                          strokeWidth={3}
+                                          fill="#FF0000"
+                                          pointerLength={10}
+                                          pointerWidth={10}
+                                          dash={[10, 5]}
+                                        />
+                                      )}
+                                  </>
+                                )}
+
+                              {/* Render polyline in progress */}
+                              {drawingState.mode === "polyline-active" &&
+                                drawingState.points.length >= 2 && (
+                                  <Line
+                                    points={
+                                      annotationManager.getPreviewPoints()!
+                                    }
+                                    stroke="#FF0000"
+                                    strokeWidth={3}
+                                    lineCap="round"
+                                    lineJoin="round"
+                                    dash={[10, 5]}
+                                  />
+                                )}
+
+                              {/* Render polyline preview segment (last vertex to mouse cursor) */}
+                              {drawingState.mode === "polyline-active" &&
+                                polylineMousePos &&
+                                drawingState.points.length >= 1 && (
+                                  <Line
+                                    points={[
+                                      drawingState.points[
+                                        drawingState.points.length - 1
+                                      ].x,
+                                      drawingState.points[
+                                        drawingState.points.length - 1
+                                      ].y,
+                                      polylineMousePos.x,
+                                      polylineMousePos.y,
+                                    ]}
+                                    stroke="#FF0000"
+                                    strokeWidth={3}
+                                    lineCap="round"
+                                    lineJoin="round"
+                                    dash={[10, 5]}
+                                    opacity={0.6}
+                                  />
+                                )}
                             </Layer>
                           </Stage>
                         </div>
@@ -748,13 +1088,15 @@ export function DualVideoSyncDemo() {
                   </div>
                 </>
               ) : (
-                <div style={{
-                  padding: "100px 20px",
-                  backgroundColor: "#f5f5f5",
-                  border: "2px dashed #ccc",
-                  textAlign: "center",
-                  color: "#999"
-                }}>
+                <div
+                  style={{
+                    padding: "100px 20px",
+                    backgroundColor: "#f5f5f5",
+                    border: "2px dashed #ccc",
+                    textAlign: "center",
+                    color: "#999",
+                  }}
+                >
                   {fileA ? "Loading..." : "No video loaded"}
                 </div>
               )}
@@ -765,10 +1107,19 @@ export function DualVideoSyncDemo() {
               <h3 style={{ marginTop: 0 }}>Video B</h3>
               {videoB.isReady ? (
                 <>
-                  <div style={{ border: "2px solid #333", backgroundColor: "#000" }}>
+                  <div
+                    style={{
+                      border: "2px solid #333",
+                      backgroundColor: "#000",
+                    }}
+                  >
                     <canvas
                       ref={videoB.canvasRef}
-                      style={{ display: "block", maxWidth: "100%", height: "auto" }}
+                      style={{
+                        display: "block",
+                        maxWidth: "100%",
+                        height: "auto",
+                      }}
                     />
                   </div>
                   <div
@@ -784,13 +1135,15 @@ export function DualVideoSyncDemo() {
                   </div>
                 </>
               ) : (
-                <div style={{
-                  padding: "100px 20px",
-                  backgroundColor: "#f5f5f5",
-                  border: "2px dashed #ccc",
-                  textAlign: "center",
-                  color: "#999"
-                }}>
+                <div
+                  style={{
+                    padding: "100px 20px",
+                    backgroundColor: "#f5f5f5",
+                    border: "2px dashed #ccc",
+                    textAlign: "center",
+                    color: "#999",
+                  }}
+                >
                   {fileB ? "Loading..." : "No video loaded"}
                 </div>
               )}
@@ -798,10 +1151,24 @@ export function DualVideoSyncDemo() {
           </div>
 
           {/* SYNC Mode Controls */}
-          {mode === 'SYNC' && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+          {mode === "SYNC" && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "20px",
+                marginBottom: "20px",
+              }}
+            >
               {/* Video A Controls */}
-              <div data-testid="video-a-controls" style={{ padding: "15px", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>
+              <div
+                data-testid="video-a-controls"
+                style={{
+                  padding: "15px",
+                  backgroundColor: "#f5f5f5",
+                  borderRadius: "4px",
+                }}
+              >
                 <h3 style={{ marginTop: 0 }}>Video A Controls</h3>
 
                 {/* Play/Pause */}
@@ -821,11 +1188,18 @@ export function DualVideoSyncDemo() {
                     marginBottom: "10px",
                   }}
                 >
-                  {videoA.isPlaying ? '⏸ Pause' : '▶ Play'}
+                  {videoA.isPlaying ? "⏸ Pause" : "▶ Play"}
                 </button>
 
                 {/* Stepping Controls */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "10px",
+                    marginBottom: "10px",
+                  }}
+                >
                   <button
                     data-testid="step-backward-coarse-a"
                     onClick={handleCoarseStepBackwardA}
@@ -834,8 +1208,10 @@ export function DualVideoSyncDemo() {
                       padding: "10px",
                       fontSize: "14px",
                       fontWeight: "bold",
-                      cursor: videoA.currentFrame === 0 ? "not-allowed" : "pointer",
-                      backgroundColor: videoA.currentFrame === 0 ? "#ccc" : "#4CAF50",
+                      cursor:
+                        videoA.currentFrame === 0 ? "not-allowed" : "pointer",
+                      backgroundColor:
+                        videoA.currentFrame === 0 ? "#ccc" : "#4CAF50",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -851,8 +1227,14 @@ export function DualVideoSyncDemo() {
                       padding: "10px",
                       fontSize: "14px",
                       fontWeight: "bold",
-                      cursor: videoA.currentFrame >= videoA.totalFrames - 1 ? "not-allowed" : "pointer",
-                      backgroundColor: videoA.currentFrame >= videoA.totalFrames - 1 ? "#ccc" : "#4CAF50",
+                      cursor:
+                        videoA.currentFrame >= videoA.totalFrames - 1
+                          ? "not-allowed"
+                          : "pointer",
+                      backgroundColor:
+                        videoA.currentFrame >= videoA.totalFrames - 1
+                          ? "#ccc"
+                          : "#4CAF50",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -867,8 +1249,10 @@ export function DualVideoSyncDemo() {
                     style={{
                       padding: "10px",
                       fontSize: "14px",
-                      cursor: videoA.currentFrame === 0 ? "not-allowed" : "pointer",
-                      backgroundColor: videoA.currentFrame === 0 ? "#ccc" : "#2196F3",
+                      cursor:
+                        videoA.currentFrame === 0 ? "not-allowed" : "pointer",
+                      backgroundColor:
+                        videoA.currentFrame === 0 ? "#ccc" : "#2196F3",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -883,8 +1267,14 @@ export function DualVideoSyncDemo() {
                     style={{
                       padding: "10px",
                       fontSize: "14px",
-                      cursor: videoA.currentFrame >= videoA.totalFrames - 1 ? "not-allowed" : "pointer",
-                      backgroundColor: videoA.currentFrame >= videoA.totalFrames - 1 ? "#ccc" : "#2196F3",
+                      cursor:
+                        videoA.currentFrame >= videoA.totalFrames - 1
+                          ? "not-allowed"
+                          : "pointer",
+                      backgroundColor:
+                        videoA.currentFrame >= videoA.totalFrames - 1
+                          ? "#ccc"
+                          : "#2196F3",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -895,7 +1285,14 @@ export function DualVideoSyncDemo() {
                 </div>
 
                 {/* Speed Control */}
-                <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: "bold" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontWeight: "bold",
+                  }}
+                >
                   Speed:
                   <select
                     data-testid="speed-select-a"
@@ -919,7 +1316,13 @@ export function DualVideoSyncDemo() {
 
                 {/* Scrub Bar */}
                 <div style={{ marginTop: "15px" }}>
-                  <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "5px",
+                      fontWeight: "bold",
+                    }}
+                  >
                     Seek to Frame:
                   </label>
                   <input
@@ -937,7 +1340,14 @@ export function DualVideoSyncDemo() {
               </div>
 
               {/* Video B Controls */}
-              <div data-testid="video-b-controls" style={{ padding: "15px", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>
+              <div
+                data-testid="video-b-controls"
+                style={{
+                  padding: "15px",
+                  backgroundColor: "#f5f5f5",
+                  borderRadius: "4px",
+                }}
+              >
                 <h3 style={{ marginTop: 0 }}>Video B Controls</h3>
 
                 {/* Play/Pause */}
@@ -957,11 +1367,18 @@ export function DualVideoSyncDemo() {
                     marginBottom: "10px",
                   }}
                 >
-                  {videoB.isPlaying ? '⏸ Pause' : '▶ Play'}
+                  {videoB.isPlaying ? "⏸ Pause" : "▶ Play"}
                 </button>
 
                 {/* Stepping Controls */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "10px",
+                    marginBottom: "10px",
+                  }}
+                >
                   <button
                     data-testid="step-backward-coarse-b"
                     onClick={handleCoarseStepBackwardB}
@@ -970,8 +1387,10 @@ export function DualVideoSyncDemo() {
                       padding: "10px",
                       fontSize: "14px",
                       fontWeight: "bold",
-                      cursor: videoB.currentFrame === 0 ? "not-allowed" : "pointer",
-                      backgroundColor: videoB.currentFrame === 0 ? "#ccc" : "#4CAF50",
+                      cursor:
+                        videoB.currentFrame === 0 ? "not-allowed" : "pointer",
+                      backgroundColor:
+                        videoB.currentFrame === 0 ? "#ccc" : "#4CAF50",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -987,8 +1406,14 @@ export function DualVideoSyncDemo() {
                       padding: "10px",
                       fontSize: "14px",
                       fontWeight: "bold",
-                      cursor: videoB.currentFrame >= videoB.totalFrames - 1 ? "not-allowed" : "pointer",
-                      backgroundColor: videoB.currentFrame >= videoB.totalFrames - 1 ? "#ccc" : "#4CAF50",
+                      cursor:
+                        videoB.currentFrame >= videoB.totalFrames - 1
+                          ? "not-allowed"
+                          : "pointer",
+                      backgroundColor:
+                        videoB.currentFrame >= videoB.totalFrames - 1
+                          ? "#ccc"
+                          : "#4CAF50",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -1003,8 +1428,10 @@ export function DualVideoSyncDemo() {
                     style={{
                       padding: "10px",
                       fontSize: "14px",
-                      cursor: videoB.currentFrame === 0 ? "not-allowed" : "pointer",
-                      backgroundColor: videoB.currentFrame === 0 ? "#ccc" : "#2196F3",
+                      cursor:
+                        videoB.currentFrame === 0 ? "not-allowed" : "pointer",
+                      backgroundColor:
+                        videoB.currentFrame === 0 ? "#ccc" : "#2196F3",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -1019,8 +1446,14 @@ export function DualVideoSyncDemo() {
                     style={{
                       padding: "10px",
                       fontSize: "14px",
-                      cursor: videoB.currentFrame >= videoB.totalFrames - 1 ? "not-allowed" : "pointer",
-                      backgroundColor: videoB.currentFrame >= videoB.totalFrames - 1 ? "#ccc" : "#2196F3",
+                      cursor:
+                        videoB.currentFrame >= videoB.totalFrames - 1
+                          ? "not-allowed"
+                          : "pointer",
+                      backgroundColor:
+                        videoB.currentFrame >= videoB.totalFrames - 1
+                          ? "#ccc"
+                          : "#2196F3",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -1031,7 +1464,14 @@ export function DualVideoSyncDemo() {
                 </div>
 
                 {/* Speed Control */}
-                <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: "bold" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontWeight: "bold",
+                  }}
+                >
                   Speed:
                   <select
                     data-testid="speed-select-b"
@@ -1055,7 +1495,13 @@ export function DualVideoSyncDemo() {
 
                 {/* Scrub Bar */}
                 <div style={{ marginTop: "15px" }}>
-                  <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "5px",
+                      fontWeight: "bold",
+                    }}
+                  >
                     Seek to Frame:
                   </label>
                   <input
@@ -1074,9 +1520,135 @@ export function DualVideoSyncDemo() {
             </div>
           )}
 
+          {/* Annotation Tool Selection - Only show in SYNC mode and when Video A is ready */}
+          {mode === "SYNC" && videoA.isReady && (
+            <div style={{ marginBottom: "20px" }}>
+              <div
+                style={{
+                  padding: "15px",
+                  backgroundColor: "#f5f5f5",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                }}
+              >
+                <h3 style={{ marginTop: 0, marginBottom: "10px" }}>
+                  Video A - Drawing Tools
+                </h3>
+                <div
+                  style={{ display: "flex", gap: "10px", marginBottom: "10px" }}
+                >
+                  <button
+                    data-testid="tool-freehand"
+                    onClick={() => setSelectedTool("freehand")}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "14px",
+                      cursor: "pointer",
+                      border:
+                        selectedTool === "freehand"
+                          ? "2px solid #2196F3"
+                          : "1px solid #999",
+                      backgroundColor:
+                        selectedTool === "freehand" ? "#E3F2FD" : "white",
+                      fontWeight:
+                        selectedTool === "freehand" ? "bold" : "normal",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    Freehand
+                  </button>
+                  <button
+                    data-testid="tool-polyline"
+                    onClick={() => setSelectedTool("polyline")}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "14px",
+                      cursor: "pointer",
+                      border:
+                        selectedTool === "polyline"
+                          ? "2px solid #2196F3"
+                          : "1px solid #999",
+                      backgroundColor:
+                        selectedTool === "polyline" ? "#E3F2FD" : "white",
+                      fontWeight:
+                        selectedTool === "polyline" ? "bold" : "normal",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    Polyline
+                  </button>
+                  <button
+                    data-testid="tool-oval"
+                    onClick={() => setSelectedTool("oval")}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "14px",
+                      cursor: "pointer",
+                      border:
+                        selectedTool === "oval"
+                          ? "2px solid #2196F3"
+                          : "1px solid #999",
+                      backgroundColor:
+                        selectedTool === "oval" ? "#E3F2FD" : "white",
+                      fontWeight: selectedTool === "oval" ? "bold" : "normal",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    Oval
+                  </button>
+                  <button
+                    data-testid="tool-arrow"
+                    onClick={() => setSelectedTool("arrow")}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "14px",
+                      cursor: "pointer",
+                      border:
+                        selectedTool === "arrow"
+                          ? "2px solid #2196F3"
+                          : "1px solid #999",
+                      backgroundColor:
+                        selectedTool === "arrow" ? "#E3F2FD" : "white",
+                      fontWeight: selectedTool === "arrow" ? "bold" : "normal",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    Arrow
+                  </button>
+                </div>
+                {/* Reserve space for polyline message to prevent layout shift */}
+                <div
+                  style={{
+                    fontSize: "12px",
+                    minHeight: "20px",
+                    color:
+                      selectedTool === "polyline" &&
+                      drawingState.mode === "polyline-active"
+                        ? "#666"
+                        : "transparent",
+                    fontStyle: "italic",
+                  }}
+                >
+                  {selectedTool === "polyline" &&
+                  drawingState.mode === "polyline-active"
+                    ? "Click to add vertices. Press Enter to finish or Escape to cancel."
+                    : "\u00A0"}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* PLAYBACK Mode Controls */}
-          {mode === 'PLAYBACK' && (
-            <div data-testid="playback-controls" style={{ padding: "20px", backgroundColor: "#f5f5f5", borderRadius: "4px", marginBottom: "20px" }}>
+          {mode === "PLAYBACK" && (
+            <div
+              data-testid="playback-controls"
+              style={{
+                padding: "20px",
+                backgroundColor: "#f5f5f5",
+                borderRadius: "4px",
+                marginBottom: "20px",
+              }}
+            >
               <h3 style={{ marginTop: 0 }}>Unified Playback Controls</h3>
 
               {/* Sync Offset Display */}
@@ -1092,9 +1664,22 @@ export function DualVideoSyncDemo() {
                   fontSize: "16px",
                 }}
               >
-                <strong>Sync Offset:</strong> {syncOffset !== null ? (syncOffset > 0 ? '+' : '') + syncOffset : 'N/A'} frames
-                <div style={{ fontSize: "14px", marginTop: "5px", color: "#666" }}>
-                  Video B is {Math.abs(syncOffset || 0)} frame{Math.abs(syncOffset || 0) !== 1 ? 's' : ''} {(syncOffset || 0) > 0 ? 'ahead' : (syncOffset || 0) < 0 ? 'behind' : 'aligned with'} Video A
+                <strong>Sync Offset:</strong>{" "}
+                {syncOffset !== null
+                  ? (syncOffset > 0 ? "+" : "") + syncOffset
+                  : "N/A"}{" "}
+                frames
+                <div
+                  style={{ fontSize: "14px", marginTop: "5px", color: "#666" }}
+                >
+                  Video B is {Math.abs(syncOffset || 0)} frame
+                  {Math.abs(syncOffset || 0) !== 1 ? "s" : ""}{" "}
+                  {(syncOffset || 0) > 0
+                    ? "ahead"
+                    : (syncOffset || 0) < 0
+                    ? "behind"
+                    : "aligned with"}{" "}
+                  Video A
                 </div>
               </div>
 
@@ -1115,11 +1700,18 @@ export function DualVideoSyncDemo() {
                   marginBottom: "15px",
                 }}
               >
-                {isPlayingBoth ? '⏸ Pause' : '▶ Play'}
+                {isPlayingBoth ? "⏸ Pause" : "▶ Play"}
               </button>
 
               {/* Stepping Controls */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "10px", marginBottom: "15px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                  gap: "10px",
+                  marginBottom: "15px",
+                }}
+              >
                 <button
                   data-testid="step-backward-coarse-both"
                   onClick={handleStepBackwardCoarse}
@@ -1185,7 +1777,14 @@ export function DualVideoSyncDemo() {
               </div>
 
               {/* Speed Control */}
-              <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: "bold" }}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  fontWeight: "bold",
+                }}
+              >
                 Playback Speed:
                 <select
                   data-testid="speed-select-both"
@@ -1208,36 +1807,51 @@ export function DualVideoSyncDemo() {
               </label>
 
               {/* Joint Scrub Bar */}
-              {playheadState && (() => {
-                const range = calculatePlayheadRange(
-                  videoA.totalFrames,
-                  videoB.totalFrames,
-                  playheadState.syncOffset
-                );
-                return (
-                  <div style={{ marginTop: "15px" }}>
-                    <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                      Seek to Frame (Video A position, Video B maintains offset):
-                    </label>
-                    <input
-                      data-testid="scrub-bar-both"
-                      type="range"
-                      min={range.min}
-                      max={range.max}
-                      value={sliderValueBoth}
-                      onChange={handleSliderChangeBoth}
-                      onMouseUp={handleSliderReleaseBoth}
-                      onTouchEnd={handleSliderReleaseBoth}
-                      style={{ width: "100%", height: "30px" }}
-                    />
-                    <div style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
-                      Video A: Frame {sliderValueBoth} / {range.max} |
-                      Video B: Frame {sliderValueBoth + playheadState.syncOffset} / {videoB.totalFrames - 1}
-                      {range.min > 0 && ` (min: ${range.min})`}
+              {playheadState &&
+                (() => {
+                  const range = calculatePlayheadRange(
+                    videoA.totalFrames,
+                    videoB.totalFrames,
+                    playheadState.syncOffset
+                  );
+                  return (
+                    <div style={{ marginTop: "15px" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "5px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        Seek to Frame (Video A position, Video B maintains
+                        offset):
+                      </label>
+                      <input
+                        data-testid="scrub-bar-both"
+                        type="range"
+                        min={range.min}
+                        max={range.max}
+                        value={sliderValueBoth}
+                        onChange={handleSliderChangeBoth}
+                        onMouseUp={handleSliderReleaseBoth}
+                        onTouchEnd={handleSliderReleaseBoth}
+                        style={{ width: "100%", height: "30px" }}
+                      />
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#666",
+                          marginTop: "5px",
+                        }}
+                      >
+                        Video A: Frame {sliderValueBoth} / {range.max} | Video
+                        B: Frame {sliderValueBoth + playheadState.syncOffset} /{" "}
+                        {videoB.totalFrames - 1}
+                        {range.min > 0 && ` (min: ${range.min})`}
+                      </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
             </div>
           )}
         </div>
@@ -1258,22 +1872,27 @@ export function DualVideoSyncDemo() {
           <ol>
             <li>Upload two MP4 video files (Video A and Video B)</li>
             <li>
-              <strong>SYNC Mode:</strong> Use independent controls to navigate each video to the desired synchronization point
+              <strong>SYNC Mode:</strong> Use independent controls to navigate
+              each video to the desired synchronization point
               <ul>
                 <li>Play/pause each video independently</li>
-                <li>Step frame-by-frame (±1 frame) or coarse step (±5 frames)</li>
+                <li>
+                  Step frame-by-frame (±1 frame) or coarse step (±5 frames)
+                </li>
                 <li>Adjust playback speed independently</li>
               </ul>
             </li>
             <li>
-              <strong>Switch to PLAYBACK Mode:</strong> Click the mode toggle button
+              <strong>Switch to PLAYBACK Mode:</strong> Click the mode toggle
+              button
               <ul>
                 <li>Sync offset is calculated: offset = frameB - frameA</li>
                 <li>Original positions are saved as sync points</li>
               </ul>
             </li>
             <li>
-              <strong>PLAYBACK Mode:</strong> Use unified controls to analyze synchronized videos
+              <strong>PLAYBACK Mode:</strong> Use unified controls to analyze
+              synchronized videos
               <ul>
                 <li>Play/pause both videos together</li>
                 <li>Step both videos maintaining exact offset</li>
@@ -1281,7 +1900,8 @@ export function DualVideoSyncDemo() {
               </ul>
             </li>
             <li>
-              <strong>Return to SYNC Mode:</strong> Videos restore to original sync points for easy adjustment
+              <strong>Return to SYNC Mode:</strong> Videos restore to original
+              sync points for easy adjustment
             </li>
           </ol>
           <p>

@@ -2,8 +2,8 @@
 
 ## Status:
 
-**Last Subtask Completed:** 0.5.2
-**Last Updated:** 2025-11-30 (Revised: Consolidated 0.5.3-0.5.6 into integrated implementation)
+**Last Subtask Completed:** 0.5.3
+**Last Updated:** 2025-11-30 (Completed: Integrated Annotation Framework with Enhanced Architecture)
 
 ## Overview
 
@@ -142,173 +142,46 @@ Container (position: relative)
 
 ### Subtask 0.5.3: Integrated Annotation Framework - All Drawing Tools + Tool Selection UI (Video A)
 
-**Status**: Not started
+**Status**: ✅ COMPLETE
 
-**Goal**: Implement complete annotation drawing framework with all four tools (freehand ✅, polyline, oval, arrow) and tool selection UI in a single integrated implementation.
+**Goal**: Implement complete annotation drawing framework with all four tools (freehand, polyline, oval, arrow) and tool selection UI in a single integrated implementation.
 
-**Rationale**: Building all tools together with proper state management from the start avoids throwaway implementations and enables immediate testing of tool switching. Three of four tools (freehand, oval, arrow) share the same drag-based interaction pattern, while only polyline requires click-based interaction. The type system and validation are already complete (AnnotationManager), so we're implementing UI/interaction patterns only.
+**Implementation Summary**:
 
-**Implementation**:
+Delivered an **Enhanced AnnotationManager Pattern** that separates business logic from UI:
 
-1. **State Management Refactoring**:
-   ```typescript
-   // Replace boolean isDrawing with structured state
-   type DrawingState = 
-     | { mode: 'idle' }
-     | { mode: 'drag-drawing', tool: 'freehand' | 'oval' | 'arrow', points: number[] }
-     | { mode: 'polyline-active', points: number[] };
-   
-   const [selectedTool, setSelectedTool] = useState<AnnotationType>('freehand');
-   const [drawingState, setDrawingState] = useState<DrawingState>({ mode: 'idle' });
-   ```
+1. **Architecture Refactoring**:
+   - Moved drawing state management into AnnotationManager (state machine pattern)
+   - Added `DrawingState` and `Point` types to `annotations.ts`
+   - Enhanced AnnotationManager with 11 new methods for drawing workflow
+   - Component handlers refactored to thin adapters (5-10 lines each, delegate to manager)
 
-2. **Tool Selection UI**:
-   - Add four tool selector buttons (Freehand, Polyline, Oval, Arrow)
-   - Position above Video A canvas
-   - Highlight active tool with visual indicator (background color/bold text)
-   - Each button updates `selectedTool` state
+2. **Tool Selection UI**: 4 tool buttons below video frame counter, active tool highlighted
 
-3. **Unified Mouse Handlers for Drag-Based Tools** (Freehand ✅, Oval, Arrow):
-   ```typescript
-   const handleMouseDown = (e) => {
-     if (['freehand', 'oval', 'arrow'].includes(selectedTool)) {
-       const pos = getPointerPosition(e);
-       setDrawingState({ mode: 'drag-drawing', tool: selectedTool, points: [pos.x, pos.y] });
-     }
-   };
-   
-   const handleMouseMove = (e) => {
-     if (drawingState.mode === 'drag-drawing') {
-       const pos = getPointerPosition(e);
-       if (drawingState.tool === 'freehand') {
-         // Append points for continuous line
-         setDrawingState({ ...drawingState, points: [...drawingState.points, pos.x, pos.y] });
-       } else {
-         // Update end point only for oval/arrow (2-point shapes)
-         setDrawingState({ ...drawingState, points: [drawingState.points[0], drawingState.points[1], pos.x, pos.y] });
-       }
-     }
-   };
-   
-   const handleMouseUp = () => {
-     if (drawingState.mode === 'drag-drawing') {
-       // Finalize annotation via AnnotationManager
-       const annotation = annotationManager.createAndAddAnnotation(drawingState.tool, drawingState.points);
-       if (annotation) {
-         setAnnotations(annotationManager.getAnnotations());
-       }
-       setDrawingState({ mode: 'idle' });
-     }
-   };
-   ```
+3. **Drawing Implementations**:
+   - **Freehand**: Drag to draw continuous smooth line
+   - **Polyline**: Click-to-add vertices, Enter/Escape/double-click to finalize
+   - **Oval**: Drag axis-aligned ellipse
+   - **Arrow**: Drag arrow with pointer
 
-4. **Click-Based Handler for Polyline**:
-   ```typescript
-   const handleClick = (e) => {
-     if (selectedTool === 'polyline') {
-       const pos = getPointerPosition(e);
-       if (drawingState.mode === 'idle') {
-         // Start new polyline
-         setDrawingState({ mode: 'polyline-active', points: [pos.x, pos.y] });
-       } else if (drawingState.mode === 'polyline-active') {
-         // Add vertex to existing polyline
-         setDrawingState({ ...drawingState, points: [...drawingState.points, pos.x, pos.y] });
-       }
-     }
-   };
-   
-   const handleDoubleClick = () => {
-     if (drawingState.mode === 'polyline-active') {
-       // Finalize polyline
-       finalizePolyline();
-     }
-   };
-   ```
+4. **Live Preview**: All tools show red dashed preview, polyline includes cursor preview segment
 
-5. **Keyboard Support for Polyline**:
-   ```typescript
-   useEffect(() => {
-     const handleKeyDown = (e: KeyboardEvent) => {
-       if (drawingState.mode === 'polyline-active') {
-         if (e.key === 'Enter') {
-           finalizePolyline();
-         } else if (e.key === 'Escape') {
-           setDrawingState({ mode: 'idle' }); // Cancel polyline
-         }
-       }
-     };
-     window.addEventListener('keydown', handleKeyDown);
-     return () => window.removeEventListener('keydown', handleKeyDown);
-   }, [drawingState]);
-   ```
+**Deliverables**: ✅ All Complete
 
-6. **Rendering Logic for All Tools**:
-   ```typescript
-   // Completed annotations
-   {annotations.map((annotation) => {
-     switch (annotation.type) {
-       case 'freehand':
-       case 'polyline':
-         return <Line key={annotation.id} points={annotation.points} 
-                      tension={annotation.type === 'freehand' ? 0.5 : 0} ... />;
-       case 'oval':
-         const [cx, cy, ex, ey] = annotation.points;
-         const rx = Math.abs(ex - cx) / 2;
-         const ry = Math.abs(ey - cy) / 2;
-         return <Ellipse key={annotation.id} x={cx + rx} y={cy + ry} 
-                         radiusX={rx} radiusY={ry} ... />;
-       case 'arrow':
-         return <Arrow key={annotation.id} points={annotation.points} 
-                       pointerLength={10} pointerWidth={10} ... />;
-     }
-   })}
-   
-   // Live preview during drawing
-   {drawingState.mode === 'drag-drawing' && (
-     // Render preview based on drawingState.tool (Line/Ellipse/Arrow)
-   )}
-   {drawingState.mode === 'polyline-active' && (
-     <Line points={drawingState.points} dash={[10, 5]} ... />
-   )}
-   ```
+- ✅ All 4 tools functional with proper interaction patterns
+- ✅ Enhanced AnnotationManager with state machine (11 methods)
+- ✅ Tool selection UI with visual feedback
+- ✅ Live preview for all tools
+- ✅ 66/66 unit tests passing (38 new for state machine)
 
-7. **Visual Feedback**:
-   - Freehand: Dashed preview line following mouse (already implemented)
-   - Polyline: Dashed line showing vertices + "rubber band" line to mouse position
-   - Oval: Live preview ellipse expanding from start to mouse position
-   - Arrow: Live preview arrow from start to mouse position
+**Architecture Benefits**:
+- ✅ Testable: Business logic tested without React
+- ✅ Modular: Drawing logic extracted from UI
+- ✅ Reusable: Ready for Video B extension
 
-**Deliverables**:
+**Documentation**: ✅ `docs/spike/ANNOTATIONS.md` updated (212 lines)
 
-- ✅ Freehand tool functional (already complete from 0.5.2)
-- Tool selection UI with 4 buttons (Freehand, Polyline, Oval, Arrow)
-- Active tool visually highlighted
-- Polyline tool: Click-to-add-vertex, Enter/Escape to finalize/cancel
-- Oval tool: Drag from start to end, renders as axis-aligned ellipse
-- Arrow tool: Drag from start to end, renders with arrowhead
-- All tools render correctly with appropriate Konva components
-- Tool switching verified (draw with one tool, switch, draw with another)
-- Live preview feedback for all tools during drawing
-- All annotations persist across playback/pause/seek
-
-**Testing**:
-
-- Manual: Select each tool, draw annotation, verify correct shape and persistence
-- Manual: Switch between tools mid-workflow, verify no interference
-- Manual: Test polyline Enter/Escape keyboard shortcuts
-- Manual: Test oval and arrow drag-to-draw interaction
-- Unit tests: Extend AnnotationManager tests if needed (validation already complete)
-
-**User-Facing**:
-
-- Complete annotation toolset available on Video A
-- Clear tool selection UI with visual feedback
-- All four drawing patterns functional: freehand (continuous), polyline (click-to-place), oval (drag), arrow (drag)
-- Demo exercisable via `npm run dev` at `/dual-video-sync`
-
-**Note on Oval**: Ovals are axis-aligned (major/minor axes parallel to x/y). Rotation capability can be added in Phase 1 via Subtask 0.5.10 (Optional Annotation Transform).
-
-**Estimated Time**: 2-3 hours (comprehensive implementation, but avoids throwaway code)
+**Estimated Time**: 2-3 hours | **Actual Time**: ~4 hours (including refactoring and bug fixes)
 
 ---
 

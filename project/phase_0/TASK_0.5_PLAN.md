@@ -3,7 +3,7 @@
 ## Status:
 
 **Last Subtask Completed:** 0.5.2
-**Last Updated:** 2025-11-29
+**Last Updated:** 2025-11-30 (Revised: Consolidated 0.5.3-0.5.6 into integrated implementation)
 
 ## Overview
 
@@ -140,162 +140,179 @@ Container (position: relative)
 
 ---
 
-### Subtask 0.5.3: Implement Segmented Polyline Drawing (Video A)
+### Subtask 0.5.3: Integrated Annotation Framework - All Drawing Tools + Tool Selection UI (Video A)
 
 **Status**: Not started
 
-**Goal**: Add segmented polyline tool with click-to-add-vertex interaction.
+**Goal**: Implement complete annotation drawing framework with all four tools (freehand ✅, polyline, oval, arrow) and tool selection UI in a single integrated implementation.
+
+**Rationale**: Building all tools together with proper state management from the start avoids throwaway implementations and enables immediate testing of tool switching. Three of four tools (freehand, oval, arrow) share the same drag-based interaction pattern, while only polyline requires click-based interaction. The type system and validation are already complete (AnnotationManager), so we're implementing UI/interaction patterns only.
 
 **Implementation**:
 
-1. Add polyline tool to annotation type system
-2. Implement click-based drawing logic:
-   - `onClick`: Add vertex at click position to `currentPoints`
-   - Continue adding vertices on subsequent clicks
-   - `onDblClick` or Enter key: Finalize polyline and add to `annotations`
-   - Escape key: Cancel current polyline
-3. Store polyline as: `points = [x1, y1, x2, y2, x3, y3, ...]` (vertex sequence)
-4. Render polyline as Konva `Line` shape connecting vertices with straight segments
-5. Show drawing-in-progress: render temporary line with vertices added so far
-6. Visual feedback: highlight current vertex position with small circle
+1. **State Management Refactoring**:
+   ```typescript
+   // Replace boolean isDrawing with structured state
+   type DrawingState = 
+     | { mode: 'idle' }
+     | { mode: 'drag-drawing', tool: 'freehand' | 'oval' | 'arrow', points: number[] }
+     | { mode: 'polyline-active', points: number[] };
+   
+   const [selectedTool, setSelectedTool] = useState<AnnotationType>('freehand');
+   const [drawingState, setDrawingState] = useState<DrawingState>({ mode: 'idle' });
+   ```
+
+2. **Tool Selection UI**:
+   - Add four tool selector buttons (Freehand, Polyline, Oval, Arrow)
+   - Position above Video A canvas
+   - Highlight active tool with visual indicator (background color/bold text)
+   - Each button updates `selectedTool` state
+
+3. **Unified Mouse Handlers for Drag-Based Tools** (Freehand ✅, Oval, Arrow):
+   ```typescript
+   const handleMouseDown = (e) => {
+     if (['freehand', 'oval', 'arrow'].includes(selectedTool)) {
+       const pos = getPointerPosition(e);
+       setDrawingState({ mode: 'drag-drawing', tool: selectedTool, points: [pos.x, pos.y] });
+     }
+   };
+   
+   const handleMouseMove = (e) => {
+     if (drawingState.mode === 'drag-drawing') {
+       const pos = getPointerPosition(e);
+       if (drawingState.tool === 'freehand') {
+         // Append points for continuous line
+         setDrawingState({ ...drawingState, points: [...drawingState.points, pos.x, pos.y] });
+       } else {
+         // Update end point only for oval/arrow (2-point shapes)
+         setDrawingState({ ...drawingState, points: [drawingState.points[0], drawingState.points[1], pos.x, pos.y] });
+       }
+     }
+   };
+   
+   const handleMouseUp = () => {
+     if (drawingState.mode === 'drag-drawing') {
+       // Finalize annotation via AnnotationManager
+       const annotation = annotationManager.createAndAddAnnotation(drawingState.tool, drawingState.points);
+       if (annotation) {
+         setAnnotations(annotationManager.getAnnotations());
+       }
+       setDrawingState({ mode: 'idle' });
+     }
+   };
+   ```
+
+4. **Click-Based Handler for Polyline**:
+   ```typescript
+   const handleClick = (e) => {
+     if (selectedTool === 'polyline') {
+       const pos = getPointerPosition(e);
+       if (drawingState.mode === 'idle') {
+         // Start new polyline
+         setDrawingState({ mode: 'polyline-active', points: [pos.x, pos.y] });
+       } else if (drawingState.mode === 'polyline-active') {
+         // Add vertex to existing polyline
+         setDrawingState({ ...drawingState, points: [...drawingState.points, pos.x, pos.y] });
+       }
+     }
+   };
+   
+   const handleDoubleClick = () => {
+     if (drawingState.mode === 'polyline-active') {
+       // Finalize polyline
+       finalizePolyline();
+     }
+   };
+   ```
+
+5. **Keyboard Support for Polyline**:
+   ```typescript
+   useEffect(() => {
+     const handleKeyDown = (e: KeyboardEvent) => {
+       if (drawingState.mode === 'polyline-active') {
+         if (e.key === 'Enter') {
+           finalizePolyline();
+         } else if (e.key === 'Escape') {
+           setDrawingState({ mode: 'idle' }); // Cancel polyline
+         }
+       }
+     };
+     window.addEventListener('keydown', handleKeyDown);
+     return () => window.removeEventListener('keydown', handleKeyDown);
+   }, [drawingState]);
+   ```
+
+6. **Rendering Logic for All Tools**:
+   ```typescript
+   // Completed annotations
+   {annotations.map((annotation) => {
+     switch (annotation.type) {
+       case 'freehand':
+       case 'polyline':
+         return <Line key={annotation.id} points={annotation.points} 
+                      tension={annotation.type === 'freehand' ? 0.5 : 0} ... />;
+       case 'oval':
+         const [cx, cy, ex, ey] = annotation.points;
+         const rx = Math.abs(ex - cx) / 2;
+         const ry = Math.abs(ey - cy) / 2;
+         return <Ellipse key={annotation.id} x={cx + rx} y={cy + ry} 
+                         radiusX={rx} radiusY={ry} ... />;
+       case 'arrow':
+         return <Arrow key={annotation.id} points={annotation.points} 
+                       pointerLength={10} pointerWidth={10} ... />;
+     }
+   })}
+   
+   // Live preview during drawing
+   {drawingState.mode === 'drag-drawing' && (
+     // Render preview based on drawingState.tool (Line/Ellipse/Arrow)
+   )}
+   {drawingState.mode === 'polyline-active' && (
+     <Line points={drawingState.points} dash={[10, 5]} ... />
+   )}
+   ```
+
+7. **Visual Feedback**:
+   - Freehand: Dashed preview line following mouse (already implemented)
+   - Polyline: Dashed line showing vertices + "rubber band" line to mouse position
+   - Oval: Live preview ellipse expanding from start to mouse position
+   - Arrow: Live preview arrow from start to mouse position
 
 **Deliverables**:
 
-- Segmented polyline drawing works with click-to-add-vertex pattern
-- Double-click or Enter finalizes polyline
-- Escape cancels drawing
-- Polylines render as straight-segment connections between vertices
-- Completed polylines persist alongside freehand lines
-
-**Testing**:
-
-- Manual: Draw segmented polyline on Video A with 3+ vertices, verify shape accuracy
-- Unit test: Test polyline vertex collection and finalization logic
-
-**User-Facing**:
-
-- Users can draw precise angular annotations with click-to-place vertices
-- Useful for marking swing plane angles, joint positions, etc.
-- Live preview shows polyline-in-progress
-- Demo exercisable via `npm run dev` at `/dual-video-sync`
-
-**Estimated Time**: 60 minutes
-
----
-
-### Subtask 0.5.4: Implement Oval Drawing (Video A)
-
-**Status**: Not started
-
-**Goal**: Add axis-aligned oval/ellipse drawing tool with center and radius calculation.
-
-**Implementation**:
-
-1. Add oval tool to annotation type system
-2. Implement oval drawing logic:
-   - `onMouseDown`: Capture center point (startX, startY)
-   - `onMouseMove`: Calculate radiusX/radiusY from mouse distance
-   - `onMouseUp`: Finalize oval with calculated dimensions
-3. Store oval as: `points = [centerX, centerY, radiusX, radiusY]` (axis-aligned, no rotation)
-4. Render oval as Konva `Ellipse` shape with `x`, `y`, `radiusX`, `radiusY` props
-
-**Deliverables**:
-
-- Oval drawing works with click-drag-release (center to edge)
-- Ovals render correctly with proper dimensions (axis-aligned)
-- Oval annotations persist alongside freehand lines and polylines
-
-**Note**: Ovals are axis-aligned (major/minor axes parallel to x/y). Rotation capability can be added in Phase 1 if needed.
-
-**Testing**:
-
-- Manual: Draw oval on Video A, verify shape accuracy
-- Unit test: Test oval coordinate calculation (center + radius)
-
-**User-Facing**:
-
-- Users can draw circular/elliptical shapes on Video A
-- Visual feedback shows oval expanding as mouse drags
-- Demo exercisable via `npm run dev` at `/dual-video-sync`
-
-**Estimated Time**: 45 minutes
-
----
-
-### Subtask 0.5.5: Implement Arrow Drawing (Video A)
-
-**Status**: Not started
-
-**Goal**: Add arrow/directional annotation tool.
-
-**Implementation**:
-
-1. Add arrow tool to annotation type system
-2. Implement arrow drawing logic:
-   - `onMouseDown`: Capture start point (startX, startY)
-   - `onMouseMove`: Update end point (endX, endY)
-   - `onMouseUp`: Finalize arrow with start/end points
-3. Store arrow as: `points = [startX, startY, endX, endY]`
-4. Render arrow as Konva `Arrow` shape with `pointerLength={10}`, `pointerWidth={10}`
-
-**Deliverables**:
-
-- Arrow drawing works with click-drag-release (start to end)
-- Arrows render with correct direction and arrowhead
-- Arrow annotations persist alongside freehand lines, polylines, and ovals
-
-**Testing**:
-
-- Manual: Draw arrow on Video A, verify direction and appearance
-- Unit test: Test arrow coordinate storage (start/end points)
-
-**User-Facing**:
-
-- Users can draw directional arrows on Video A
-- Visual feedback shows arrow extending as mouse drags
-- Demo exercisable via `npm run dev` at `/dual-video-sync`
-
-**Estimated Time**: 45 minutes
-
----
-
-### Subtask 0.5.6: Add Tool Selection UI (Video A)
-
-**Status**: Not started
-
-**Goal**: Create UI for switching between drawing tools.
-
-**Implementation**:
-
-1. Add tool selection state: `const [selectedTool, setSelectedTool] = useState<'freehand' | 'polyline' | 'oval' | 'arrow'>('freehand')`
-2. Create tool selector buttons (freehand/polyline/oval/arrow)
-3. Highlight active tool with visual indicator (bold text or background color)
-4. Wire tool selection to drawing event handlers (conditional logic based on `selectedTool`)
-5. Update mouse cursor based on selected tool (optional enhancement)
-
-**Deliverables**:
-
-- Four tool buttons rendered above Video A canvas
+- ✅ Freehand tool functional (already complete from 0.5.2)
+- Tool selection UI with 4 buttons (Freehand, Polyline, Oval, Arrow)
 - Active tool visually highlighted
-- Drawing behavior switches based on selected tool
-- All four tools functional and toggleable
+- Polyline tool: Click-to-add-vertex, Enter/Escape to finalize/cancel
+- Oval tool: Drag from start to end, renders as axis-aligned ellipse
+- Arrow tool: Drag from start to end, renders with arrowhead
+- All tools render correctly with appropriate Konva components
+- Tool switching verified (draw with one tool, switch, draw with another)
+- Live preview feedback for all tools during drawing
+- All annotations persist across playback/pause/seek
 
 **Testing**:
 
-- Manual: Select each tool, draw annotation, verify correct shape appears
-- Integration test: Test tool switching and annotation type validation
+- Manual: Select each tool, draw annotation, verify correct shape and persistence
+- Manual: Switch between tools mid-workflow, verify no interference
+- Manual: Test polyline Enter/Escape keyboard shortcuts
+- Manual: Test oval and arrow drag-to-draw interaction
+- Unit tests: Extend AnnotationManager tests if needed (validation already complete)
 
 **User-Facing**:
 
-- Clear UI for selecting annotation tool (freehand, polyline, oval, arrow)
-- Immediate visual feedback on tool selection
+- Complete annotation toolset available on Video A
+- Clear tool selection UI with visual feedback
+- All four drawing patterns functional: freehand (continuous), polyline (click-to-place), oval (drag), arrow (drag)
 - Demo exercisable via `npm run dev` at `/dual-video-sync`
 
-**Estimated Time**: 30 minutes
+**Note on Oval**: Ovals are axis-aligned (major/minor axes parallel to x/y). Rotation capability can be added in Phase 1 via Subtask 0.5.10 (Optional Annotation Transform).
+
+**Estimated Time**: 2-3 hours (comprehensive implementation, but avoids throwaway code)
 
 ---
 
-### Subtask 0.5.7: Integrate Konva.Animation with Playback (Video A)
+### Subtask 0.5.4: Integrate Konva.Animation with Playback (Video A)
 
 **Status**: Not started
 
@@ -338,7 +355,7 @@ Container (position: relative)
 
 ---
 
-### Subtask 0.5.8: Extend Annotation Canvas to Video B
+### Subtask 0.5.5: Extend Annotation Canvas to Video B
 
 **Status**: Not started
 
@@ -347,10 +364,10 @@ Container (position: relative)
 **Implementation**:
 
 1. Duplicate annotation canvas structure for Video B section
-2. Create separate annotation state for Video B: `annotationsVideoB`, `currentPointsVideoB`
+2. Create separate annotation state for Video B: `annotationsVideoB`, `drawingStateVideoB`
 3. Reuse drawing logic and tool selection UI (shared or duplicated)
 4. Ensure Video A and Video B annotations are independent
-5. Apply same Konva.Animation pattern to Video B layer (if implemented in 0.5.7)
+5. Apply same Konva.Animation pattern to Video B layer (if implemented in 0.5.4)
 
 **Deliverables**:
 
@@ -373,7 +390,7 @@ Container (position: relative)
 
 ---
 
-### Subtask 0.5.9: Create Playwright Integration Tests
+### Subtask 0.5.6: Create Playwright Integration Tests
 
 **Status**: Not started
 
@@ -428,7 +445,7 @@ Container (position: relative)
 
 ---
 
-### Subtask 0.5.10: Performance Testing and Validation
+### Subtask 0.5.7: Performance Testing and Validation
 
 **Status**: Not started
 
@@ -487,7 +504,7 @@ Container (position: relative)
 
 ---
 
-### Subtask 0.5.11: Create Spike Documentation
+### Subtask 0.5.8: Create Spike Documentation
 
 **Status**: Not started
 
@@ -548,7 +565,7 @@ Container (position: relative)
 
 ---
 
-### Subtask 0.5.12: (Optional) Basic Annotation Selection and Deletion
+### Subtask 0.5.9: (Optional) Basic Annotation Selection and Deletion
 
 **Status**: Not started
 
@@ -605,13 +622,13 @@ Container (position: relative)
 
 ---
 
-### Subtask 0.5.13: (Optional) Annotation Dragging
+### Subtask 0.5.10: (Optional) Annotation Dragging
 
 **Status**: Not started
 
 **Goal**: Add ability to move annotations by dragging.
 
-**Optional Status**: This subtask is OPTIONAL for spike completion. Requires 0.5.12 (selection) to be implemented first. If not implemented, add as Phase 1 task. Document deferral in spike documentation.
+**Optional Status**: This subtask is OPTIONAL for spike completion. Requires 0.5.9 (selection) to be implemented first. If not implemented, add as Phase 1 task. Document deferral in spike documentation.
 
 **Implementation**:
 
@@ -662,13 +679,13 @@ Container (position: relative)
 
 ---
 
-### Subtask 0.5.14: (Optional) Annotation Transform (Resize/Rotate)
+### Subtask 0.5.11: (Optional) Annotation Transform (Resize/Rotate)
 
 **Status**: Not started
 
 **Goal**: Add resize and rotation handles using Konva.Transformer.
 
-**Optional Status**: This subtask is OPTIONAL for spike completion. Requires 0.5.12 (selection) to be implemented first. If not implemented, add as Phase 1 task. Document deferral in spike documentation.
+**Optional Status**: This subtask is OPTIONAL for spike completion. Requires 0.5.9 (selection) to be implemented first. If not implemented, add as Phase 1 task. Document deferral in spike documentation.
 
 **Implementation**:
 
@@ -726,7 +743,7 @@ Container (position: relative)
 
 ---
 
-### Subtask 0.5.15: Update Project Plan and Requirements
+### Subtask 0.5.12: Update Project Plan and Requirements
 
 **Status**: Not started
 
@@ -773,28 +790,31 @@ Container (position: relative)
 
 ### Total Estimated Time
 
-**Core Subtasks (Required)**: 10-13 hours across 11 subtasks (0.5.1 through 0.5.11, 0.5.15)
+**Core Subtasks (Required)**: 8-11 hours across 8 subtasks (0.5.1 through 0.5.8, 0.5.12)
+- Subtask 0.5.3 now includes all drawing tools + UI (2-3 hours vs original 3 hours sequential)
+- Time savings from integrated approach: ~2 hours
 
-**Optional Editing Features**: +3-4 hours if implementing subtasks 0.5.12, 0.5.13, 0.5.14
+**Optional Editing Features**: +3-4 hours if implementing subtasks 0.5.9, 0.5.10, 0.5.11
 
-**Total Range**: 10-17 hours depending on optional feature implementation
+**Total Range**: 8-15 hours depending on optional feature implementation
 
 ### Subtask Dependencies
 
 **Core Implementation Flow**:
 
-- 0.5.1 → 0.5.2 → 0.5.3 → 0.5.4 → 0.5.5 → 0.5.6 → 0.5.7 (sequential on Video A)
-- 0.5.7 → 0.5.8 (extend to Video B after Video A validated)
-- 0.5.8 → 0.5.9 (tests require both videos implemented)
-- 0.5.9 → 0.5.10 (performance tests build on integration tests)
-- 0.5.10 → 0.5.11 (documentation requires performance results)
+- 0.5.1 → 0.5.2 → 0.5.3 (foundation → freehand → integrated all tools + UI)
+- 0.5.3 → 0.5.4 (integrated tools → Konva.Animation for playback)
+- 0.5.4 → 0.5.5 (extend Video A to Video B)
+- 0.5.5 → 0.5.6 (tests require both videos implemented)
+- 0.5.6 → 0.5.7 (performance tests build on integration tests)
+- 0.5.7 → 0.5.8 (documentation requires performance results)
 
 **Optional Editing Flow** (can defer to Phase 1):
 
-- 0.5.11 → 0.5.12 (optional: selection/deletion)
-- 0.5.12 → 0.5.13 (optional: dragging - requires selection)
-- 0.5.12 → 0.5.14 (optional: transform - requires selection)
-- {0.5.11 or 0.5.14} → 0.5.15 (update tracking - final step)
+- 0.5.8 → 0.5.9 (optional: selection/deletion)
+- 0.5.9 → 0.5.10 (optional: dragging - requires selection)
+- 0.5.9 → 0.5.11 (optional: transform - requires selection)
+- {0.5.8 or 0.5.11} → 0.5.12 (update tracking - final step)
 
 ### Success Criteria (Final Validation)
 
@@ -811,9 +831,9 @@ Container (position: relative)
 
 **Optional Features** (Can defer to Phase 1):
 
-- [ ] Annotation selection and deletion (0.5.12)
-- [ ] Annotation dragging (0.5.13)
-- [ ] Annotation transform - resize/rotate (0.5.14)
+- [ ] Annotation selection and deletion (0.5.9)
+- [ ] Annotation dragging (0.5.10)
+- [ ] Annotation transform - resize/rotate (0.5.11)
 - [ ] If deferred: REQ-F-ANNOT-003 created in REQUIREMENTS.md for Phase 1
 
 ### Critical Files
@@ -845,7 +865,8 @@ Container (position: relative)
 
 - **Canvas Alignment**: Start with Video A to isolate debugging
 - **Performance**: Measure early with browser.evaluate(), implement Layer caching only if needed
-- **Tool Complexity**: Implement tools incrementally (freehand → polyline → oval → arrow)
+- **Tool Complexity**: Integrated approach with proper state management from start (drag-based tools share handlers, only polyline differs)
+- **Incremental Validation**: Test each tool immediately after implementation within 0.5.3
 - **Cross-Browser**: Use established headless testing patterns from Tasks 0.2-0.4
-- **Scope Management**: Optional editing subtasks (0.5.12-0.5.14) can be deferred to Phase 1 without blocking spike completion
+- **Scope Management**: Optional editing subtasks (0.5.9-0.5.11) can be deferred to Phase 1 without blocking spike completion
 - **Oval Limitations**: Axis-aligned ovals sufficient for spike; rotation capability via Transformer (0.5.14) or Phase 1

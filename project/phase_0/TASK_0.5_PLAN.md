@@ -2,7 +2,7 @@
 
 ## Status:
 
-**Last Subtask Completed:** 0.5.1
+**Last Subtask Completed:** 0.5.2
 **Last Updated:** 2025-11-29
 
 ## Overview
@@ -66,6 +66,8 @@ Container (position: relative)
 
 ### Subtask 0.5.1: Setup react-konva and Canvas Overlay (Video A)
 
+**Status**: ✅ COMPLETE
+
 **Goal**: Install dependencies and create basic annotation canvas overlay on Video A.
 
 **Implementation**:
@@ -99,49 +101,48 @@ Container (position: relative)
 
 ### Subtask 0.5.2: Implement Freehand Line Drawing (Video A)
 
+**Status**: ✅ COMPLETE
+
 **Goal**: Add freehand line drawing tool that continuously tracks mouse movement.
 
-**Implementation**:
+**Implementation Summary**:
 
-1. Create annotation state management:
-   ```typescript
-   interface Annotation {
-     id: string;
-     type: "freehand" | "polyline" | "oval" | "arrow";
-     points: number[]; // For freehand: [x1, y1, x2, y2, x3, y3, ...]
-     color: string;
-     strokeWidth: number;
-   }
-   ```
-2. Implement mouse event handlers: `onMouseDown`, `onMouseMove`, `onMouseUp`
-3. Track drawing state: `isDrawing`, `currentPoints`, `annotations`
-4. On `onMouseMove` during drag: Continuously append `[mouseX, mouseY]` to `currentPoints`
-5. Render completed freehand lines as Konva `Line` shapes with `lineCap="round"`, `lineJoin="round"`
-6. Show drawing-in-progress with real-time feedback (dashed preview line)
+- Created modular annotation architecture:
+  - `src/types/annotations.ts`: Type definitions (Annotation, AnnotationType, AnnotationStyle)
+  - `src/utils/AnnotationManager.ts`: Business logic class (CRUD operations, validation)
+  - `src/utils/tests/AnnotationManager.test.ts`: Comprehensive unit tests (28 passing)
+- Integrated into DualVideoSyncDemo.tsx with mouse event handlers
+- Freehand drawing functional: click-drag-release creates smooth lines
+- Live preview renders with dashed stroke during drawing
+- Annotations persist across playback/pause/seek operations
+- Technical documentation: `docs/spike/ANNOTATIONS.md`
 
-**Deliverables**:
+**Deliverables**: ✅ All Complete
 
 - Freehand drawing works with mouse click-drag-release
 - Line smoothly follows mouse path during drag
 - Completed freehand lines persist and display on Video A
 - Drawing state managed correctly (start, draw, finish)
 
-**Testing**:
+**Testing**: ✅ Complete
 
-- Manual: Draw freehand line on Video A, verify it appears and persists
-- Unit test: Test annotation state updates (add/remove annotations)
+- Unit tests: 28/28 passing (AnnotationManager business logic)
+- Manual testing: Verified in browser demo - working perfectly
+- Build validation: No TypeScript errors or warnings
 
-**User-Facing**:
+**User-Facing**: ✅ Functional
 
 - Users can draw smooth, continuous freehand lines on Video A
 - Live preview shows line following mouse during drag
 - Demo exercisable via `npm run dev` at `/dual-video-sync`
 
-**Estimated Time**: 60 minutes
+**Estimated Time**: 60 minutes | **Actual Time**: ~90 minutes (including architecture refactoring)
 
 ---
 
 ### Subtask 0.5.3: Implement Segmented Polyline Drawing (Video A)
+
+**Status**: Not started
 
 **Goal**: Add segmented polyline tool with click-to-add-vertex interaction.
 
@@ -184,6 +185,8 @@ Container (position: relative)
 
 ### Subtask 0.5.4: Implement Oval Drawing (Video A)
 
+**Status**: Not started
+
 **Goal**: Add axis-aligned oval/ellipse drawing tool with center and radius calculation.
 
 **Implementation**:
@@ -221,6 +224,8 @@ Container (position: relative)
 
 ### Subtask 0.5.5: Implement Arrow Drawing (Video A)
 
+**Status**: Not started
+
 **Goal**: Add arrow/directional annotation tool.
 
 **Implementation**:
@@ -256,6 +261,8 @@ Container (position: relative)
 
 ### Subtask 0.5.6: Add Tool Selection UI (Video A)
 
+**Status**: Not started
+
 **Goal**: Create UI for switching between drawing tools.
 
 **Implementation**:
@@ -289,6 +296,8 @@ Container (position: relative)
 ---
 
 ### Subtask 0.5.7: Integrate Konva.Animation with Playback (Video A)
+
+**Status**: Not started
 
 **Goal**: Validate that annotations remain visible during video playback and implement Konva.Animation if needed to prevent flicker.
 
@@ -331,6 +340,8 @@ Container (position: relative)
 
 ### Subtask 0.5.8: Extend Annotation Canvas to Video B
 
+**Status**: Not started
+
 **Goal**: Add annotation canvas to Video B with independent annotation state.
 
 **Implementation**:
@@ -363,6 +374,8 @@ Container (position: relative)
 ---
 
 ### Subtask 0.5.9: Create Playwright Integration Tests
+
+**Status**: Not started
 
 **Goal**: Automated cross-browser tests for canvas overlay functionality.
 
@@ -416,6 +429,8 @@ Container (position: relative)
 ---
 
 ### Subtask 0.5.10: Performance Testing and Validation
+
+**Status**: Not started
 
 **Goal**: Measure and validate drawing latency and playback performance.
 
@@ -474,9 +489,11 @@ Container (position: relative)
 
 ### Subtask 0.5.11: Create Spike Documentation
 
+**Status**: Not started
+
 **Goal**: Document implementation, findings, and recommendations for Phase 1.
 
-**Documentation File**: `docs/spike/CANVAS_OVERLAY.md`
+**Documentation File**: `docs/spike/ANNOTATIONS.md`
 
 **Content Structure**:
 
@@ -533,6 +550,8 @@ Container (position: relative)
 
 ### Subtask 0.5.12: (Optional) Basic Annotation Selection and Deletion
 
+**Status**: Not started
+
 **Goal**: Add ability to select and delete annotations.
 
 **Optional Status**: This subtask is OPTIONAL for spike completion. If not implemented, add as Phase 1 task: "REQ-F-ANNOT-003: Annotation Editing". Document deferral in spike documentation.
@@ -588,6 +607,8 @@ Container (position: relative)
 
 ### Subtask 0.5.13: (Optional) Annotation Dragging
 
+**Status**: Not started
+
 **Goal**: Add ability to move annotations by dragging.
 
 **Optional Status**: This subtask is OPTIONAL for spike completion. Requires 0.5.12 (selection) to be implemented first. If not implemented, add as Phase 1 task. Document deferral in spike documentation.
@@ -642,6 +663,8 @@ Container (position: relative)
 ---
 
 ### Subtask 0.5.14: (Optional) Annotation Transform (Resize/Rotate)
+
+**Status**: Not started
 
 **Goal**: Add resize and rotation handles using Konva.Transformer.
 
@@ -704,6 +727,8 @@ Container (position: relative)
 ---
 
 ### Subtask 0.5.15: Update Project Plan and Requirements
+
+**Status**: Not started
 
 **Goal**: Update project tracking documents with Task 0.5 completion status.
 

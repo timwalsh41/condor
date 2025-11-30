@@ -432,8 +432,10 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - [ ] Freehand drawing tool
   - [ ] Tool selection UI (buttons/icons)
   - [ ] Active tool visually indicated
+  - [ ] Mouse/trackpad input support (MVP Phase 0-1)
+  - [ ] Touch input support (deferred to Phase 2+)
 - **Dependencies**: REQ-F-PLAYBACK-001
-- **Implementation Notes**: react-konva for canvas-based drawing
+- **Implementation Notes**: react-konva for canvas-based drawing; mouse events only in MVP
 
 #### REQ-F-ANNOT-002: Annotation Rendering
 

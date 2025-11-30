@@ -10,7 +10,7 @@
 
 # Documentation Guidelines
 
-- Do not create documents unprompted, wait for user requests (feel free to provide suggestions)
+- Do not create documents unprompted, wait for user requests or provide suggestions and receive approval first
 - **Be concise**, identify the key points and avoid redundancy within and across documents
 - Use backticks around filenames, e.g. `REQUIREMENTS.md`
 - When updating/adding, review existing content in the document and strive to eliminate redundancy through consolidation

@@ -1,6 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Stage, Layer } from "react-konva";
+import { Stage, Layer, Line } from "react-konva";
+import type Konva from "konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
+import { AnnotationManager } from "../utils/AnnotationManager";
+import type { Annotation, AnnotationType } from "../types/annotations";
 import { checkWebCodecsSupport } from "../utils/featureDetection";
 import {
   initializePlayhead,
@@ -60,6 +63,16 @@ export function DualVideoSyncDemo() {
   // Annotation canvas scale state (for CSS scaling to match video display size)
   const [annotationScaleA, setAnnotationScaleA] = useState(1);
 
+  // Annotation state for Video A
+  const [annotationManager] = useState(() => new AnnotationManager());
+  const [selectedTool, setSelectedTool] = useState<AnnotationType>('freehand');
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentPoints, setCurrentPoints] = useState<number[]>([]);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+
+  // Tool selection will be used in future subtasks (0.5.3-0.5.5)
+  void setSelectedTool;
+
   // Update refs on every render to capture latest state
   useEffect(() => {
     videoARef.current = videoA;
@@ -89,22 +102,49 @@ export function DualVideoSyncDemo() {
     return () => window.removeEventListener('resize', updateScale);
   }, [videoA.canvasRef, videoA.metadata, videoA.isReady]);
 
-  /**
-   * Check if a video can step to the specified frame.
-   *
-   * Currently checks against total frame count, but abstracted to support
-   * future features like soft trimming (setting display bounds without
-   * actually trimming the video file).
-   *
-   * @param frameIndex - Target frame index to check
-   * @param totalFrames - Total frames in the video
-   * @returns true if the video can step to frameIndex, false otherwise
-   */
-  const canStepToFrame = useCallback((frameIndex: number, totalFrames: number): boolean => {
-    // Current implementation: check frame is within valid range [0, totalFrames)
-    // Future: may check against trim end point or other display bounds
-    return frameIndex >= 0 && frameIndex < totalFrames;
-  }, []);
+  // Annotation drawing handlers for Video A
+  const handleMouseDownA = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!videoA.isReady || selectedTool !== 'freehand') return;
+
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
+    if (!pos) return;
+
+    console.log('Drawing started at:', pos);
+    // Start new freehand line
+    setIsDrawing(true);
+    setCurrentPoints([pos.x, pos.y]);
+  };
+
+  const handleMouseMoveA = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!isDrawing || selectedTool !== 'freehand') return;
+
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
+    if (!pos) return;
+
+    // Append new point to current line
+    setCurrentPoints([...currentPoints, pos.x, pos.y]);
+  };
+
+  const handleMouseUpA = () => {
+    if (!isDrawing || selectedTool !== 'freehand') return;
+
+    // Finalize the annotation using AnnotationManager
+    const newAnnotation = annotationManager.createAndAddAnnotation(selectedTool, currentPoints);
+    
+    if (newAnnotation) {
+      console.log('Annotation created:', newAnnotation);
+      // Update React state to trigger re-render
+      setAnnotations(annotationManager.getAnnotations());
+    } else {
+      console.warn('Invalid annotation: points validation failed', { type: selectedTool, points: currentPoints });
+    }
+
+    // Reset drawing state
+    setIsDrawing(false);
+    setCurrentPoints([]);
+  };
 
   // Check browser support
   const support = checkWebCodecsSupport();
@@ -648,7 +688,7 @@ export function DualVideoSyncDemo() {
                           left: 0,
                           width: "100%",
                           height: "100%",
-                          pointerEvents: "none",
+                          pointerEvents: "auto", // Enable mouse events
                           overflow: "hidden",
                         }}
                       >
@@ -659,8 +699,37 @@ export function DualVideoSyncDemo() {
                           <Stage
                             width={videoA.metadata.width}
                             height={videoA.metadata.height}
+                            onMouseDown={handleMouseDownA}
+                            onMouseMove={handleMouseMoveA}
+                            onMouseUp={handleMouseUpA}
+                            onMouseLeave={handleMouseUpA} // Finish drawing if mouse leaves canvas
                           >
-                            <Layer />
+                            <Layer>
+                              {/* Render completed annotations */}
+                              {annotations.map((annotation) => (
+                                <Line
+                                  key={annotation.id}
+                                  points={annotation.points}
+                                  stroke={annotation.color}
+                                  strokeWidth={annotation.strokeWidth}
+                                  lineCap="round"
+                                  lineJoin="round"
+                                  tension={0.5} // Smooth curves for freehand
+                                />
+                              ))}
+                              {/* Render current drawing in progress */}
+                              {isDrawing && currentPoints.length >= 2 && (
+                                <Line
+                                  points={currentPoints}
+                                  stroke="#FF0000"
+                                  strokeWidth={3}
+                                  lineCap="round"
+                                  lineJoin="round"
+                                  tension={0.5}
+                                  dash={[10, 5]} // Dashed line for preview
+                                />
+                              )}
+                            </Layer>
                           </Stage>
                         </div>
                       </div>

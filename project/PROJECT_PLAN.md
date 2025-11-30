@@ -38,7 +38,7 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 
 The MVP establishes the technical foundation for:
 
-- **Phase 2**: Multi-user session management, annotation styles
+- **Phase 2**: Multi-user session management, annotation styles, touch input support
 - **Phase 3**: Cloud deployment infrastructure
 - **Phase 4**: Mobile applications (iOS/Android) for video capture and analysis
 - **Phase 5**: Advanced features (coach-student workflows)
@@ -53,7 +53,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 ## Current Status
 
 - **Phase**: Phase 0 - Technical Spikes (In Progress)
-- **Last Updated**: 2025-11-28 - Task 0.4 COMPLETE
+- **Last Updated**: 2025-11-29 - Task 0.5 IN PROGRESS - See `TASK_0.5_PLAN.md`
 - **Next Priority**: Task 0.5 (Canvas Overlay Spike)
 - **Overall Progress**: 39 planned, 5 in progress, 4 validated (8% validated)
   - _Status synchronized with `REQUIREMENTS.md` "Requirements Coverage Analysis" section_

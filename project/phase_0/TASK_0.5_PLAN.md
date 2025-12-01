@@ -187,9 +187,11 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
 
 ### Subtask 0.5.4: Integrate Konva.Animation with Playback (Video A)
 
-**Status**: Not started
+**Status**: ⏭️ SKIPPED (for now)
 
 **Goal**: Validate that annotations remain visible during video playback and implement Konva.Animation if needed to prevent flicker.
+
+**Rationale**: Extensive Firefox testing shows no flickering or rendering issues. Implementation deferred until testing in subsequent phases reveals need. Can be added easily if issues arise.
 
 **Context**: Annotations are static data that don't change dynamically themselves during video playback. However, the annotation layer may need continuous redrawing to stay visible over the updating video canvas during playback. This subtask validates whether Konva.Animation is necessary.
 

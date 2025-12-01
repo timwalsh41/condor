@@ -183,6 +183,7 @@ const end = annotation.points[1];
 - **Konva Rendering**: Canvas-based, efficient for <100 shapes
 - **State Machine**: Minimal overhead, single object updates
 - **Memory**: In-memory only (Phase 0 scope)
+- **Konva.Animation**: NOT implemented in Phase 0 spike. Extensive testing showed no flickering or rendering issues during video playback. React Konva's layer maintains its own canvas independently of WebCodecs video canvas. Implementation deferred until testing proves necessary (straightforward to add: create `Konva.Animation` instance, start/stop with play/pause state).
 
 ## Testing
 

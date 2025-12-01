@@ -941,6 +941,13 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - **Mitigation**: Server-side re-encoding with `-sc_threshold 0` disables scene cut detection to maintain consistent GOP=30. This ensures predictable client-side performance but may introduce compression artifacts at sudden content changes (e.g., transition from swing to follow-through). Phase 0 Task 0.3 validates visual quality with test videos. CRF=23 maintains high visual quality.
 - **Contingency**: If artifacts are noticeable, increase CRF quality (23 → 18 for near-lossless) or enable scene cut detection with `-sc_threshold 40` (trades consistent GOP for better quality, requiring adaptive client cache). Golf swing videos typically have gradual motion making this low priority.
 
+### Risk 9: Konva Annotation Layer Rendering Issues
+
+- **Impact**: Medium - potential flickering or disappearing annotations during video playback due to browser compositing issues between static Konva canvas and rapidly updating WebCodecs video canvas
+- **Risk**: Low - extensive testing with Firefox in spike phase shows no sign of degradation, mitigation is straightforward
+- **Mitigation**: Implement Task 0.5.4 (Konva.Animation integration) if issues arise in cross-browser testing - straightforward addition of animation loop to force layer redraws during playback
+- **Contingency**: N/A
+
 ---
 
 ## Change Log

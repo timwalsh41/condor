@@ -21,6 +21,21 @@ export class AnnotationManager {
   private annotations: Annotation[] = [];
   private nextId: number = 1;
   private drawingState: DrawingState = { mode: "idle" };
+  private selectedTool: AnnotationType = "freehand";
+
+  /**
+   * Set the currently selected tool.
+   */
+  setTool(tool: AnnotationType): void {
+    this.selectedTool = tool;
+  }
+
+  /**
+   * Get the currently selected tool.
+   */
+  getTool(): AnnotationType {
+    return this.selectedTool;
+  }
 
   /**
    * Create a new annotation with the given parameters.
@@ -139,18 +154,18 @@ export class AnnotationManager {
   // ========================================
 
   /**
-   * Start drawing with the specified tool at the given point.
+   * Start drawing at the given point using the currently selected tool.
    * For drag-based tools (freehand, oval, arrow), initializes drag drawing state.
    * For click-based tools (polyline), initializes polyline with first vertex.
    */
-  startDrawing(tool: AnnotationType, point: Point): void {
-    if (tool === "polyline") {
+  startDrawing(point: Point): void {
+    if (this.selectedTool === "polyline") {
       this.drawingState = { mode: "polyline-active", points: [point] };
     } else {
       // freehand, oval, arrow are drag-based
       this.drawingState = {
         mode: "drag-drawing",
-        tool: tool as "freehand" | "oval" | "arrow",
+        tool: this.selectedTool as "freehand" | "oval" | "arrow",
         points: [point],
       };
     }

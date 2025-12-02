@@ -438,9 +438,30 @@ describe("AnnotationManager", () => {
   });
 
   describe("Drawing State Machine", () => {
+    describe("Tool selection", () => {
+      it("should default to freehand tool", () => {
+        expect(manager.getTool()).toBe("freehand");
+      });
+
+      it("should set and get tool", () => {
+        manager.setTool("polyline");
+        expect(manager.getTool()).toBe("polyline");
+
+        manager.setTool("oval");
+        expect(manager.getTool()).toBe("oval");
+
+        manager.setTool("arrow");
+        expect(manager.getTool()).toBe("arrow");
+
+        manager.setTool("freehand");
+        expect(manager.getTool()).toBe("freehand");
+      });
+    });
+
     describe("startDrawing", () => {
       it("should initialize drag-drawing state for freehand tool", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
 
         const state = manager.getDrawingState();
         expect(state.mode).toBe("drag-drawing");
@@ -451,7 +472,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should initialize drag-drawing state for oval tool", () => {
-        manager.startDrawing("oval", { x: 100, y: 200 });
+        manager.setTool("oval");
+        manager.startDrawing( { x: 100, y: 200 });
 
         const state = manager.getDrawingState();
         expect(state.mode).toBe("drag-drawing");
@@ -462,7 +484,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should initialize drag-drawing state for arrow tool", () => {
-        manager.startDrawing("arrow", { x: 50, y: 75 });
+        manager.setTool("arrow");
+        manager.startDrawing( { x: 50, y: 75 });
 
         const state = manager.getDrawingState();
         expect(state.mode).toBe("drag-drawing");
@@ -473,7 +496,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should initialize polyline-active state for polyline tool", () => {
-        manager.startDrawing("polyline", { x: 30, y: 40 });
+        manager.setTool("polyline");
+        manager.startDrawing( { x: 30, y: 40 });
 
         const state = manager.getDrawingState();
         expect(state.mode).toBe("polyline-active");
@@ -485,7 +509,8 @@ describe("AnnotationManager", () => {
 
     describe("continueDrawing", () => {
       it("should append points for freehand tool", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
         manager.continueDrawing({ x: 50, y: 60 });
 
@@ -500,7 +525,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should update end point only for oval tool", () => {
-        manager.startDrawing("oval", { x: 10, y: 20 });
+        manager.setTool("oval");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.continueDrawing({ x: 50, y: 60 });
         manager.continueDrawing({ x: 100, y: 120 }); // Should replace previous end
 
@@ -514,7 +540,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should update end point only for arrow tool", () => {
-        manager.startDrawing("arrow", { x: 0, y: 0 });
+        manager.setTool("arrow");
+        manager.startDrawing( { x: 0, y: 0 });
         manager.continueDrawing({ x: 50, y: 50 });
         manager.continueDrawing({ x: 100, y: 100 });
 
@@ -537,7 +564,8 @@ describe("AnnotationManager", () => {
 
     describe("addPolylineVertex", () => {
       it("should add vertices to polyline", () => {
-        manager.startDrawing("polyline", { x: 10, y: 20 });
+        manager.setTool("polyline");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.addPolylineVertex({ x: 30, y: 40 });
         manager.addPolylineVertex({ x: 50, y: 60 });
 
@@ -552,7 +580,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should not add vertices when polyline is not active", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.addPolylineVertex({ x: 30, y: 40 });
 
         const state = manager.getDrawingState();
@@ -564,7 +593,8 @@ describe("AnnotationManager", () => {
 
     describe("finishDrawing", () => {
       it("should create and add freehand annotation on finish", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
         manager.continueDrawing({ x: 50, y: 60 });
 
@@ -582,7 +612,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should create and add oval annotation on finish", () => {
-        manager.startDrawing("oval", { x: 10, y: 20 });
+        manager.setTool("oval");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.continueDrawing({ x: 100, y: 120 });
 
         const annotation = manager.finishDrawing();
@@ -597,7 +628,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should create and add arrow annotation on finish", () => {
-        manager.startDrawing("arrow", { x: 0, y: 0 });
+        manager.setTool("arrow");
+        manager.startDrawing( { x: 0, y: 0 });
         manager.continueDrawing({ x: 50, y: 50 });
 
         const annotation = manager.finishDrawing();
@@ -611,7 +643,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should create and add polyline annotation on finish", () => {
-        manager.startDrawing("polyline", { x: 10, y: 20 });
+        manager.setTool("polyline");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.addPolylineVertex({ x: 30, y: 40 });
         manager.addPolylineVertex({ x: 50, y: 60 });
 
@@ -627,7 +660,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should return null if validation fails", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         // Only one point - validation should fail (needs ≥2 points)
 
         const annotation = manager.finishDrawing();
@@ -643,7 +677,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should reset drawing state to idle after finishing", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
         manager.finishDrawing();
 
@@ -654,7 +689,8 @@ describe("AnnotationManager", () => {
 
     describe("cancelDrawing", () => {
       it("should reset state without creating annotation", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
 
         manager.cancelDrawing();
@@ -672,7 +708,8 @@ describe("AnnotationManager", () => {
 
     describe("getDrawingState", () => {
       it("should return copy of state to prevent external mutation", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
 
         const state1 = manager.getDrawingState();
         const state2 = manager.getDrawingState();
@@ -684,7 +721,8 @@ describe("AnnotationManager", () => {
 
     describe("getPreviewPoints", () => {
       it("should return points when drawing", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
 
         const points = manager.getPreviewPoints();
@@ -697,7 +735,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should return copy to prevent mutation", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
 
         const points1 = manager.getPreviewPoints();
         const points2 = manager.getPreviewPoints();
@@ -713,24 +752,28 @@ describe("AnnotationManager", () => {
       });
 
       it("should return true when drag-drawing", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         expect(manager.isDrawing()).toBe(true);
       });
 
       it("should return true when polyline active", () => {
-        manager.startDrawing("polyline", { x: 10, y: 20 });
+        manager.setTool("polyline");
+        manager.startDrawing( { x: 10, y: 20 });
         expect(manager.isDrawing()).toBe(true);
       });
 
       it("should return false after finishing", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
         manager.finishDrawing();
         expect(manager.isDrawing()).toBe(false);
       });
 
       it("should return false after canceling", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.cancelDrawing();
         expect(manager.isDrawing()).toBe(false);
       });
@@ -742,12 +785,14 @@ describe("AnnotationManager", () => {
       });
 
       it("should return true when polyline active", () => {
-        manager.startDrawing("polyline", { x: 10, y: 20 });
+        manager.setTool("polyline");
+        manager.startDrawing( { x: 10, y: 20 });
         expect(manager.isPolylineActive()).toBe(true);
       });
 
       it("should return false when drag-drawing", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         expect(manager.isPolylineActive()).toBe(false);
       });
     });
@@ -758,12 +803,14 @@ describe("AnnotationManager", () => {
       });
 
       it("should return tool type when drag-drawing", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         expect(manager.getCurrentTool()).toBe("freehand");
       });
 
       it("should return polyline when polyline active", () => {
-        manager.startDrawing("polyline", { x: 10, y: 20 });
+        manager.setTool("polyline");
+        manager.startDrawing( { x: 10, y: 20 });
         expect(manager.getCurrentTool()).toBe("polyline");
       });
     });
@@ -772,7 +819,8 @@ describe("AnnotationManager", () => {
       it("should handle freehand drawing workflow", () => {
         expect(manager.isDrawing()).toBe(false);
 
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         expect(manager.isDrawing()).toBe(true);
         expect(manager.getCurrentTool()).toBe("freehand");
 
@@ -787,7 +835,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should handle polyline drawing workflow", () => {
-        manager.startDrawing("polyline", { x: 10, y: 20 });
+        manager.setTool("polyline");
+        manager.startDrawing( { x: 10, y: 20 });
         expect(manager.isPolylineActive()).toBe(true);
 
         manager.addPolylineVertex({ x: 30, y: 40 });
@@ -804,7 +853,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should handle oval drawing workflow", () => {
-        manager.startDrawing("oval", { x: 100, y: 100 });
+        manager.setTool("oval");
+        manager.startDrawing( { x: 100, y: 100 });
         manager.continueDrawing({ x: 200, y: 200 });
 
         const annotation = manager.finishDrawing();
@@ -816,7 +866,8 @@ describe("AnnotationManager", () => {
       });
 
       it("should handle cancel workflow", () => {
-        manager.startDrawing("freehand", { x: 10, y: 20 });
+        manager.setTool("freehand");
+        manager.startDrawing( { x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
 
         manager.cancelDrawing();

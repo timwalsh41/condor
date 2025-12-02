@@ -1,14 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Stage, Layer, Line, Arrow, Ellipse } from "react-konva";
-import type Konva from "konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
-import { AnnotationManager } from "../utils/AnnotationManager";
-import type {
-  Annotation,
-  AnnotationType,
-  DrawingState,
-  Point,
-} from "../types/annotations";
+import { useVideoAnnotations } from "../hooks/useVideoAnnotations";
+import type { Point } from "../types/annotations";
 import { checkWebCodecsSupport } from "../utils/featureDetection";
 import {
   initializePlayhead,
@@ -70,17 +64,34 @@ export function DualVideoSyncDemo() {
   const videoARef = useRef(videoA);
   const videoBRef = useRef(videoB);
 
-  // Annotation canvas scale state (for CSS scaling to match video display size)
-  const [annotationScaleA, setAnnotationScaleA] = useState(1);
+  // Track which video is active for keyboard shortcuts (used by annotation hooks for keyboard handling)
+  const [activeVideo, setActiveVideo] = useState<"A" | "B" | null>(null);
 
-  // Annotation state for Video A
-  const [annotationManager] = useState(() => new AnnotationManager());
-  const [selectedTool, setSelectedTool] = useState<AnnotationType>("freehand");
-  const [drawingState, setDrawingState] = useState<DrawingState>({
-    mode: "idle",
-  });
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [polylineMousePos, setPolylineMousePos] = useState<Point | null>(null);
+  // Annotation state for Video A (using custom hook)
+  const videoAAnnotations = useVideoAnnotations(videoA, "A", activeVideo, setActiveVideo);
+  const {
+    manager: annotationManagerA,
+    selectedTool: selectedToolA,
+    setSelectedTool: setSelectedToolA,
+    drawingState: drawingStateA,
+    annotations: annotationsA,
+    polylineMousePos: polylineMousePosA,
+    scale: annotationScaleA,
+    handlers: handlersA,
+  } = videoAAnnotations;
+
+  // Annotation state for Video B (using custom hook)
+  const videoBAnnotations = useVideoAnnotations(videoB, "B", activeVideo, setActiveVideo);
+  const {
+    manager: annotationManagerB,
+    selectedTool: selectedToolB,
+    setSelectedTool: setSelectedToolB,
+    drawingState: drawingStateB,
+    annotations: annotationsB,
+    polylineMousePos: polylineMousePosB,
+    scale: annotationScaleB,
+    handlers: handlersB,
+  } = videoBAnnotations;
 
   // Update refs on every render to capture latest state
   useEffect(() => {
@@ -88,158 +99,9 @@ export function DualVideoSyncDemo() {
     videoBRef.current = videoB;
   });
 
-  // Calculate annotation canvas scale to match video display size
-  useEffect(() => {
-    if (!videoA.canvasRef.current || !videoA.metadata) return;
-
-    const updateScale = () => {
-      const canvas = videoA.canvasRef.current;
-      if (!canvas) return;
-
-      const displayWidth = canvas.clientWidth;
-      const videoWidth = videoA.metadata!.width;
-      const scale = displayWidth / videoWidth;
-
-      setAnnotationScaleA(scale);
-    };
-
-    // Initial calculation
-    updateScale();
-
-    // Update on window resize
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
-  }, [videoA.canvasRef, videoA.metadata, videoA.isReady]);
-
-  // Keyboard support for polyline tool (Enter to finalize, Escape to cancel)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (annotationManager.isPolylineActive()) {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          console.log("Polyline finalized via Enter key");
-          const annotation = annotationManager.finishDrawing();
-          if (annotation) {
-            setAnnotations(annotationManager.getAnnotations());
-          }
-          setDrawingState(annotationManager.getDrawingState());
-          setPolylineMousePos(null);
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          console.log("Polyline cancelled via Escape key");
-          annotationManager.cancelDrawing();
-          setDrawingState(annotationManager.getDrawingState());
-          setPolylineMousePos(null);
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [annotationManager]);
-
-  // Annotation drawing handlers for Video A - thin adapters to AnnotationManager
-
-  // Helper to convert Konva position to Point
-  const getPoint = (e: Konva.KonvaEventObject<MouseEvent>): Point | null => {
-    const stage = e.target.getStage();
-    const pos = stage?.getPointerPosition();
-    return pos ? { x: pos.x, y: pos.y } : null;
-  };
-
   // Helper to convert Point[] to flat number[] for Konva rendering
   const pointsToKonva = (points: Point[]): number[] => {
     return points.flatMap((p) => [p.x, p.y]);
-  };
-
-  // Mouse handlers for drag-based tools (freehand, oval, arrow)
-  const handleMouseDownA = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!videoA.isReady) return;
-
-    // Only handle drag-based tools in mouseDown
-    if (
-      !(["freehand", "oval", "arrow"] as AnnotationType[]).includes(
-        selectedTool
-      )
-    )
-      return;
-
-    const point = getPoint(e);
-    if (!point) return;
-
-    console.log(`${selectedTool} drawing started at:`, point);
-    annotationManager.startDrawing(selectedTool, point);
-    setDrawingState(annotationManager.getDrawingState());
-  };
-
-  const handleMouseMoveA = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    const point = getPoint(e);
-    if (!point) return;
-
-    // Update polyline preview cursor position
-    if (annotationManager.isPolylineActive()) {
-      setPolylineMousePos(point);
-      return;
-    }
-
-    // Handle drag-based drawing
-    if (!annotationManager.isDrawing()) return;
-    annotationManager.continueDrawing(point);
-    setDrawingState(annotationManager.getDrawingState());
-  };
-
-  const handleMouseUpA = () => {
-    if (!annotationManager.isDrawing()) return;
-
-    // Don't finish polyline on mouseUp - polyline uses click/doubleClick/Enter
-    if (annotationManager.isPolylineActive()) {
-      setPolylineMousePos(null);
-      return;
-    }
-
-    const annotation = annotationManager.finishDrawing();
-
-    if (annotation) {
-      console.log(`${annotation.type} annotation created:`, annotation);
-      setAnnotations(annotationManager.getAnnotations());
-    } else {
-      console.warn("Invalid annotation: points validation failed");
-    }
-
-    setDrawingState(annotationManager.getDrawingState());
-  };
-
-  // Click handler for polyline tool
-  const handleClickA = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!videoA.isReady || selectedTool !== "polyline") return;
-
-    const point = getPoint(e);
-    if (!point) return;
-
-    if (!annotationManager.isDrawing()) {
-      // Start new polyline
-      console.log("Polyline started at:", point);
-      annotationManager.startDrawing("polyline", point);
-    } else if (annotationManager.isPolylineActive()) {
-      // Add vertex to existing polyline
-      console.log("Polyline vertex added at:", point);
-      annotationManager.addPolylineVertex(point);
-    }
-
-    setDrawingState(annotationManager.getDrawingState());
-  };
-
-  // Double-click handler for polyline finalization
-  const handleDoubleClickA = () => {
-    if (!annotationManager.isPolylineActive()) return;
-
-    const annotation = annotationManager.finishDrawing();
-    if (annotation) {
-      console.log("Polyline finalized via double-click:", annotation);
-      setAnnotations(annotationManager.getAnnotations());
-    }
-    setDrawingState(annotationManager.getDrawingState());
-    setPolylineMousePos(null);
   };
 
   // Check browser support
@@ -896,16 +758,16 @@ export function DualVideoSyncDemo() {
                           <Stage
                             width={videoA.metadata.width}
                             height={videoA.metadata.height}
-                            onMouseDown={handleMouseDownA}
-                            onMouseMove={handleMouseMoveA}
-                            onMouseUp={handleMouseUpA}
-                            onMouseLeave={handleMouseUpA} // Finish drawing if mouse leaves canvas
-                            onClick={handleClickA}
-                            onDblClick={handleDoubleClickA}
+                            onMouseDown={handlersA.handleMouseDown}
+                            onMouseMove={handlersA.handleMouseMove}
+                            onMouseUp={handlersA.handleMouseUp}
+                            onMouseLeave={handlersA.handleMouseUp} // Finish drawing if mouse leaves canvas
+                            onClick={handlersA.handleClick}
+                            onDblClick={handlersA.handleDoubleClick}
                           >
                             <Layer>
                               {/* Render completed annotations */}
-                              {annotations.map((annotation) => {
+                              {annotationsA.map((annotation) => {
                                 switch (annotation.type) {
                                   case "freehand":
                                   case "polyline":
@@ -968,13 +830,13 @@ export function DualVideoSyncDemo() {
                               })}
 
                               {/* Render live preview during drawing */}
-                              {drawingState.mode === "drag-drawing" &&
-                                drawingState.points.length >= 2 && (
+                              {drawingStateA.mode === "drag-drawing" &&
+                                drawingStateA.points.length >= 2 && (
                                   <>
-                                    {drawingState.tool === "freehand" && (
+                                    {drawingStateA.tool === "freehand" && (
                                       <Line
                                         points={
-                                          annotationManager.getPreviewPoints()!
+                                          annotationManagerA.getPreviewPoints()!
                                         }
                                         stroke="#FF0000"
                                         strokeWidth={3}
@@ -984,29 +846,29 @@ export function DualVideoSyncDemo() {
                                         dash={[10, 5]}
                                       />
                                     )}
-                                    {drawingState.tool === "oval" &&
-                                      drawingState.points.length === 2 && (
+                                    {drawingStateA.tool === "oval" &&
+                                      drawingStateA.points.length === 2 && (
                                         <Ellipse
                                           x={
-                                            (drawingState.points[0].x +
-                                              drawingState.points[1].x) /
+                                            (drawingStateA.points[0].x +
+                                              drawingStateA.points[1].x) /
                                             2
                                           }
                                           y={
-                                            (drawingState.points[0].y +
-                                              drawingState.points[1].y) /
+                                            (drawingStateA.points[0].y +
+                                              drawingStateA.points[1].y) /
                                             2
                                           }
                                           radiusX={
                                             Math.abs(
-                                              drawingState.points[1].x -
-                                                drawingState.points[0].x
+                                              drawingStateA.points[1].x -
+                                                drawingStateA.points[0].x
                                             ) / 2
                                           }
                                           radiusY={
                                             Math.abs(
-                                              drawingState.points[1].y -
-                                                drawingState.points[0].y
+                                              drawingStateA.points[1].y -
+                                                drawingStateA.points[0].y
                                             ) / 2
                                           }
                                           stroke="#FF0000"
@@ -1014,11 +876,11 @@ export function DualVideoSyncDemo() {
                                           dash={[10, 5]}
                                         />
                                       )}
-                                    {drawingState.tool === "arrow" &&
-                                      drawingState.points.length === 2 && (
+                                    {drawingStateA.tool === "arrow" &&
+                                      drawingStateA.points.length === 2 && (
                                         <Arrow
                                           points={
-                                            annotationManager.getPreviewPoints()!
+                                            annotationManagerA.getPreviewPoints()!
                                           }
                                           stroke="#FF0000"
                                           strokeWidth={3}
@@ -1032,11 +894,11 @@ export function DualVideoSyncDemo() {
                                 )}
 
                               {/* Render polyline in progress */}
-                              {drawingState.mode === "polyline-active" &&
-                                drawingState.points.length >= 2 && (
+                              {drawingStateA.mode === "polyline-active" &&
+                                drawingStateA.points.length >= 2 && (
                                   <Line
                                     points={
-                                      annotationManager.getPreviewPoints()!
+                                      annotationManagerA.getPreviewPoints()!
                                     }
                                     stroke="#FF0000"
                                     strokeWidth={3}
@@ -1047,19 +909,19 @@ export function DualVideoSyncDemo() {
                                 )}
 
                               {/* Render polyline preview segment (last vertex to mouse cursor) */}
-                              {drawingState.mode === "polyline-active" &&
-                                polylineMousePos &&
-                                drawingState.points.length >= 1 && (
+                              {drawingStateA.mode === "polyline-active" &&
+                                polylineMousePosA &&
+                                drawingStateA.points.length >= 1 && (
                                   <Line
                                     points={[
-                                      drawingState.points[
-                                        drawingState.points.length - 1
+                                      drawingStateA.points[
+                                        drawingStateA.points.length - 1
                                       ].x,
-                                      drawingState.points[
-                                        drawingState.points.length - 1
+                                      drawingStateA.points[
+                                        drawingStateA.points.length - 1
                                       ].y,
-                                      polylineMousePos.x,
-                                      polylineMousePos.y,
+                                      polylineMousePosA.x,
+                                      polylineMousePosA.y,
                                     ]}
                                     stroke="#FF0000"
                                     strokeWidth={3}
@@ -1111,16 +973,218 @@ export function DualVideoSyncDemo() {
                     style={{
                       border: "2px solid #333",
                       backgroundColor: "#000",
+                      position: "relative",
                     }}
                   >
                     <canvas
                       ref={videoB.canvasRef}
+                      data-testid="video-canvas-b"
                       style={{
                         display: "block",
                         maxWidth: "100%",
                         height: "auto",
                       }}
                     />
+                    {/* Annotation overlay canvas */}
+                    {videoB.metadata && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: "100%",
+                          pointerEvents: "auto", // Enable mouse events
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            transform: `scale(${annotationScaleB})`,
+                            transformOrigin: "top left",
+                          }}
+                        >
+                          <Stage
+                            width={videoB.metadata.width}
+                            height={videoB.metadata.height}
+                            onMouseDown={handlersB.handleMouseDown}
+                            onMouseMove={handlersB.handleMouseMove}
+                            onMouseUp={handlersB.handleMouseUp}
+                            onMouseLeave={handlersB.handleMouseUp} // Finish drawing if mouse leaves canvas
+                            onClick={handlersB.handleClick}
+                            onDblClick={handlersB.handleDoubleClick}
+                          >
+                            <Layer>
+                              {/* Render completed annotations */}
+                              {annotationsB.map((annotation) => {
+                                switch (annotation.type) {
+                                  case "freehand":
+                                  case "polyline":
+                                    return (
+                                      <Line
+                                        key={annotation.id}
+                                        points={pointsToKonva(
+                                          annotation.points
+                                        )}
+                                        stroke={annotation.color}
+                                        strokeWidth={annotation.strokeWidth}
+                                        lineCap="round"
+                                        lineJoin="round"
+                                        tension={
+                                          annotation.type === "freehand"
+                                            ? 0.5
+                                            : 0
+                                        }
+                                      />
+                                    );
+                                  case "oval": {
+                                    // Points format: [start, end] where each is {x, y}
+                                    const start = annotation.points[0];
+                                    const end = annotation.points[1];
+                                    const centerX = (start.x + end.x) / 2;
+                                    const centerY = (start.y + end.y) / 2;
+                                    const radiusX =
+                                      Math.abs(end.x - start.x) / 2;
+                                    const radiusY =
+                                      Math.abs(end.y - start.y) / 2;
+                                    return (
+                                      <Ellipse
+                                        key={annotation.id}
+                                        x={centerX}
+                                        y={centerY}
+                                        radiusX={radiusX}
+                                        radiusY={radiusY}
+                                        stroke={annotation.color}
+                                        strokeWidth={annotation.strokeWidth}
+                                      />
+                                    );
+                                  }
+                                  case "arrow":
+                                    return (
+                                      <Arrow
+                                        key={annotation.id}
+                                        points={pointsToKonva(
+                                          annotation.points
+                                        )}
+                                        stroke={annotation.color}
+                                        strokeWidth={annotation.strokeWidth}
+                                        fill={annotation.color}
+                                        pointerLength={10}
+                                        pointerWidth={10}
+                                      />
+                                    );
+                                  default:
+                                    return null;
+                                }
+                              })}
+
+                              {/* Render live preview during drawing */}
+                              {drawingStateB.mode === "drag-drawing" &&
+                                drawingStateB.points.length >= 2 && (
+                                  <>
+                                    {drawingStateB.tool === "freehand" && (
+                                      <Line
+                                        points={
+                                          annotationManagerB.getPreviewPoints()!
+                                        }
+                                        stroke="#FF0000"
+                                        strokeWidth={3}
+                                        lineCap="round"
+                                        lineJoin="round"
+                                        tension={0.5}
+                                        dash={[10, 5]}
+                                      />
+                                    )}
+                                    {drawingStateB.tool === "oval" &&
+                                      drawingStateB.points.length === 2 && (
+                                        <Ellipse
+                                          x={
+                                            (drawingStateB.points[0].x +
+                                              drawingStateB.points[1].x) /
+                                            2
+                                          }
+                                          y={
+                                            (drawingStateB.points[0].y +
+                                              drawingStateB.points[1].y) /
+                                            2
+                                          }
+                                          radiusX={
+                                            Math.abs(
+                                              drawingStateB.points[1].x -
+                                                drawingStateB.points[0].x
+                                            ) / 2
+                                          }
+                                          radiusY={
+                                            Math.abs(
+                                              drawingStateB.points[1].y -
+                                                drawingStateB.points[0].y
+                                            ) / 2
+                                          }
+                                          stroke="#FF0000"
+                                          strokeWidth={3}
+                                          dash={[10, 5]}
+                                        />
+                                      )}
+                                    {drawingStateB.tool === "arrow" &&
+                                      drawingStateB.points.length === 2 && (
+                                        <Arrow
+                                          points={
+                                            annotationManagerB.getPreviewPoints()!
+                                          }
+                                          stroke="#FF0000"
+                                          strokeWidth={3}
+                                          fill="#FF0000"
+                                          pointerLength={10}
+                                          pointerWidth={10}
+                                          dash={[10, 5]}
+                                        />
+                                      )}
+                                  </>
+                                )}
+
+                              {/* Render polyline in progress */}
+                              {drawingStateB.mode === "polyline-active" &&
+                                drawingStateB.points.length >= 2 && (
+                                  <Line
+                                    points={
+                                      annotationManagerB.getPreviewPoints()!
+                                    }
+                                    stroke="#FF0000"
+                                    strokeWidth={3}
+                                    lineCap="round"
+                                    lineJoin="round"
+                                    dash={[10, 5]}
+                                  />
+                                )}
+
+                              {/* Render polyline preview segment (last vertex to mouse cursor) */}
+                              {drawingStateB.mode === "polyline-active" &&
+                                polylineMousePosB &&
+                                drawingStateB.points.length >= 1 && (
+                                  <Line
+                                    points={[
+                                      drawingStateB.points[
+                                        drawingStateB.points.length - 1
+                                      ].x,
+                                      drawingStateB.points[
+                                        drawingStateB.points.length - 1
+                                      ].y,
+                                      polylineMousePosB.x,
+                                      polylineMousePosB.y,
+                                    ]}
+                                    stroke="#FF0000"
+                                    strokeWidth={3}
+                                    lineCap="round"
+                                    lineJoin="round"
+                                    dash={[10, 5]}
+                                    opacity={0.6}
+                                  />
+                                )}
+                            </Layer>
+                          </Stage>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div
                     data-testid="frame-counter-b"
@@ -1520,121 +1584,259 @@ export function DualVideoSyncDemo() {
             </div>
           )}
 
-          {/* Annotation Tool Selection - Only show in SYNC mode and when Video A is ready */}
-          {mode === "SYNC" && videoA.isReady && (
-            <div style={{ marginBottom: "20px" }}>
-              <div
-                style={{
-                  padding: "15px",
-                  backgroundColor: "#f5f5f5",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                }}
-              >
-                <h3 style={{ marginTop: 0, marginBottom: "10px" }}>
-                  Video A - Drawing Tools
-                </h3>
-                <div
-                  style={{ display: "flex", gap: "10px", marginBottom: "10px" }}
-                >
-                  <button
-                    data-testid="tool-freehand"
-                    onClick={() => setSelectedTool("freehand")}
-                    style={{
-                      padding: "8px 16px",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      border:
-                        selectedTool === "freehand"
-                          ? "2px solid #2196F3"
-                          : "1px solid #999",
-                      backgroundColor:
-                        selectedTool === "freehand" ? "#E3F2FD" : "white",
-                      fontWeight:
-                        selectedTool === "freehand" ? "bold" : "normal",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    Freehand
-                  </button>
-                  <button
-                    data-testid="tool-polyline"
-                    onClick={() => setSelectedTool("polyline")}
-                    style={{
-                      padding: "8px 16px",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      border:
-                        selectedTool === "polyline"
-                          ? "2px solid #2196F3"
-                          : "1px solid #999",
-                      backgroundColor:
-                        selectedTool === "polyline" ? "#E3F2FD" : "white",
-                      fontWeight:
-                        selectedTool === "polyline" ? "bold" : "normal",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    Polyline
-                  </button>
-                  <button
-                    data-testid="tool-oval"
-                    onClick={() => setSelectedTool("oval")}
-                    style={{
-                      padding: "8px 16px",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      border:
-                        selectedTool === "oval"
-                          ? "2px solid #2196F3"
-                          : "1px solid #999",
-                      backgroundColor:
-                        selectedTool === "oval" ? "#E3F2FD" : "white",
-                      fontWeight: selectedTool === "oval" ? "bold" : "normal",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    Oval
-                  </button>
-                  <button
-                    data-testid="tool-arrow"
-                    onClick={() => setSelectedTool("arrow")}
-                    style={{
-                      padding: "8px 16px",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      border:
-                        selectedTool === "arrow"
-                          ? "2px solid #2196F3"
-                          : "1px solid #999",
-                      backgroundColor:
-                        selectedTool === "arrow" ? "#E3F2FD" : "white",
-                      fontWeight: selectedTool === "arrow" ? "bold" : "normal",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    Arrow
-                  </button>
-                </div>
-                {/* Reserve space for polyline message to prevent layout shift */}
+          {/* Annotation Tool Selection - Side by side for both videos */}
+          {(videoA.isReady || videoB.isReady) && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "20px",
+                marginBottom: "20px",
+              }}
+            >
+              {/* Video A Drawing Tools */}
+              {videoA.isReady && (
                 <div
                   style={{
-                    fontSize: "12px",
-                    minHeight: "20px",
-                    color:
-                      selectedTool === "polyline" &&
-                      drawingState.mode === "polyline-active"
-                        ? "#666"
-                        : "transparent",
-                    fontStyle: "italic",
+                    padding: "15px",
+                    backgroundColor: "#f5f5f5",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
                   }}
                 >
-                  {selectedTool === "polyline" &&
-                  drawingState.mode === "polyline-active"
-                    ? "Click to add vertices. Press Enter to finish or Escape to cancel."
-                    : "\u00A0"}
+                  <h3 style={{ marginTop: 0, marginBottom: "10px" }}>
+                    Video A - Drawing Tools
+                  </h3>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <button
+                      data-testid="tool-freehand-a"
+                      onClick={() => setSelectedToolA("freehand")}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        border:
+                          selectedToolA === "freehand"
+                            ? "2px solid #2196F3"
+                            : "1px solid #999",
+                        backgroundColor:
+                          selectedToolA === "freehand" ? "#E3F2FD" : "white",
+                        fontWeight:
+                          selectedToolA === "freehand" ? "bold" : "normal",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Freehand
+                    </button>
+                    <button
+                      data-testid="tool-polyline-a"
+                      onClick={() => setSelectedToolA("polyline")}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        border:
+                          selectedToolA === "polyline"
+                            ? "2px solid #2196F3"
+                            : "1px solid #999",
+                        backgroundColor:
+                          selectedToolA === "polyline" ? "#E3F2FD" : "white",
+                        fontWeight:
+                          selectedToolA === "polyline" ? "bold" : "normal",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Polyline
+                    </button>
+                    <button
+                      data-testid="tool-oval-a"
+                      onClick={() => setSelectedToolA("oval")}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        border:
+                          selectedToolA === "oval"
+                            ? "2px solid #2196F3"
+                            : "1px solid #999",
+                        backgroundColor:
+                          selectedToolA === "oval" ? "#E3F2FD" : "white",
+                        fontWeight:
+                          selectedToolA === "oval" ? "bold" : "normal",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Oval
+                    </button>
+                    <button
+                      data-testid="tool-arrow-a"
+                      onClick={() => setSelectedToolA("arrow")}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        border:
+                          selectedToolA === "arrow"
+                            ? "2px solid #2196F3"
+                            : "1px solid #999",
+                        backgroundColor:
+                          selectedToolA === "arrow" ? "#E3F2FD" : "white",
+                        fontWeight:
+                          selectedToolA === "arrow" ? "bold" : "normal",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Arrow
+                    </button>
+                  </div>
+                  {/* Reserve space for polyline message to prevent layout shift */}
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      minHeight: "20px",
+                      color:
+                        selectedToolA === "polyline" &&
+                        drawingStateA.mode === "polyline-active"
+                          ? "#666"
+                          : "transparent",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {selectedToolA === "polyline" &&
+                    drawingStateA.mode === "polyline-active"
+                      ? "Click to add vertices. Press Enter to finish or Escape to cancel."
+                      : "\u00A0"}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Video B Drawing Tools */}
+              {videoB.isReady && (
+                <div
+                  style={{
+                    padding: "15px",
+                    backgroundColor: "#f5f5f5",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <h3 style={{ marginTop: 0, marginBottom: "10px" }}>
+                    Video B - Drawing Tools
+                  </h3>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <button
+                      data-testid="tool-freehand-b"
+                      onClick={() => setSelectedToolB("freehand")}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        border:
+                          selectedToolB === "freehand"
+                            ? "2px solid #2196F3"
+                            : "1px solid #999",
+                        backgroundColor:
+                          selectedToolB === "freehand" ? "#E3F2FD" : "white",
+                        fontWeight:
+                          selectedToolB === "freehand" ? "bold" : "normal",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Freehand
+                    </button>
+                    <button
+                      data-testid="tool-polyline-b"
+                      onClick={() => setSelectedToolB("polyline")}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        border:
+                          selectedToolB === "polyline"
+                            ? "2px solid #2196F3"
+                            : "1px solid #999",
+                        backgroundColor:
+                          selectedToolB === "polyline" ? "#E3F2FD" : "white",
+                        fontWeight:
+                          selectedToolB === "polyline" ? "bold" : "normal",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Polyline
+                    </button>
+                    <button
+                      data-testid="tool-oval-b"
+                      onClick={() => setSelectedToolB("oval")}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        border:
+                          selectedToolB === "oval"
+                            ? "2px solid #2196F3"
+                            : "1px solid #999",
+                        backgroundColor:
+                          selectedToolB === "oval" ? "#E3F2FD" : "white",
+                        fontWeight:
+                          selectedToolB === "oval" ? "bold" : "normal",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Oval
+                    </button>
+                    <button
+                      data-testid="tool-arrow-b"
+                      onClick={() => setSelectedToolB("arrow")}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor: "pointer",
+                        border:
+                          selectedToolB === "arrow"
+                            ? "2px solid #2196F3"
+                            : "1px solid #999",
+                        backgroundColor:
+                          selectedToolB === "arrow" ? "#E3F2FD" : "white",
+                        fontWeight:
+                          selectedToolB === "arrow" ? "bold" : "normal",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Arrow
+                    </button>
+                  </div>
+                  {/* Reserve space for polyline message to prevent layout shift */}
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      minHeight: "20px",
+                      color:
+                        selectedToolB === "polyline" &&
+                        drawingStateB.mode === "polyline-active"
+                          ? "#666"
+                          : "transparent",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {selectedToolB === "polyline" &&
+                    drawingStateB.mode === "polyline-active"
+                      ? "Click to add vertices. Press Enter to finish or Escape to cancel."
+                      : "\u00A0"}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

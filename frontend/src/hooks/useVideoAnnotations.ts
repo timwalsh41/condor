@@ -27,6 +27,10 @@ export interface AnnotationHandlers {
   handleMouseUp: () => void;
   handleClick: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   handleDoubleClick: () => void;
+  handleAnnotationClick: (
+    annotationId: string,
+    e: Konva.KonvaEventObject<MouseEvent>
+  ) => void;
 }
 
 /**
@@ -38,9 +42,11 @@ export interface UseVideoAnnotationsResult {
   setSelectedTool: (tool: AnnotationType) => void;
   drawingState: DrawingState;
   annotations: Annotation[];
+  selectedIds: Set<string>;
   polylineMousePos: Point | null;
   scale: number;
   handlers: AnnotationHandlers;
+  clearAll: () => void;
 }
 
 /**
@@ -66,6 +72,7 @@ export function useVideoAnnotations(
     mode: "idle",
   });
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [polylineMousePos, setPolylineMousePos] = useState<Point | null>(null);
 
   // Canvas scale for CSS transform
@@ -122,6 +129,31 @@ export function useVideoAnnotations(
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeVideo, videoId, manager]);
 
+  // Delete key handler for removing selected annotations
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in input/textarea (safety check)
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        return;
+      }
+
+      if (e.key === "Delete") {
+        const count = manager.deleteSelected();
+        if (count > 0) {
+          console.log(
+            `Video ${videoId}: Deleted ${count} selected annotation(s)`
+          );
+          setAnnotations(manager.getAnnotations());
+          setSelectedIds(manager.getSelectedIds());
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [manager, videoId]);
+
   // Helper to convert Konva position to Point
   const getPoint = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>): Point | null => {
@@ -147,6 +179,15 @@ export function useVideoAnnotations(
   const handleMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (!videoDecoder.isReady) return;
+
+      // Don't start drawing if clicking on an annotation shape
+      // (annotation shapes have onClick handlers that handle selection)
+      const target = e.target;
+      if (target !== e.target.getStage()) {
+        // Clicked on a shape (annotation), not the stage background
+        return;
+      }
+
       setActiveVideo(videoId); // Mark this video as active
 
       // Only handle drag-based tools in mouseDown
@@ -160,6 +201,7 @@ export function useVideoAnnotations(
       console.log(`Video ${videoId} ${tool} drawing started at:`, point);
       manager.startDrawing(point);
       setDrawingState(manager.getDrawingState());
+      setSelectedIds(manager.getSelectedIds()); // Sync selection state (cleared on draw start)
     },
     [videoDecoder.isReady, videoId, setActiveVideo, manager, getPoint]
   );
@@ -213,6 +255,15 @@ export function useVideoAnnotations(
   const handleClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (!videoDecoder.isReady || manager.getTool() !== "polyline") return;
+
+      // Don't start polyline if clicking on an annotation shape
+      // (annotation shapes have onClick handlers that handle selection)
+      const target = e.target;
+      if (target !== e.target.getStage()) {
+        // Clicked on a shape (annotation), not the stage background
+        return;
+      }
+
       setActiveVideo(videoId); // Mark this video as active
 
       const point = getPoint(e);
@@ -222,6 +273,7 @@ export function useVideoAnnotations(
         // Start new polyline
         console.log(`Video ${videoId}: Polyline started at:`, point);
         manager.startDrawing(point);
+        setSelectedIds(manager.getSelectedIds()); // Sync selection state (cleared on draw start)
       } else if (manager.isPolylineActive()) {
         // Add vertex to existing polyline
         console.log(`Video ${videoId}: Polyline vertex added at:`, point);
@@ -249,12 +301,48 @@ export function useVideoAnnotations(
     setPolylineMousePos(null);
   }, [manager, videoId]);
 
+  // Annotation click handler for selection
+  const handleAnnotationClick = useCallback(
+    (annotationId: string, e: Konva.KonvaEventObject<MouseEvent>) => {
+      // Don't allow selection during drawing
+      if (manager.isDrawing() || manager.isPolylineActive()) {
+        return;
+      }
+
+      // Read event properties BEFORE stopping propagation
+      const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
+
+      // Stop event from bubbling to Stage (prevents starting new polyline)
+      e.cancelBubble = true;
+
+      manager.toggleSelection(annotationId, isMultiSelect);
+      setSelectedIds(manager.getSelectedIds());
+      console.log(
+        `Video ${videoId}: Annotation ${annotationId} ${
+          isMultiSelect ? "toggled in" : "selected"
+        } selection (ctrlKey=${e.evt.ctrlKey}, metaKey=${e.evt.metaKey})`
+      );
+    },
+    [manager, videoId]
+  );
+
+  // Clear all annotations
+  const clearAll = useCallback(() => {
+    if (manager.getCount() > 0) {
+      manager.clearAll();
+      setAnnotations(manager.getAnnotations());
+      setSelectedIds(manager.getSelectedIds());
+      console.log(`Video ${videoId}: All annotations cleared`);
+    }
+  }, [manager, videoId]);
+
   return {
     manager,
     selectedTool,
     setSelectedTool,
     drawingState,
     annotations,
+    selectedIds,
     polylineMousePos,
     scale,
     handlers: {
@@ -263,6 +351,8 @@ export function useVideoAnnotations(
       handleMouseUp,
       handleClick,
       handleDoubleClick,
+      handleAnnotationClick,
     },
+    clearAll,
   };
 }

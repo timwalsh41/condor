@@ -135,13 +135,14 @@ describe("useVideoAnnotations", () => {
       );
 
       // Mock Konva event with stage and pointer position
+      // target should be the stage itself when clicking on background
+      const mockStage = {
+        getPointerPosition: () => ({ x: 100, y: 200 }),
+      };
       const mockEvent = {
-        target: {
-          getStage: () => ({
-            getPointerPosition: () => ({ x: 100, y: 200 }),
-          }),
-        },
+        target: mockStage,
       } as any;
+      mockStage.getStage = () => mockStage;
 
       act(() => {
         result.current.handlers.handleMouseDown(mockEvent);
@@ -312,6 +313,285 @@ describe("useVideoAnnotations", () => {
 
       // Polyline should still be active (not finalized)
       expect(result.current.manager.isPolylineActive()).toBe(true);
+    });
+  });
+
+  describe("Selection and Deletion", () => {
+    let mockVideoDecoder: UseWebCodecsDecoderResult;
+    let activeVideo: "A" | "B" | null;
+    let setActiveVideo: (id: "A" | "B") => void;
+
+    beforeEach(() => {
+      mockVideoDecoder = createMockVideoDecoder();
+      activeVideo = null;
+      setActiveVideo = vi.fn((id) => {
+        activeVideo = id;
+      });
+    });
+
+    it("should handle annotation click for selection", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(
+          mockVideoDecoder,
+          "A",
+          activeVideo,
+          setActiveVideo
+        )
+      );
+
+      // Create an annotation
+      let annotationId: string = "";
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "freehand",
+          [
+            { x: 10, y: 20 },
+            { x: 30, y: 40 },
+          ]
+        );
+        annotationId = annotation!.id;
+      });
+
+      // Simulate single-click on annotation (no Ctrl key)
+      act(() => {
+        const mockEvent = {
+          evt: { ctrlKey: false, metaKey: false },
+        } as any;
+        result.current.handlers.handleAnnotationClick(annotationId, mockEvent);
+      });
+
+      expect(result.current.selectedIds.has(annotationId)).toBe(true);
+      expect(result.current.selectedIds.size).toBe(1);
+    });
+
+    it("should handle Ctrl-click for multi-select", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(
+          mockVideoDecoder,
+          "A",
+          activeVideo,
+          setActiveVideo
+        )
+      );
+
+      // Create two annotations
+      let annotationId1: string = "";
+      let annotationId2: string = "";
+      act(() => {
+        const ann1 = result.current.manager.createAndAddAnnotation(
+          "freehand",
+          [
+            { x: 10, y: 20 },
+            { x: 30, y: 40 },
+          ]
+        );
+        const ann2 = result.current.manager.createAndAddAnnotation("oval", [
+          { x: 50, y: 60 },
+          { x: 100, y: 100 },
+        ]);
+        annotationId1 = ann1!.id;
+        annotationId2 = ann2!.id;
+      });
+
+      // Select first annotation
+      act(() => {
+        const mockEvent = {
+          evt: { ctrlKey: true, metaKey: false },
+        } as any;
+        result.current.handlers.handleAnnotationClick(
+          annotationId1,
+          mockEvent
+        );
+      });
+
+      // Select second annotation with Ctrl-click
+      act(() => {
+        const mockEvent = {
+          evt: { ctrlKey: true, metaKey: false },
+        } as any;
+        result.current.handlers.handleAnnotationClick(
+          annotationId2,
+          mockEvent
+        );
+      });
+
+      expect(result.current.selectedIds.has(annotationId1)).toBe(true);
+      expect(result.current.selectedIds.has(annotationId2)).toBe(true);
+      expect(result.current.selectedIds.size).toBe(2);
+    });
+
+    it("should not allow selection during drawing", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(
+          mockVideoDecoder,
+          "A",
+          activeVideo,
+          setActiveVideo
+        )
+      );
+
+      // Create an annotation
+      let annotationId: string = "";
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "freehand",
+          [
+            { x: 10, y: 20 },
+            { x: 30, y: 40 },
+          ]
+        );
+        annotationId = annotation!.id;
+      });
+
+      // Start drawing a new annotation
+      act(() => {
+        result.current.manager.setTool("freehand");
+        result.current.manager.startDrawing({ x: 100, y: 100 });
+      });
+
+      expect(result.current.manager.isDrawing()).toBe(true);
+
+      // Try to select existing annotation during drawing
+      act(() => {
+        const mockEvent = {
+          evt: { ctrlKey: false, metaKey: false },
+        } as any;
+        result.current.handlers.handleAnnotationClick(annotationId, mockEvent);
+      });
+
+      // Selection should not change (should remain empty)
+      expect(result.current.selectedIds.size).toBe(0);
+    });
+
+    it("should delete selected annotations on Delete key", () => {
+      const { result, rerender } = renderHook(() =>
+        useVideoAnnotations(
+          mockVideoDecoder,
+          "A",
+          activeVideo,
+          setActiveVideo
+        )
+      );
+
+      // Create two annotations and trigger state update
+      let annotationId1: string = "";
+      let annotationId2: string = "";
+      act(() => {
+        const ann1 = result.current.manager.createAndAddAnnotation(
+          "freehand",
+          [
+            { x: 10, y: 20 },
+            { x: 30, y: 40 },
+          ]
+        );
+        const ann2 = result.current.manager.createAndAddAnnotation("oval", [
+          { x: 50, y: 60 },
+          { x: 100, y: 100 },
+        ]);
+        annotationId1 = ann1!.id;
+        annotationId2 = ann2!.id;
+      });
+
+      // Force hook to sync with manager state
+      rerender();
+
+      expect(result.current.manager.getCount()).toBe(2);
+
+      // Select first annotation
+      act(() => {
+        result.current.manager.toggleSelection(annotationId1, false);
+      });
+
+      // Simulate Delete key press
+      act(() => {
+        const event = new KeyboardEvent("keydown", { key: "Delete" });
+        window.dispatchEvent(event);
+      });
+
+      // First annotation should be deleted
+      expect(result.current.annotations.length).toBe(1);
+      expect(result.current.annotations[0].id).toBe(annotationId2);
+      expect(result.current.selectedIds.size).toBe(0);
+    });
+
+    it("should clear all annotations", () => {
+      const { result, rerender } = renderHook(() =>
+        useVideoAnnotations(
+          mockVideoDecoder,
+          "A",
+          activeVideo,
+          setActiveVideo
+        )
+      );
+
+      // Create annotations
+      act(() => {
+        result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+        result.current.manager.createAndAddAnnotation("oval", [
+          { x: 50, y: 60 },
+          { x: 100, y: 100 },
+        ]);
+      });
+
+      // Force hook to sync with manager state
+      rerender();
+
+      expect(result.current.manager.getCount()).toBe(2);
+
+      // Clear all
+      act(() => {
+        result.current.clearAll();
+      });
+
+      expect(result.current.annotations.length).toBe(0);
+      expect(result.current.selectedIds.size).toBe(0);
+    });
+
+    it("should not delete when Delete key pressed on input element", () => {
+      const { result, rerender } = renderHook(() =>
+        useVideoAnnotations(
+          mockVideoDecoder,
+          "A",
+          activeVideo,
+          setActiveVideo
+        )
+      );
+
+      // Create and select annotation
+      act(() => {
+        const ann = result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+        result.current.manager.toggleSelection(ann!.id, false);
+      });
+
+      // Force hook to sync with manager state
+      rerender();
+
+      expect(result.current.manager.getCount()).toBe(1);
+
+      // Simulate Delete key from input element
+      act(() => {
+        const input = document.createElement("input");
+        document.body.appendChild(input);
+        const event = new KeyboardEvent("keydown", {
+          key: "Delete",
+          bubbles: true,
+        });
+        Object.defineProperty(event, "target", {
+          value: input,
+          enumerable: true,
+        });
+        window.dispatchEvent(event);
+        document.body.removeChild(input);
+      });
+
+      // Annotation should NOT be deleted
+      expect(result.current.manager.getCount()).toBe(1);
     });
   });
 });

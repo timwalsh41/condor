@@ -22,6 +22,7 @@ export class AnnotationManager {
   private nextId: number = 1;
   private drawingState: DrawingState = { mode: "idle" };
   private selectedTool: AnnotationType = "freehand";
+  private selectedIds: Set<string> = new Set();
 
   /**
    * Set the currently selected tool.
@@ -96,6 +97,7 @@ export class AnnotationManager {
    */
   clearAll(): void {
     this.annotations = [];
+    this.selectedIds.clear();
   }
 
   /**
@@ -103,6 +105,65 @@ export class AnnotationManager {
    */
   getCount(): number {
     return this.annotations.length;
+  }
+
+  // ========================================
+  // Selection Methods
+  // ========================================
+
+  /**
+   * Toggle selection for an annotation.
+   * @param id - Annotation ID to toggle
+   * @param isMultiSelect - If true, add/remove from selection. If false, replace selection.
+   */
+  toggleSelection(id: string, isMultiSelect: boolean): void {
+    if (isMultiSelect) {
+      if (this.selectedIds.has(id)) {
+        this.selectedIds.delete(id);
+      } else {
+        this.selectedIds.add(id);
+      }
+    } else {
+      this.selectedIds.clear();
+      this.selectedIds.add(id);
+    }
+  }
+
+  /**
+   * Get all selected annotation IDs.
+   * Returns a copy to prevent external mutation.
+   */
+  getSelectedIds(): Set<string> {
+    return new Set(this.selectedIds);
+  }
+
+  /**
+   * Clear all selections.
+   */
+  clearSelection(): void {
+    this.selectedIds.clear();
+  }
+
+  /**
+   * Check if an annotation is selected.
+   */
+  isSelected(id: string): boolean {
+    return this.selectedIds.has(id);
+  }
+
+  /**
+   * Delete all selected annotations.
+   * Returns the number of annotations deleted.
+   */
+  deleteSelected(): number {
+    let count = 0;
+    this.selectedIds.forEach((id) => {
+      if (this.removeAnnotation(id)) {
+        count++;
+      }
+    });
+    this.selectedIds.clear();
+    return count;
   }
 
   /**
@@ -157,8 +218,12 @@ export class AnnotationManager {
    * Start drawing at the given point using the currently selected tool.
    * For drag-based tools (freehand, oval, arrow), initializes drag drawing state.
    * For click-based tools (polyline), initializes polyline with first vertex.
+   * Clears any existing selections when starting to draw.
    */
   startDrawing(point: Point): void {
+    // Clear selections when starting new drawing
+    this.selectedIds.clear();
+
     if (this.selectedTool === "polyline") {
       this.drawingState = { mode: "polyline-active", points: [point] };
     } else {

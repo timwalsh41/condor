@@ -27,21 +27,31 @@ The implementation separates business logic from UI through a modular, testable 
 - **Data Management**: CRUD operations, unique ID generation, validation
 - **Tool Selection**: Integrated tool state management via `setTool(tool)` and `getTool()`
 - **Drawing State Machine**: Manages drawing workflow independent of UI
-  - `startDrawing(point)`: Initialize drawing session with internally selected tool
+  - `startDrawing(point)`: Initialize drawing session with internally selected tool (clears selections)
   - `continueDrawing(point)`: Update in-progress drawing (append for freehand, update endpoint for oval/arrow)
   - `addPolylineVertex(point)`: Click-to-add for polyline tool
   - `finishDrawing()`: Validate, create annotation, reset state
   - `cancelDrawing()`: Abort without saving
   - Query methods: `isDrawing()`, `isPolylineActive()`, `getTool()`
   - State access: `getDrawingState()`, `getPreviewPoints()` (immutable copies)
+- **Selection Management**: Set-based tracking for multi-select support
+  - `toggleSelection(id, isMultiSelect)`: Add/remove from selection (ctrl-click support)
+  - `isSelected(id)`: Check selection state
+  - `getSelectedIds()`: Retrieve immutable copy of selected IDs
+  - `clearSelection()`: Clear all selections
+  - `deleteSelected()`: Remove selected annotations, return count, clear selections
 
 **3. Custom Hook** (`src/hooks/useVideoAnnotations.ts`)
 
 - **Encapsulation**: All annotation logic per video channel in single hook
 - **Scale Calculation**: Automatic canvas scaling to match video display size
-- **Event Handlers**: Generated handlers for mouse events and keyboard shortcuts
-- **Keyboard Support**: Enter/Escape handling for polyline finalization/cancellation
-- **Returns**: Manager, tool state, drawing state, annotations, scale, and event handlers
+- **Event Handlers**: Generated handlers for mouse events, annotation clicks, and keyboard shortcuts
+  - `handleAnnotationClick`: Selection with ctrl-key detection for multi-select, `cancelBubble` to prevent event propagation
+  - Target checking: `target !== stage` prevents drawing on annotation/control point clicks
+- **Keyboard Support**: 
+  - Enter/Escape: Polyline finalization/cancellation
+  - Delete: Removes selected annotations (with input/textarea safeguard)
+- **Returns**: Manager, tool state, drawing state, annotations, selectedIds, scale, and event handlers (including `handleAnnotationClick`, `clearAll`)
 
 **4. Component Integration** (`src/components/DualVideoSyncDemo.tsx`)
 
@@ -49,6 +59,12 @@ The implementation separates business logic from UI through a modular, testable 
 - **Hook Usage**: Single line per video: `useVideoAnnotations(videoDecoder, videoId, activeVideo, setActiveVideo)`
 - **Tool Selection UI**: 4 buttons per video (Freehand, Polyline, Oval, Arrow) with visual feedback
 - **Konva Rendering**: Stage/Layer/Line/Ellipse/Arrow components for completed + preview annotations
+- **Selection UI**: 
+  - `onClick` handlers on all annotation shapes (Line/Ellipse/Arrow) pass events to `handleAnnotationClick`
+  - Control points rendered as 8x8px white Rects with black stroke when annotation selected
+  - `hitStrokeWidth={20}` on Line/Arrow for easier selection (20px clickable area vs 3px visual)
+  - Preview shapes: `listening={false}` makes red dashed drawing previews non-interactive
+- **Clear All UI**: Buttons per video (disabled when empty) call `clearAll()` from hook
 
 ### Canvas Overlay Structure
 
@@ -168,10 +184,50 @@ const end = annotation.points[1];
        pointerLength={10} pointerWidth={10} />
 ```
 
-**Live Preview** (red dashed):
+**Live Preview** (red dashed, `listening={false}`):
 
 - Drag-based: Freehand/Oval/Arrow render in-progress shape using `getPreviewPoints()` conversion
 - Polyline: Completed segments + semi-transparent cursor preview line
+- Non-interactive: All preview shapes have `listening={false}` so clicks pass through to Stage handlers
+
+**Control Points** (selected annotations only):
+
+```typescript
+// Type-specific control points from helper function
+const getControlPoints = (annotation: Annotation): Point[] => {
+  switch (annotation.type) {
+    case 'freehand':
+    case 'arrow':
+      return [annotation.points[0], annotation.points[annotation.points.length - 1]]; // Start and end
+    case 'polyline':
+      return annotation.points; // All vertices
+    case 'oval': {
+      // 8 points: corners + midpoints of bounding box
+      const [start, end] = annotation.points;
+      const centerX = (start.x + end.x) / 2;
+      const centerY = (start.y + end.y) / 2;
+      const radiusX = Math.abs(end.x - start.x) / 2;
+      const radiusY = Math.abs(end.y - start.y) / 2;
+      return [
+        { x: centerX, y: centerY - radiusY }, // Top
+        { x: centerX + radiusX, y: centerY }, // Right
+        { x: centerX, y: centerY + radiusY }, // Bottom
+        { x: centerX - radiusX, y: centerY }, // Left
+        { x: centerX + radiusX * 0.707, y: centerY - radiusY * 0.707 }, // Top-right
+        { x: centerX + radiusX * 0.707, y: centerY + radiusY * 0.707 }, // Bottom-right
+        { x: centerX - radiusX * 0.707, y: centerY + radiusY * 0.707 }, // Bottom-left
+        { x: centerX - radiusX * 0.707, y: centerY - radiusY * 0.707 }, // Top-left
+      ];
+    }
+  }
+};
+
+// Render 8x8px white Rects with black stroke (interactive for future drag/edit)
+{isSelected && getControlPoints(annotation).map((point, idx) => (
+  <Rect key={`cp-${annotation.id}-${idx}`} x={point.x - 4} y={point.y - 4}
+        width={8} height={8} fill="white" stroke="black" strokeWidth={1} />
+))}
+```
 
 ### Performance Considerations
 
@@ -185,23 +241,25 @@ const end = annotation.points[1];
 
 ### Unit Tests
 
-**AnnotationManager** (`src/utils/tests/AnnotationManager.test.ts`) - **67 tests**:
+**AnnotationManager** (`src/utils/tests/AnnotationManager.test.ts`) - **84 tests**:
 
 - Annotation CRUD operations
 - Tool selection integration (`setTool`, `getTool`)
 - Drawing state machine (all 4 tools)
 - Point validation and workflows
+- Selection management (17 tests): `toggleSelection`, `isSelected`, `getSelectedIds`, `clearSelection`, `deleteSelected`, integration with `startDrawing`/`clearAll`
 
-**useVideoAnnotations Hook** (`src/hooks/tests/useVideoAnnotations.test.ts`) - **14 tests**:
+**useVideoAnnotations Hook** (`src/hooks/tests/useVideoAnnotations.test.ts`) - **20 tests**:
 
 - Hook initialization and state management
 - Tool selection via hook API
 - Event handler generation
 - Scale calculation
-- Keyboard shortcuts (Enter/Escape for polyline)
+- Keyboard shortcuts (Enter/Escape for polyline, Delete for selection)
 - Video activation logic
+- Selection and deletion (6 tests): `handleAnnotationClick`, multi-select, Delete key, `clearAll`
 
-**Total: 81 tests passing** - Business logic and React integration both fully covered.
+**Total: 104 tests passing** - Business logic and React integration both fully covered.
 
 ## Requirements Satisfied
 
@@ -222,7 +280,14 @@ const end = annotation.points[1];
    - Drag-based (freehand/oval/arrow): mouseDown → move → mouseUp
    - Click-based (polyline): click → click → finalize (Enter/double-click/double-click)
 
-5. **Keyboard Shortcuts**: Context-aware implementation using `activeVideo` state ensures only the active video responds to Enter/Escape keys
+5. **Keyboard Shortcuts**: Context-aware implementation using `activeVideo` state ensures only the active video responds to Enter/Escape keys; Delete key operates globally on both videos simultaneously
+
+6. **Selection UX**: Three enhancements improved usability:
+   - `hitStrokeWidth={20}` makes thin lines easier to click (20px clickable area vs 3px visual)
+   - Selections cleared on `startDrawing()` prevents confusion when drawing new annotations
+   - Preview shapes with `listening={false}` prevents blocking clicks (fixes polyline vertex addition)
+
+7. **Event Propagation**: Konva's `cancelBubble` prevents annotation clicks from triggering Stage handlers, but Stage handlers still fire - must check `event.target === stage` to distinguish background clicks from annotation clicks
 
 ## References
 

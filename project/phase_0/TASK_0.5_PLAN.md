@@ -2,9 +2,9 @@
 
 ## Status:
 
-**Last Subtask Completed:** 0.5.5 (with comprehensive refactoring)
-**Skipped Subtasks:** 0.5.4
-**Last Updated:** 2025-11-30 (Completed: Extended annotations to Video B with architectural improvements)
+**Last Subtask Completed:** 0.5.9 (annotation selection and deletion)
+**Skipped Subtasks:** 0.5.4, 0.5.6, 0.5.7, 0.5.8
+**Last Updated:** 2025-12-01 (Completed: Selection, multi-select, deletion, control points, Clear All buttons)
 
 ## Overview
 
@@ -300,7 +300,7 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
 
 ### Subtask 0.5.6: Create Playwright Integration Tests
 
-**Status**: Not started
+**Status**: ⏭️ SKIPPED (for now)
 
 **Goal**: Automated cross-browser tests for canvas overlay functionality.
 
@@ -355,7 +355,7 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
 
 ### Subtask 0.5.7: Performance Testing and Validation
 
-**Status**: Not started
+**Status**: ⏭️ SKIPPED (for now)
 
 **Goal**: Measure and validate drawing latency and playback performance.
 
@@ -414,7 +414,7 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
 
 ### Subtask 0.5.8: Create Spike Documentation
 
-**Status**: Not started
+**Status**: ⏭️ SKIPPED (for now)
 
 **Goal**: Document implementation, findings, and recommendations for Phase 1.
 
@@ -475,58 +475,41 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
 
 ### Subtask 0.5.9: (Optional) Basic Annotation Selection and Deletion
 
-**Status**: Not started
+**Status**: ✅ COMPLETE
 
 **Goal**: Add ability to select and delete annotations.
 
-**Optional Status**: This subtask is OPTIONAL for spike completion. If not implemented, add as Phase 1 task: "REQ-F-ANNOT-003: Annotation Editing". Document deferral in spike documentation.
+**Implementation Summary**:
 
-**Implementation**:
+- Added selection state management to AnnotationManager (7 methods: `toggleSelection`, `isSelected`, `getSelectedIds`, `clearSelection`, `deleteSelected`, integration with `startDrawing`/`clearAll`)
+- Integrated selection into `useVideoAnnotations` hook with `handleAnnotationClick` (ctrl-key detection, multi-select support)
+- Added Delete key handler with input/textarea safeguard to prevent conflicts
+- Implemented control points rendering (8x8px white Rects) with type-specific logic (freehand: start/end, polyline: all vertices, oval: 8 points, arrow: start/end)
+- Added Clear All buttons per video (disabled when empty)
+- Enhanced selection UX: `hitStrokeWidth={20}` for easier clicking, selections cleared on draw start, event propagation control to prevent polyline start on annotation click
+- Made preview shapes non-interactive (`listening={false}`) to fix polyline vertex clicking issue
 
-1. Add selection state: `const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)`
-2. Implement click handler on annotation shapes:
-   ```typescript
-   <Line
-     points={annotation.points}
-     onClick={() => setSelectedAnnotationId(annotation.id)}
-   />
-   ```
-3. Highlight selected annotation (different stroke color or stroke width)
-4. Add keyboard handler for Delete key:
-   ```typescript
-   useEffect(() => {
-     const handleKeyDown = (e: KeyboardEvent) => {
-       if (e.key === "Delete" && selectedAnnotationId) {
-         setAnnotations(
-           annotations.filter((a) => a.id !== selectedAnnotationId)
-         );
-         setSelectedAnnotationId(null);
-       }
-     };
-     window.addEventListener("keydown", handleKeyDown);
-     return () => window.removeEventListener("keydown", handleKeyDown);
-   }, [selectedAnnotationId]);
-   ```
-5. Add "Clear All" button (optional)
+**Deliverables**: ✅ All Complete
 
-**Deliverables**:
+- Click annotation to select, ctrl-click for multi-select
+- Delete key removes all selected annotations across both videos
+- Control points visualize selection
+- Clear All buttons per video
+- 23 new tests: 17 AnnotationManager tests + 6 hook tests (257 total passing)
 
-- Click annotation to select (visual highlight)
-- Delete key removes selected annotation
-- Selection state managed correctly
+**Testing**: ✅ Complete
 
-**Testing**:
+- Unit tests: 84 AnnotationManager tests + 20 hook tests (all passing)
+- Build validation: No TypeScript errors
 
-- Manual: Select annotation, press Delete, verify removal
-- Unit test: Test selection state and deletion logic
+**User-Facing**: ✅ Functional
 
-**User-Facing**:
-
-- Users can select and delete individual annotations
-- Clear visual feedback on selection
+- Users can select/multi-select annotations with visual feedback
+- Delete key removes selected annotations
+- Clear All buttons for quick cleanup
 - Demo exercisable via `npm run dev` at `/dual-video-sync`
 
-**Estimated Time**: 45 minutes
+**Actual Time**: ~3 hours (including UX refinements and bug fixes)
 
 ---
 

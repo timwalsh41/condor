@@ -877,4 +877,189 @@ describe("AnnotationManager", () => {
       });
     });
   });
+
+  describe("Selection Management", () => {
+    let annotation1: any;
+    let annotation2: any;
+    let annotation3: any;
+
+    beforeEach(() => {
+      // Create test annotations
+      annotation1 = manager.createAndAddAnnotation("freehand", [
+        { x: 10, y: 20 },
+        { x: 30, y: 40 },
+      ]);
+      annotation2 = manager.createAndAddAnnotation("oval", [
+        { x: 50, y: 60 },
+        { x: 100, y: 100 },
+      ]);
+      annotation3 = manager.createAndAddAnnotation("arrow", [
+        { x: 200, y: 200 },
+        { x: 250, y: 250 },
+      ]);
+    });
+
+    describe("toggleSelection", () => {
+      it("should select annotation with single-select mode", () => {
+        manager.toggleSelection(annotation1!.id, false);
+
+        expect(manager.isSelected(annotation1!.id)).toBe(true);
+        expect(manager.getSelectedIds().size).toBe(1);
+      });
+
+      it("should replace selection in single-select mode", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.toggleSelection(annotation2!.id, false);
+
+        expect(manager.isSelected(annotation1!.id)).toBe(false);
+        expect(manager.isSelected(annotation2!.id)).toBe(true);
+        expect(manager.getSelectedIds().size).toBe(1);
+      });
+
+      it("should add to selection in multi-select mode", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+
+        expect(manager.isSelected(annotation1!.id)).toBe(true);
+        expect(manager.isSelected(annotation2!.id)).toBe(true);
+        expect(manager.getSelectedIds().size).toBe(2);
+      });
+
+      it("should deselect annotation in multi-select mode when already selected", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+        manager.toggleSelection(annotation1!.id, true); // Toggle off
+
+        expect(manager.isSelected(annotation1!.id)).toBe(false);
+        expect(manager.isSelected(annotation2!.id)).toBe(true);
+        expect(manager.getSelectedIds().size).toBe(1);
+      });
+
+      it("should handle multi-select of all annotations", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+        manager.toggleSelection(annotation3!.id, true);
+
+        expect(manager.getSelectedIds().size).toBe(3);
+        expect(manager.isSelected(annotation1!.id)).toBe(true);
+        expect(manager.isSelected(annotation2!.id)).toBe(true);
+        expect(manager.isSelected(annotation3!.id)).toBe(true);
+      });
+    });
+
+    describe("getSelectedIds", () => {
+      it("should return empty set when nothing selected", () => {
+        const selectedIds = manager.getSelectedIds();
+
+        expect(selectedIds.size).toBe(0);
+      });
+
+      it("should return copy of selected IDs", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        const selectedIds = manager.getSelectedIds();
+
+        // Mutating returned set should not affect internal state
+        selectedIds.add("fake-id");
+        expect(manager.getSelectedIds().size).toBe(1);
+      });
+    });
+
+    describe("isSelected", () => {
+      it("should return false for unselected annotation", () => {
+        expect(manager.isSelected(annotation1!.id)).toBe(false);
+      });
+
+      it("should return true for selected annotation", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        expect(manager.isSelected(annotation1!.id)).toBe(true);
+      });
+
+      it("should return false for non-existent annotation", () => {
+        expect(manager.isSelected("non-existent-id")).toBe(false);
+      });
+    });
+
+    describe("clearSelection", () => {
+      it("should clear all selections", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+
+        manager.clearSelection();
+
+        expect(manager.getSelectedIds().size).toBe(0);
+        expect(manager.isSelected(annotation1!.id)).toBe(false);
+        expect(manager.isSelected(annotation2!.id)).toBe(false);
+      });
+
+      it("should work when nothing selected", () => {
+        expect(() => manager.clearSelection()).not.toThrow();
+        expect(manager.getSelectedIds().size).toBe(0);
+      });
+    });
+
+    describe("deleteSelected", () => {
+      it("should delete selected annotations", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+
+        const count = manager.deleteSelected();
+
+        expect(count).toBe(2);
+        expect(manager.getCount()).toBe(1);
+        expect(manager.getAnnotationById(annotation1!.id)).toBeUndefined();
+        expect(manager.getAnnotationById(annotation2!.id)).toBeUndefined();
+        expect(manager.getAnnotationById(annotation3!.id)).toBeDefined();
+      });
+
+      it("should clear selection after deletion", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.deleteSelected();
+
+        expect(manager.getSelectedIds().size).toBe(0);
+      });
+
+      it("should return 0 when nothing selected", () => {
+        const count = manager.deleteSelected();
+
+        expect(count).toBe(0);
+        expect(manager.getCount()).toBe(3);
+      });
+
+      it("should handle deletion of all annotations", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+        manager.toggleSelection(annotation3!.id, true);
+
+        const count = manager.deleteSelected();
+
+        expect(count).toBe(3);
+        expect(manager.getCount()).toBe(0);
+      });
+    });
+
+    describe("clearAll integration with selection", () => {
+      it("should clear selections when clearing all annotations", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+
+        manager.clearAll();
+
+        expect(manager.getCount()).toBe(0);
+        expect(manager.getSelectedIds().size).toBe(0);
+      });
+
+      it("should clear selections when starting to draw", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+
+        expect(manager.getSelectedIds().size).toBe(2);
+
+        // Start drawing should clear selections
+        manager.startDrawing({ x: 100, y: 100 });
+
+        expect(manager.getSelectedIds().size).toBe(0);
+        expect(manager.isDrawing()).toBe(true);
+      });
+    });
+  });
 });

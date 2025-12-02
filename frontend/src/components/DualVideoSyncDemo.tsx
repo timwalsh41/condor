@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Stage, Layer, Line, Arrow, Ellipse } from "react-konva";
+import { Stage, Layer, Line, Arrow, Ellipse, Rect } from "react-konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { useVideoAnnotations } from "../hooks/useVideoAnnotations";
 import type { Point } from "../types/annotations";
@@ -68,29 +68,43 @@ export function DualVideoSyncDemo() {
   const [activeVideo, setActiveVideo] = useState<"A" | "B" | null>(null);
 
   // Annotation state for Video A (using custom hook)
-  const videoAAnnotations = useVideoAnnotations(videoA, "A", activeVideo, setActiveVideo);
+  const videoAAnnotations = useVideoAnnotations(
+    videoA,
+    "A",
+    activeVideo,
+    setActiveVideo
+  );
   const {
     manager: annotationManagerA,
     selectedTool: selectedToolA,
     setSelectedTool: setSelectedToolA,
     drawingState: drawingStateA,
     annotations: annotationsA,
+    selectedIds: selectedIdsA,
     polylineMousePos: polylineMousePosA,
     scale: annotationScaleA,
     handlers: handlersA,
+    clearAll: clearAllA,
   } = videoAAnnotations;
 
   // Annotation state for Video B (using custom hook)
-  const videoBAnnotations = useVideoAnnotations(videoB, "B", activeVideo, setActiveVideo);
+  const videoBAnnotations = useVideoAnnotations(
+    videoB,
+    "B",
+    activeVideo,
+    setActiveVideo
+  );
   const {
     manager: annotationManagerB,
     selectedTool: selectedToolB,
     setSelectedTool: setSelectedToolB,
     drawingState: drawingStateB,
     annotations: annotationsB,
+    selectedIds: selectedIdsB,
     polylineMousePos: polylineMousePosB,
     scale: annotationScaleB,
     handlers: handlersB,
+    clearAll: clearAllB,
   } = videoBAnnotations;
 
   // Update refs on every render to capture latest state
@@ -102,6 +116,55 @@ export function DualVideoSyncDemo() {
   // Helper to convert Point[] to flat number[] for Konva rendering
   const pointsToKonva = (points: Point[]): number[] => {
     return points.flatMap((p) => [p.x, p.y]);
+  };
+
+  // Helper to get control points for an annotation based on type
+  const getControlPoints = (annotation: {
+    type: string;
+    points: Point[];
+  }): Point[] => {
+    switch (annotation.type) {
+      case "freehand":
+        // For freehand, only show start and end points
+        if (annotation.points.length >= 2) {
+          return [
+            annotation.points[0],
+            annotation.points[annotation.points.length - 1],
+          ];
+        }
+        return annotation.points;
+
+      case "polyline":
+      case "arrow":
+        // For polyline and arrow, show all points (vertices)
+        return annotation.points;
+
+      case "oval": {
+        // For oval, show 8 points: 4 corners + 4 midpoints
+        const start = annotation.points[0];
+        const end = annotation.points[1];
+        const minX = Math.min(start.x, end.x);
+        const maxX = Math.max(start.x, end.x);
+        const minY = Math.min(start.y, end.y);
+        const maxY = Math.max(start.y, end.y);
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+
+        return [
+          { x: minX, y: minY }, // Top-left corner
+          { x: centerX, y: minY }, // Top-center
+          { x: maxX, y: minY }, // Top-right corner
+          { x: maxX, y: centerY }, // Right-center
+          { x: maxX, y: maxY }, // Bottom-right corner
+          { x: centerX, y: maxY }, // Bottom-center
+          { x: minX, y: maxY }, // Bottom-left corner
+          { x: minX, y: centerY }, // Left-center
+        ];
+      }
+
+      default:
+        return annotation.points;
+    }
   };
 
   // Check browser support
@@ -768,25 +831,53 @@ export function DualVideoSyncDemo() {
                             <Layer>
                               {/* Render completed annotations */}
                               {annotationsA.map((annotation) => {
+                                const isSelected = selectedIdsA.has(
+                                  annotation.id
+                                );
                                 switch (annotation.type) {
                                   case "freehand":
                                   case "polyline":
                                     return (
-                                      <Line
-                                        key={annotation.id}
-                                        points={pointsToKonva(
-                                          annotation.points
-                                        )}
-                                        stroke={annotation.color}
-                                        strokeWidth={annotation.strokeWidth}
-                                        lineCap="round"
-                                        lineJoin="round"
-                                        tension={
-                                          annotation.type === "freehand"
-                                            ? 0.5
-                                            : 0
-                                        }
-                                      />
+                                      <>
+                                        <Line
+                                          key={annotation.id}
+                                          points={pointsToKonva(
+                                            annotation.points
+                                          )}
+                                          stroke={annotation.color}
+                                          strokeWidth={annotation.strokeWidth}
+                                          lineCap="round"
+                                          lineJoin="round"
+                                          tension={
+                                            annotation.type === "freehand"
+                                              ? 0.5
+                                              : 0
+                                          }
+                                          hitStrokeWidth={20}
+                                          onClick={(e) =>
+                                            handlersA.handleAnnotationClick(
+                                              annotation.id,
+                                              e
+                                            )
+                                          }
+                                        />
+                                        {/* Render control points if selected */}
+                                        {isSelected &&
+                                          getControlPoints(annotation).map(
+                                            (point, idx) => (
+                                              <Rect
+                                                key={`cp-${annotation.id}-${idx}`}
+                                                x={point.x - 4}
+                                                y={point.y - 4}
+                                                width={8}
+                                                height={8}
+                                                fill="white"
+                                                stroke="black"
+                                                strokeWidth={1}
+                                              />
+                                            )
+                                          )}
+                                      </>
                                     );
                                   case "oval": {
                                     // Points format: [start, end] where each is {x, y}
@@ -799,30 +890,79 @@ export function DualVideoSyncDemo() {
                                     const radiusY =
                                       Math.abs(end.y - start.y) / 2;
                                     return (
-                                      <Ellipse
-                                        key={annotation.id}
-                                        x={centerX}
-                                        y={centerY}
-                                        radiusX={radiusX}
-                                        radiusY={radiusY}
-                                        stroke={annotation.color}
-                                        strokeWidth={annotation.strokeWidth}
-                                      />
+                                      <>
+                                        <Ellipse
+                                          key={annotation.id}
+                                          x={centerX}
+                                          y={centerY}
+                                          radiusX={radiusX}
+                                          radiusY={radiusY}
+                                          stroke={annotation.color}
+                                          strokeWidth={annotation.strokeWidth}
+                                          onClick={(e) =>
+                                            handlersA.handleAnnotationClick(
+                                              annotation.id,
+                                              e
+                                            )
+                                          }
+                                        />
+                                        {/* Render control points if selected */}
+                                        {isSelected &&
+                                          getControlPoints(annotation).map(
+                                            (point, idx) => (
+                                              <Rect
+                                                key={`cp-${annotation.id}-${idx}`}
+                                                x={point.x - 4}
+                                                y={point.y - 4}
+                                                width={8}
+                                                height={8}
+                                                fill="white"
+                                                stroke="black"
+                                                strokeWidth={1}
+                                              />
+                                            )
+                                          )}
+                                      </>
                                     );
                                   }
                                   case "arrow":
                                     return (
-                                      <Arrow
-                                        key={annotation.id}
-                                        points={pointsToKonva(
-                                          annotation.points
-                                        )}
-                                        stroke={annotation.color}
-                                        strokeWidth={annotation.strokeWidth}
-                                        fill={annotation.color}
-                                        pointerLength={10}
-                                        pointerWidth={10}
-                                      />
+                                      <>
+                                        <Arrow
+                                          key={annotation.id}
+                                          points={pointsToKonva(
+                                            annotation.points
+                                          )}
+                                          stroke={annotation.color}
+                                          strokeWidth={annotation.strokeWidth}
+                                          fill={annotation.color}
+                                          pointerLength={10}
+                                          pointerWidth={10}
+                                          hitStrokeWidth={20}
+                                          onClick={(e) =>
+                                            handlersA.handleAnnotationClick(
+                                              annotation.id,
+                                              e
+                                            )
+                                          }
+                                        />
+                                        {/* Render control points if selected */}
+                                        {isSelected &&
+                                          getControlPoints(annotation).map(
+                                            (point, idx) => (
+                                              <Rect
+                                                key={`cp-${annotation.id}-${idx}`}
+                                                x={point.x - 4}
+                                                y={point.y - 4}
+                                                width={8}
+                                                height={8}
+                                                fill="white"
+                                                stroke="black"
+                                                strokeWidth={1}
+                                              />
+                                            )
+                                          )}
+                                      </>
                                     );
                                   default:
                                     return null;
@@ -844,6 +984,7 @@ export function DualVideoSyncDemo() {
                                         lineJoin="round"
                                         tension={0.5}
                                         dash={[10, 5]}
+                                        listening={false}
                                       />
                                     )}
                                     {drawingStateA.tool === "oval" &&
@@ -874,6 +1015,7 @@ export function DualVideoSyncDemo() {
                                           stroke="#FF0000"
                                           strokeWidth={3}
                                           dash={[10, 5]}
+                                          listening={false}
                                         />
                                       )}
                                     {drawingStateA.tool === "arrow" &&
@@ -888,6 +1030,7 @@ export function DualVideoSyncDemo() {
                                           pointerLength={10}
                                           pointerWidth={10}
                                           dash={[10, 5]}
+                                          listening={false}
                                         />
                                       )}
                                   </>
@@ -905,6 +1048,7 @@ export function DualVideoSyncDemo() {
                                     lineCap="round"
                                     lineJoin="round"
                                     dash={[10, 5]}
+                                    listening={false}
                                   />
                                 )}
 
@@ -929,6 +1073,7 @@ export function DualVideoSyncDemo() {
                                     lineJoin="round"
                                     dash={[10, 5]}
                                     opacity={0.6}
+                                    listening={false}
                                   />
                                 )}
                             </Layer>
@@ -1017,25 +1162,53 @@ export function DualVideoSyncDemo() {
                             <Layer>
                               {/* Render completed annotations */}
                               {annotationsB.map((annotation) => {
+                                const isSelected = selectedIdsB.has(
+                                  annotation.id
+                                );
                                 switch (annotation.type) {
                                   case "freehand":
                                   case "polyline":
                                     return (
-                                      <Line
-                                        key={annotation.id}
-                                        points={pointsToKonva(
-                                          annotation.points
-                                        )}
-                                        stroke={annotation.color}
-                                        strokeWidth={annotation.strokeWidth}
-                                        lineCap="round"
-                                        lineJoin="round"
-                                        tension={
-                                          annotation.type === "freehand"
-                                            ? 0.5
-                                            : 0
-                                        }
-                                      />
+                                      <>
+                                        <Line
+                                          key={annotation.id}
+                                          points={pointsToKonva(
+                                            annotation.points
+                                          )}
+                                          stroke={annotation.color}
+                                          strokeWidth={annotation.strokeWidth}
+                                          lineCap="round"
+                                          lineJoin="round"
+                                          tension={
+                                            annotation.type === "freehand"
+                                              ? 0.5
+                                              : 0
+                                          }
+                                          hitStrokeWidth={20}
+                                          onClick={(e) =>
+                                            handlersB.handleAnnotationClick(
+                                              annotation.id,
+                                              e
+                                            )
+                                          }
+                                        />
+                                        {/* Render control points if selected */}
+                                        {isSelected &&
+                                          getControlPoints(annotation).map(
+                                            (point, idx) => (
+                                              <Rect
+                                                key={`cp-${annotation.id}-${idx}`}
+                                                x={point.x - 4}
+                                                y={point.y - 4}
+                                                width={8}
+                                                height={8}
+                                                fill="white"
+                                                stroke="black"
+                                                strokeWidth={1}
+                                              />
+                                            )
+                                          )}
+                                      </>
                                     );
                                   case "oval": {
                                     // Points format: [start, end] where each is {x, y}
@@ -1048,30 +1221,79 @@ export function DualVideoSyncDemo() {
                                     const radiusY =
                                       Math.abs(end.y - start.y) / 2;
                                     return (
-                                      <Ellipse
-                                        key={annotation.id}
-                                        x={centerX}
-                                        y={centerY}
-                                        radiusX={radiusX}
-                                        radiusY={radiusY}
-                                        stroke={annotation.color}
-                                        strokeWidth={annotation.strokeWidth}
-                                      />
+                                      <>
+                                        <Ellipse
+                                          key={annotation.id}
+                                          x={centerX}
+                                          y={centerY}
+                                          radiusX={radiusX}
+                                          radiusY={radiusY}
+                                          stroke={annotation.color}
+                                          strokeWidth={annotation.strokeWidth}
+                                          onClick={(e) =>
+                                            handlersB.handleAnnotationClick(
+                                              annotation.id,
+                                              e
+                                            )
+                                          }
+                                        />
+                                        {/* Render control points if selected */}
+                                        {isSelected &&
+                                          getControlPoints(annotation).map(
+                                            (point, idx) => (
+                                              <Rect
+                                                key={`cp-${annotation.id}-${idx}`}
+                                                x={point.x - 4}
+                                                y={point.y - 4}
+                                                width={8}
+                                                height={8}
+                                                fill="white"
+                                                stroke="black"
+                                                strokeWidth={1}
+                                              />
+                                            )
+                                          )}
+                                      </>
                                     );
                                   }
                                   case "arrow":
                                     return (
-                                      <Arrow
-                                        key={annotation.id}
-                                        points={pointsToKonva(
-                                          annotation.points
-                                        )}
-                                        stroke={annotation.color}
-                                        strokeWidth={annotation.strokeWidth}
-                                        fill={annotation.color}
-                                        pointerLength={10}
-                                        pointerWidth={10}
-                                      />
+                                      <>
+                                        <Arrow
+                                          key={annotation.id}
+                                          points={pointsToKonva(
+                                            annotation.points
+                                          )}
+                                          stroke={annotation.color}
+                                          strokeWidth={annotation.strokeWidth}
+                                          fill={annotation.color}
+                                          pointerLength={10}
+                                          pointerWidth={10}
+                                          hitStrokeWidth={20}
+                                          onClick={(e) =>
+                                            handlersB.handleAnnotationClick(
+                                              annotation.id,
+                                              e
+                                            )
+                                          }
+                                        />
+                                        {/* Render control points if selected */}
+                                        {isSelected &&
+                                          getControlPoints(annotation).map(
+                                            (point, idx) => (
+                                              <Rect
+                                                key={`cp-${annotation.id}-${idx}`}
+                                                x={point.x - 4}
+                                                y={point.y - 4}
+                                                width={8}
+                                                height={8}
+                                                fill="white"
+                                                stroke="black"
+                                                strokeWidth={1}
+                                              />
+                                            )
+                                          )}
+                                      </>
                                     );
                                   default:
                                     return null;
@@ -1093,6 +1315,7 @@ export function DualVideoSyncDemo() {
                                         lineJoin="round"
                                         tension={0.5}
                                         dash={[10, 5]}
+                                        listening={false}
                                       />
                                     )}
                                     {drawingStateB.tool === "oval" &&
@@ -1123,6 +1346,7 @@ export function DualVideoSyncDemo() {
                                           stroke="#FF0000"
                                           strokeWidth={3}
                                           dash={[10, 5]}
+                                          listening={false}
                                         />
                                       )}
                                     {drawingStateB.tool === "arrow" &&
@@ -1137,6 +1361,7 @@ export function DualVideoSyncDemo() {
                                           pointerLength={10}
                                           pointerWidth={10}
                                           dash={[10, 5]}
+                                          listening={false}
                                         />
                                       )}
                                   </>
@@ -1154,6 +1379,7 @@ export function DualVideoSyncDemo() {
                                     lineCap="round"
                                     lineJoin="round"
                                     dash={[10, 5]}
+                                    listening={false}
                                   />
                                 )}
 
@@ -1178,6 +1404,7 @@ export function DualVideoSyncDemo() {
                                     lineJoin="round"
                                     dash={[10, 5]}
                                     opacity={0.6}
+                                    listening={false}
                                   />
                                 )}
                             </Layer>
@@ -1694,6 +1921,25 @@ export function DualVideoSyncDemo() {
                     >
                       Arrow
                     </button>
+                    <button
+                      data-testid="clear-all-a"
+                      onClick={clearAllA}
+                      disabled={annotationsA.length === 0}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor:
+                          annotationsA.length === 0 ? "not-allowed" : "pointer",
+                        border: "1px solid #d32f2f",
+                        backgroundColor:
+                          annotationsA.length === 0 ? "#f5f5f5" : "white",
+                        color: annotationsA.length === 0 ? "#999" : "#d32f2f",
+                        borderRadius: "4px",
+                        marginLeft: "10px",
+                      }}
+                    >
+                      Clear All
+                    </button>
                   </div>
                   {/* Reserve space for polyline message to prevent layout shift */}
                   <div
@@ -1815,6 +2061,25 @@ export function DualVideoSyncDemo() {
                       }}
                     >
                       Arrow
+                    </button>
+                    <button
+                      data-testid="clear-all-b"
+                      onClick={clearAllB}
+                      disabled={annotationsB.length === 0}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor:
+                          annotationsB.length === 0 ? "not-allowed" : "pointer",
+                        border: "1px solid #d32f2f",
+                        backgroundColor:
+                          annotationsB.length === 0 ? "#f5f5f5" : "white",
+                        color: annotationsB.length === 0 ? "#999" : "#d32f2f",
+                        borderRadius: "4px",
+                        marginLeft: "10px",
+                      }}
+                    >
+                      Clear All
                     </button>
                   </div>
                   {/* Reserve space for polyline message to prevent layout shift */}

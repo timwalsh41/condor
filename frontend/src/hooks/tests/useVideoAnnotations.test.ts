@@ -331,12 +331,7 @@ describe("useVideoAnnotations", () => {
 
     it("should handle annotation click for selection", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(
-          mockVideoDecoder,
-          "A",
-          activeVideo,
-          setActiveVideo
-        )
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create an annotation
@@ -366,25 +361,17 @@ describe("useVideoAnnotations", () => {
 
     it("should handle Ctrl-click for multi-select", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(
-          mockVideoDecoder,
-          "A",
-          activeVideo,
-          setActiveVideo
-        )
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create two annotations
       let annotationId1: string = "";
       let annotationId2: string = "";
       act(() => {
-        const ann1 = result.current.manager.createAndAddAnnotation(
-          "freehand",
-          [
-            { x: 10, y: 20 },
-            { x: 30, y: 40 },
-          ]
-        );
+        const ann1 = result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
         const ann2 = result.current.manager.createAndAddAnnotation("oval", [
           { x: 50, y: 60 },
           { x: 100, y: 100 },
@@ -398,10 +385,7 @@ describe("useVideoAnnotations", () => {
         const mockEvent = {
           evt: { ctrlKey: true, metaKey: false },
         } as any;
-        result.current.handlers.handleAnnotationClick(
-          annotationId1,
-          mockEvent
-        );
+        result.current.handlers.handleAnnotationClick(annotationId1, mockEvent);
       });
 
       // Select second annotation with Ctrl-click
@@ -409,10 +393,7 @@ describe("useVideoAnnotations", () => {
         const mockEvent = {
           evt: { ctrlKey: true, metaKey: false },
         } as any;
-        result.current.handlers.handleAnnotationClick(
-          annotationId2,
-          mockEvent
-        );
+        result.current.handlers.handleAnnotationClick(annotationId2, mockEvent);
       });
 
       expect(result.current.selectedIds.has(annotationId1)).toBe(true);
@@ -422,12 +403,7 @@ describe("useVideoAnnotations", () => {
 
     it("should not allow selection during drawing", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(
-          mockVideoDecoder,
-          "A",
-          activeVideo,
-          setActiveVideo
-        )
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create an annotation
@@ -465,25 +441,17 @@ describe("useVideoAnnotations", () => {
 
     it("should delete selected annotations on Delete key", () => {
       const { result, rerender } = renderHook(() =>
-        useVideoAnnotations(
-          mockVideoDecoder,
-          "A",
-          activeVideo,
-          setActiveVideo
-        )
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create two annotations and trigger state update
       let annotationId1: string = "";
       let annotationId2: string = "";
       act(() => {
-        const ann1 = result.current.manager.createAndAddAnnotation(
-          "freehand",
-          [
-            { x: 10, y: 20 },
-            { x: 30, y: 40 },
-          ]
-        );
+        const ann1 = result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
         const ann2 = result.current.manager.createAndAddAnnotation("oval", [
           { x: 50, y: 60 },
           { x: 100, y: 100 },
@@ -516,12 +484,7 @@ describe("useVideoAnnotations", () => {
 
     it("should clear all annotations", () => {
       const { result, rerender } = renderHook(() =>
-        useVideoAnnotations(
-          mockVideoDecoder,
-          "A",
-          activeVideo,
-          setActiveVideo
-        )
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create annotations
@@ -552,12 +515,7 @@ describe("useVideoAnnotations", () => {
 
     it("should not delete when Delete key pressed on input element", () => {
       const { result, rerender } = renderHook(() =>
-        useVideoAnnotations(
-          mockVideoDecoder,
-          "A",
-          activeVideo,
-          setActiveVideo
-        )
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create and select annotation
@@ -592,6 +550,265 @@ describe("useVideoAnnotations", () => {
 
       // Annotation should NOT be deleted
       expect(result.current.manager.getCount()).toBe(1);
+    });
+  });
+
+  // ========================================
+  // Drag Handler Tests (Subtask 0.5.10)
+  // ========================================
+
+  describe("Drag Handlers", () => {
+    it("should initialize with isDraggingAnnotation false", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      expect(result.current.isDraggingAnnotation).toBe(false);
+    });
+
+    it("should provide handleAnnotationDragStart handler", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      expect(result.current.handlers.handleAnnotationDragStart).toBeDefined();
+      expect(typeof result.current.handlers.handleAnnotationDragStart).toBe(
+        "function"
+      );
+    });
+
+    it("should provide handleStageMouseMove handler", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      expect(result.current.handlers.handleStageMouseMove).toBeDefined();
+      expect(typeof result.current.handlers.handleStageMouseMove).toBe(
+        "function"
+      );
+    });
+
+    it("should provide handleStageMouseUp handler", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      expect(result.current.handlers.handleStageMouseUp).toBeDefined();
+      expect(typeof result.current.handlers.handleStageMouseUp).toBe(
+        "function"
+      );
+    });
+
+    it("should set isDraggingAnnotation to true when drag starts", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create and select annotation
+      let annotationId: string;
+      act(() => {
+        const ann = result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+        annotationId = ann!.id;
+        result.current.manager.toggleSelection(annotationId, false);
+      });
+
+      // Mock Konva event
+      const mockEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 10, y: 20 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleAnnotationDragStart(
+          annotationId!,
+          mockEvent
+        );
+      });
+
+      expect(result.current.isDraggingAnnotation).toBe(true);
+      expect(result.current.manager.isDragging()).toBe(true);
+    });
+
+    it("should update annotations during drag via handleStageMouseMove", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create and select annotation
+      let annotationId: string;
+      act(() => {
+        const ann = result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+        annotationId = ann!.id;
+        result.current.manager.toggleSelection(annotationId, false);
+      });
+
+      // Start drag
+      const startEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 10, y: 20 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleAnnotationDragStart(
+          annotationId!,
+          startEvent
+        );
+      });
+
+      // Move mouse during drag
+      const moveEvent = {
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 20, y: 30 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleStageMouseMove(moveEvent);
+      });
+
+      // Verify annotation moved by delta (10, 10)
+      const annotation = result.current.annotations.find(
+        (a) => a.id === annotationId
+      );
+      expect(annotation?.points).toEqual([
+        { x: 20, y: 30 },
+        { x: 40, y: 50 },
+      ]);
+    });
+
+    it("should end drag on handleStageMouseUp", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create and select annotation
+      let annotationId: string;
+      act(() => {
+        const ann = result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+        annotationId = ann!.id;
+        result.current.manager.toggleSelection(annotationId, false);
+      });
+
+      // Start drag
+      const startEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 10, y: 20 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleAnnotationDragStart(
+          annotationId!,
+          startEvent
+        );
+      });
+
+      expect(result.current.isDraggingAnnotation).toBe(true);
+
+      // End drag
+      act(() => {
+        result.current.handlers.handleStageMouseUp();
+      });
+
+      expect(result.current.isDraggingAnnotation).toBe(false);
+      expect(result.current.manager.isDragging()).toBe(false);
+    });
+
+    it("should not start drag during drawing", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create and select annotation
+      let annotationId: string;
+      act(() => {
+        const ann = result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+        annotationId = ann!.id;
+        result.current.manager.toggleSelection(annotationId, false);
+      });
+
+      // Start drawing
+      act(() => {
+        result.current.manager.startDrawing({ x: 100, y: 100 });
+      });
+
+      // Try to start drag
+      const mockEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 10, y: 20 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleAnnotationDragStart(
+          annotationId!,
+          mockEvent
+        );
+      });
+
+      // Drag should not start
+      expect(result.current.isDraggingAnnotation).toBe(false);
+      expect(result.current.manager.isDragging()).toBe(false);
+    });
+
+    it("should not update drag when not dragging", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create annotation (not selected, not dragging)
+      act(() => {
+        result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+      });
+
+      const originalAnnotations = result.current.annotations;
+
+      // Try to move mouse (no drag active)
+      const moveEvent = {
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 100, y: 100 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleStageMouseMove(moveEvent);
+      });
+
+      // Annotations should not change
+      expect(result.current.annotations).toEqual(originalAnnotations);
     });
   });
 });

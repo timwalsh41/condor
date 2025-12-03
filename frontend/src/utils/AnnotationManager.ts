@@ -23,6 +23,15 @@ export class AnnotationManager {
   private drawingState: DrawingState = { mode: "idle" };
   private selectedTool: AnnotationType = "freehand";
   private selectedIds: Set<string> = new Set();
+  private dragState: {
+    isDragging: boolean;
+    primaryAnnotationId: string | null;
+    startPositions: Map<string, Point[]>;
+  } = {
+    isDragging: false,
+    primaryAnnotationId: null,
+    startPositions: new Map(),
+  };
 
   /**
    * Set the currently selected tool.
@@ -349,5 +358,85 @@ export class AnnotationManager {
     if (this.drawingState.mode === "idle") return null;
     if (this.drawingState.mode === "polyline-active") return "polyline";
     return this.drawingState.tool;
+  }
+
+  // ========================================
+  // Drag Methods (Subtask 0.5.10)
+  // ========================================
+
+  /**
+   * Update the points of an annotation by ID.
+   * Used during dragging to update annotation positions.
+   * Returns true if annotation was found and updated.
+   */
+  updateAnnotationPoints(id: string, newPoints: Point[]): boolean {
+    const annotation = this.annotations.find((a) => a.id === id);
+    if (annotation) {
+      annotation.points = newPoints;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Start dragging operation for selected annotations.
+   * Stores original positions for all selected annotations.
+   * @param primaryId - ID of the annotation that was clicked to start the drag
+   */
+  startDrag(primaryId: string): void {
+    this.dragState.isDragging = true;
+    this.dragState.primaryAnnotationId = primaryId;
+    this.dragState.startPositions.clear();
+
+    // Store original positions for all selected annotations
+    this.selectedIds.forEach((id) => {
+      const annotation = this.getAnnotationById(id);
+      if (annotation) {
+        // Deep copy of points array
+        this.dragState.startPositions.set(
+          id,
+          annotation.points.map((p) => ({ ...p }))
+        );
+      }
+    });
+  }
+
+  /**
+   * Update all selected annotations during drag.
+   * Applies the delta to all selected annotations from their original positions.
+   * @param delta - The x,y offset from the drag start position
+   */
+  updateDrag(delta: Point): void {
+    if (!this.dragState.isDragging) return;
+
+    // Apply delta to all selected annotations
+    this.selectedIds.forEach((id) => {
+      const originalPoints = this.dragState.startPositions.get(id);
+      if (originalPoints) {
+        const newPoints = originalPoints.map((p) => ({
+          x: p.x + delta.x,
+          y: p.y + delta.y,
+        }));
+        this.updateAnnotationPoints(id, newPoints);
+      }
+    });
+  }
+
+  /**
+   * End dragging operation and clear drag state.
+   */
+  endDrag(): void {
+    this.dragState = {
+      isDragging: false,
+      primaryAnnotationId: null,
+      startPositions: new Map(),
+    };
+  }
+
+  /**
+   * Check if currently dragging.
+   */
+  isDragging(): boolean {
+    return this.dragState.isDragging;
   }
 }

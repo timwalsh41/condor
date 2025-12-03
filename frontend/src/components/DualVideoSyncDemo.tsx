@@ -85,6 +85,7 @@ export function DualVideoSyncDemo() {
     scale: annotationScaleA,
     handlers: handlersA,
     clearAll: clearAllA,
+    isDraggingAnnotation: isDraggingAnnotationA,
   } = videoAAnnotations;
 
   // Annotation state for Video B (using custom hook)
@@ -105,6 +106,7 @@ export function DualVideoSyncDemo() {
     scale: annotationScaleB,
     handlers: handlersB,
     clearAll: clearAllB,
+    isDraggingAnnotation: isDraggingAnnotationB,
   } = videoBAnnotations;
 
   // Update refs on every render to capture latest state
@@ -822,9 +824,21 @@ export function DualVideoSyncDemo() {
                             width={videoA.metadata.width}
                             height={videoA.metadata.height}
                             onMouseDown={handlersA.handleMouseDown}
-                            onMouseMove={handlersA.handleMouseMove}
-                            onMouseUp={handlersA.handleMouseUp}
-                            onMouseLeave={handlersA.handleMouseUp} // Finish drawing if mouse leaves canvas
+                            onMouseMove={
+                              isDraggingAnnotationA
+                                ? handlersA.handleStageMouseMove
+                                : handlersA.handleMouseMove
+                            }
+                            onMouseUp={
+                              isDraggingAnnotationA
+                                ? handlersA.handleStageMouseUp
+                                : handlersA.handleMouseUp
+                            }
+                            onMouseLeave={
+                              isDraggingAnnotationA
+                                ? handlersA.handleStageMouseUp
+                                : handlersA.handleMouseUp
+                            } // Finish drawing/drag if mouse leaves canvas
                             onClick={handlersA.handleClick}
                             onDblClick={handlersA.handleDoubleClick}
                           >
@@ -834,6 +848,11 @@ export function DualVideoSyncDemo() {
                                 const isSelected = selectedIdsA.has(
                                   annotation.id
                                 );
+                                const canDrag =
+                                  isSelected && drawingStateA.mode === "idle";
+                                const cursorStyle = canDrag
+                                  ? "move"
+                                  : "pointer";
                                 switch (annotation.type) {
                                   case "freehand":
                                   case "polyline":
@@ -854,12 +873,21 @@ export function DualVideoSyncDemo() {
                                               : 0
                                           }
                                           hitStrokeWidth={20}
+                                          cursor={cursorStyle}
                                           onClick={(e) =>
                                             handlersA.handleAnnotationClick(
                                               annotation.id,
                                               e
                                             )
                                           }
+                                          onMouseDown={(e) => {
+                                            if (canDrag) {
+                                              handlersA.handleAnnotationDragStart(
+                                                annotation.id,
+                                                e
+                                              );
+                                            }
+                                          }}
                                         />
                                         {/* Render control points if selected */}
                                         {isSelected &&
@@ -874,6 +902,11 @@ export function DualVideoSyncDemo() {
                                                 fill="white"
                                                 stroke="black"
                                                 strokeWidth={1}
+                                                cursor="pointer"
+                                                onClick={(e) => {
+                                                  e.cancelBubble = true;
+                                                  // In 0.5.11, this will start reshape
+                                                }}
                                               />
                                             )
                                           )}
@@ -899,12 +932,21 @@ export function DualVideoSyncDemo() {
                                           radiusY={radiusY}
                                           stroke={annotation.color}
                                           strokeWidth={annotation.strokeWidth}
+                                          cursor={cursorStyle}
                                           onClick={(e) =>
                                             handlersA.handleAnnotationClick(
                                               annotation.id,
                                               e
                                             )
                                           }
+                                          onMouseDown={(e) => {
+                                            if (canDrag) {
+                                              handlersA.handleAnnotationDragStart(
+                                                annotation.id,
+                                                e
+                                              );
+                                            }
+                                          }}
                                         />
                                         {/* Render control points if selected */}
                                         {isSelected &&
@@ -919,6 +961,11 @@ export function DualVideoSyncDemo() {
                                                 fill="white"
                                                 stroke="black"
                                                 strokeWidth={1}
+                                                cursor="pointer"
+                                                onClick={(e) => {
+                                                  e.cancelBubble = true;
+                                                  // In 0.5.11, this will start reshape
+                                                }}
                                               />
                                             )
                                           )}
@@ -939,12 +986,21 @@ export function DualVideoSyncDemo() {
                                           pointerLength={10}
                                           pointerWidth={10}
                                           hitStrokeWidth={20}
+                                          cursor={cursorStyle}
                                           onClick={(e) =>
                                             handlersA.handleAnnotationClick(
                                               annotation.id,
                                               e
                                             )
                                           }
+                                          onMouseDown={(e) => {
+                                            if (canDrag) {
+                                              handlersA.handleAnnotationDragStart(
+                                                annotation.id,
+                                                e
+                                              );
+                                            }
+                                          }}
                                         />
                                         {/* Render control points if selected */}
                                         {isSelected &&
@@ -959,6 +1015,11 @@ export function DualVideoSyncDemo() {
                                                 fill="white"
                                                 stroke="black"
                                                 strokeWidth={1}
+                                                cursor="pointer"
+                                                onClick={(e) => {
+                                                  e.cancelBubble = true;
+                                                  // In 0.5.11, this will start reshape
+                                                }}
                                               />
                                             )
                                           )}
@@ -1153,9 +1214,21 @@ export function DualVideoSyncDemo() {
                             width={videoB.metadata.width}
                             height={videoB.metadata.height}
                             onMouseDown={handlersB.handleMouseDown}
-                            onMouseMove={handlersB.handleMouseMove}
-                            onMouseUp={handlersB.handleMouseUp}
-                            onMouseLeave={handlersB.handleMouseUp} // Finish drawing if mouse leaves canvas
+                            onMouseMove={
+                              isDraggingAnnotationB
+                                ? handlersB.handleStageMouseMove
+                                : handlersB.handleMouseMove
+                            }
+                            onMouseUp={
+                              isDraggingAnnotationB
+                                ? handlersB.handleStageMouseUp
+                                : handlersB.handleMouseUp
+                            }
+                            onMouseLeave={
+                              isDraggingAnnotationB
+                                ? handlersB.handleStageMouseUp
+                                : handlersB.handleMouseUp
+                            } // Finish drawing/drag if mouse leaves canvas
                             onClick={handlersB.handleClick}
                             onDblClick={handlersB.handleDoubleClick}
                           >
@@ -1165,6 +1238,11 @@ export function DualVideoSyncDemo() {
                                 const isSelected = selectedIdsB.has(
                                   annotation.id
                                 );
+                                const canDrag =
+                                  isSelected && drawingStateB.mode === "idle";
+                                const cursorStyle = canDrag
+                                  ? "move"
+                                  : "pointer";
                                 switch (annotation.type) {
                                   case "freehand":
                                   case "polyline":
@@ -1185,12 +1263,21 @@ export function DualVideoSyncDemo() {
                                               : 0
                                           }
                                           hitStrokeWidth={20}
+                                          cursor={cursorStyle}
                                           onClick={(e) =>
                                             handlersB.handleAnnotationClick(
                                               annotation.id,
                                               e
                                             )
                                           }
+                                          onMouseDown={(e) => {
+                                            if (canDrag) {
+                                              handlersB.handleAnnotationDragStart(
+                                                annotation.id,
+                                                e
+                                              );
+                                            }
+                                          }}
                                         />
                                         {/* Render control points if selected */}
                                         {isSelected &&
@@ -1205,6 +1292,11 @@ export function DualVideoSyncDemo() {
                                                 fill="white"
                                                 stroke="black"
                                                 strokeWidth={1}
+                                                cursor="pointer"
+                                                onClick={(e) => {
+                                                  e.cancelBubble = true;
+                                                  // In 0.5.11, this will start reshape
+                                                }}
                                               />
                                             )
                                           )}
@@ -1230,12 +1322,21 @@ export function DualVideoSyncDemo() {
                                           radiusY={radiusY}
                                           stroke={annotation.color}
                                           strokeWidth={annotation.strokeWidth}
+                                          cursor={cursorStyle}
                                           onClick={(e) =>
                                             handlersB.handleAnnotationClick(
                                               annotation.id,
                                               e
                                             )
                                           }
+                                          onMouseDown={(e) => {
+                                            if (canDrag) {
+                                              handlersB.handleAnnotationDragStart(
+                                                annotation.id,
+                                                e
+                                              );
+                                            }
+                                          }}
                                         />
                                         {/* Render control points if selected */}
                                         {isSelected &&
@@ -1250,6 +1351,11 @@ export function DualVideoSyncDemo() {
                                                 fill="white"
                                                 stroke="black"
                                                 strokeWidth={1}
+                                                cursor="pointer"
+                                                onClick={(e) => {
+                                                  e.cancelBubble = true;
+                                                  // In 0.5.11, this will start reshape
+                                                }}
                                               />
                                             )
                                           )}
@@ -1270,12 +1376,21 @@ export function DualVideoSyncDemo() {
                                           pointerLength={10}
                                           pointerWidth={10}
                                           hitStrokeWidth={20}
+                                          cursor={cursorStyle}
                                           onClick={(e) =>
                                             handlersB.handleAnnotationClick(
                                               annotation.id,
                                               e
                                             )
                                           }
+                                          onMouseDown={(e) => {
+                                            if (canDrag) {
+                                              handlersB.handleAnnotationDragStart(
+                                                annotation.id,
+                                                e
+                                              );
+                                            }
+                                          }}
                                         />
                                         {/* Render control points if selected */}
                                         {isSelected &&
@@ -1290,6 +1405,11 @@ export function DualVideoSyncDemo() {
                                                 fill="white"
                                                 stroke="black"
                                                 strokeWidth={1}
+                                                cursor="pointer"
+                                                onClick={(e) => {
+                                                  e.cancelBubble = true;
+                                                  // In 0.5.11, this will start reshape
+                                                }}
                                               />
                                             )
                                           )}

@@ -40,6 +40,12 @@ The implementation separates business logic from UI through a modular, testable 
   - `getSelectedIds()`: Retrieve immutable copy of selected IDs
   - `clearSelection()`: Clear all selections
   - `deleteSelected()`: Remove selected annotations, return count, clear selections
+- **Drag Operations**: Point transformation approach for repositioning
+  - `updateAnnotationPoints(id, delta)`: Transform annotation points by delta offset
+  - `startDrag(primaryId, selectedIds, annotations)`: Initialize drag with all selected annotations
+  - `updateDrag(delta)`: Apply cumulative delta from original positions (all selected move together)
+  - `endDrag()`: Finalize drag and reset state
+  - `isDragging()`: Query active drag state
 
 **3. Custom Hook** (`src/hooks/useVideoAnnotations.ts`)
 
@@ -51,7 +57,12 @@ The implementation separates business logic from UI through a modular, testable 
 - **Keyboard Support**: 
   - Enter/Escape: Polyline finalization/cancellation
   - Delete: Removes selected annotations (with input/textarea safeguard)
-- **Returns**: Manager, tool state, drawing state, annotations, selectedIds, scale, and event handlers (including `handleAnnotationClick`, `clearAll`)
+- **Drag Handlers**: 
+  - `handleAnnotationDragStart`: Initiates drag for selected annotations (prevents during drawing)
+  - `handleStageMouseMove`: Updates drag position with live preview (calculates delta from start)
+  - `handleStageMouseUp`: Finalizes drag operation
+  - `dragMoved` state: Prevents onClick deselection after drag completes
+- **Returns**: Manager, tool state, drawing state, annotations, selectedIds, scale, drag state, and event handlers
 
 **4. Component Integration** (`src/components/DualVideoSyncDemo.tsx`)
 
@@ -64,6 +75,10 @@ The implementation separates business logic from UI through a modular, testable 
   - Control points rendered as 8x8px white Rects with black stroke when annotation selected
   - `hitStrokeWidth={20}` on Line/Arrow for easier selection (20px clickable area vs 3px visual)
   - Preview shapes: `listening={false}` makes red dashed drawing previews non-interactive
+- **Drag UI**: 
+  - `onMouseDown` on annotation shapes triggers drag when selected and idle
+  - Pre-computed cursor: "move" when draggable, "pointer" otherwise (Konva requires static values)
+  - Live preview: annotations follow cursor during drag
 - **Clear All UI**: Buttons per video (disabled when empty) call `clearAll()` from hook
 
 ### Canvas Overlay Structure
@@ -97,10 +112,17 @@ Video Canvas Container (position: relative)
 3. Subsequent Clicks → `addPolylineVertex()` adds vertices
 4. Finalize → Double-click, Enter key, or manual finish
 
-**Keyboard Shortcuts** (Polyline):
+**Keyboard Shortcuts**:
 
 - Enter: Finalize polyline
-- Escape: Cancel without saving
+- Escape: Cancel polyline
+- Delete: Remove selected annotations
+
+**Annotation Dragging**:
+
+1. Mouse Down on selected annotation → `handleAnnotationDragStart()` stores start position
+2. Mouse Move → `handleStageMouseMove()` calculates delta, updates all selected via `updateDrag()`
+3. Mouse Up → `handleStageMouseUp()` finalizes via `endDrag()`, sets dragMoved flag to prevent deselection
 
 ### State Management Flow
 
@@ -241,15 +263,16 @@ const getControlPoints = (annotation: Annotation): Point[] => {
 
 ### Unit Tests
 
-**AnnotationManager** (`src/utils/tests/AnnotationManager.test.ts`) - **84 tests**:
+**AnnotationManager** (`src/utils/tests/AnnotationManager.test.ts`) - **106 tests**:
 
 - Annotation CRUD operations
 - Tool selection integration (`setTool`, `getTool`)
 - Drawing state machine (all 4 tools)
 - Point validation and workflows
 - Selection management (17 tests): `toggleSelection`, `isSelected`, `getSelectedIds`, `clearSelection`, `deleteSelected`, integration with `startDrawing`/`clearAll`
+- Drag operations (21 tests): `updateAnnotationPoints`, `startDrag`, `updateDrag` (including cumulative delta), `endDrag`, `isDragging`, integration scenarios
 
-**useVideoAnnotations Hook** (`src/hooks/tests/useVideoAnnotations.test.ts`) - **20 tests**:
+**useVideoAnnotations Hook** (`src/hooks/tests/useVideoAnnotations.test.ts`) - **29 tests**:
 
 - Hook initialization and state management
 - Tool selection via hook API
@@ -258,8 +281,9 @@ const getControlPoints = (annotation: Annotation): Point[] => {
 - Keyboard shortcuts (Enter/Escape for polyline, Delete for selection)
 - Video activation logic
 - Selection and deletion (6 tests): `handleAnnotationClick`, multi-select, Delete key, `clearAll`
+- Drag operations (9 tests): handler existence, drag workflow (start/move/end), prevention during drawing, multi-select group drag
 
-**Total: 104 tests passing** - Business logic and React integration both fully covered.
+**Total: 135 tests passing** - Business logic, React integration, and drag functionality fully covered.
 
 ## Requirements Satisfied
 

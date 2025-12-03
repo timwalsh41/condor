@@ -31,6 +31,12 @@ export interface AnnotationHandlers {
     annotationId: string,
     e: Konva.KonvaEventObject<MouseEvent>
   ) => void;
+  handleAnnotationDragStart: (
+    annotationId: string,
+    e: Konva.KonvaEventObject<MouseEvent>
+  ) => void;
+  handleStageMouseMove: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  handleStageMouseUp: () => void;
 }
 
 /**
@@ -47,6 +53,7 @@ export interface UseVideoAnnotationsResult {
   scale: number;
   handlers: AnnotationHandlers;
   clearAll: () => void;
+  isDraggingAnnotation: boolean;
 }
 
 /**
@@ -74,6 +81,11 @@ export function useVideoAnnotations(
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [polylineMousePos, setPolylineMousePos] = useState<Point | null>(null);
+
+  // Drag state (Subtask 0.5.10)
+  const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState<Point | null>(null);
+  const [dragMoved, setDragMoved] = useState(false); // Track if drag actually moved
 
   // Canvas scale for CSS transform
   const [scale, setScale] = useState(1);
@@ -309,6 +321,12 @@ export function useVideoAnnotations(
         return;
       }
 
+      // Don't change selection if we just finished a drag
+      if (dragMoved) {
+        setDragMoved(false); // Reset for next interaction
+        return;
+      }
+
       // Read event properties BEFORE stopping propagation
       const isMultiSelect = e.evt.ctrlKey || e.evt.metaKey;
 
@@ -323,7 +341,7 @@ export function useVideoAnnotations(
         } selection (ctrlKey=${e.evt.ctrlKey}, metaKey=${e.evt.metaKey})`
       );
     },
-    [manager, videoId]
+    [manager, videoId, dragMoved]
   );
 
   // Clear all annotations
@@ -335,6 +353,79 @@ export function useVideoAnnotations(
       console.log(`Video ${videoId}: All annotations cleared`);
     }
   }, [manager, videoId]);
+
+  // ========================================
+  // Drag Handlers (Subtask 0.5.10)
+  // ========================================
+
+  /**
+   * Handle drag start for an annotation.
+   * Initiates drag for all selected annotations.
+   */
+  const handleAnnotationDragStart = useCallback(
+    (annotationId: string, e: Konva.KonvaEventObject<MouseEvent>) => {
+      // Don't allow dragging during drawing
+      if (manager.isDrawing() || manager.isPolylineActive()) {
+        return;
+      }
+
+      const point = getPoint(e);
+      if (!point) return;
+
+      // Stop Konva's built-in drag behavior
+      e.cancelBubble = true;
+
+      console.log(
+        `Video ${videoId}: Starting drag for annotation ${annotationId} and ${selectedIds.size} selected annotation(s)`
+      );
+
+      manager.startDrag(annotationId);
+      setIsDraggingAnnotation(true);
+      setDragStartPos(point);
+      setDragMoved(false); // Reset on drag start
+    },
+    [manager, videoId, selectedIds.size, getPoint]
+  );
+
+  /**
+   * Handle mouse move during drag (on Stage).
+   * Updates all selected annotations with the current delta.
+   */
+  const handleStageMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (!isDraggingAnnotation || !dragStartPos) return;
+
+      const point = getPoint(e);
+      if (!point) return;
+
+      // Calculate delta from drag start
+      const delta: Point = {
+        x: point.x - dragStartPos.x,
+        y: point.y - dragStartPos.y,
+      };
+
+      // Update all selected annotations
+      manager.updateDrag(delta);
+      setAnnotations(manager.getAnnotations());
+      setDragMoved(true); // Mark that we actually moved
+    },
+    [isDraggingAnnotation, dragStartPos, manager, getPoint]
+  );
+
+  /**
+   * Handle mouse up during drag (on Stage).
+   * Finalizes the drag operation.
+   */
+  const handleStageMouseUp = useCallback(() => {
+    if (!isDraggingAnnotation) return;
+
+    console.log(`Video ${videoId}: Drag ended`);
+    manager.endDrag();
+    setIsDraggingAnnotation(false);
+    setDragStartPos(null);
+    setAnnotations(manager.getAnnotations());
+    setSelectedIds(manager.getSelectedIds()); // Sync selection state after drag
+  }, [isDraggingAnnotation, manager, videoId]);
 
   return {
     manager,
@@ -352,7 +443,11 @@ export function useVideoAnnotations(
       handleClick,
       handleDoubleClick,
       handleAnnotationClick,
+      handleAnnotationDragStart,
+      handleStageMouseMove,
+      handleStageMouseUp,
     },
     clearAll,
+    isDraggingAnnotation,
   };
 }

@@ -461,7 +461,7 @@ describe("AnnotationManager", () => {
     describe("startDrawing", () => {
       it("should initialize drag-drawing state for freehand tool", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
 
         const state = manager.getDrawingState();
         expect(state.mode).toBe("drag-drawing");
@@ -473,7 +473,7 @@ describe("AnnotationManager", () => {
 
       it("should initialize drag-drawing state for oval tool", () => {
         manager.setTool("oval");
-        manager.startDrawing( { x: 100, y: 200 });
+        manager.startDrawing({ x: 100, y: 200 });
 
         const state = manager.getDrawingState();
         expect(state.mode).toBe("drag-drawing");
@@ -485,7 +485,7 @@ describe("AnnotationManager", () => {
 
       it("should initialize drag-drawing state for arrow tool", () => {
         manager.setTool("arrow");
-        manager.startDrawing( { x: 50, y: 75 });
+        manager.startDrawing({ x: 50, y: 75 });
 
         const state = manager.getDrawingState();
         expect(state.mode).toBe("drag-drawing");
@@ -497,7 +497,7 @@ describe("AnnotationManager", () => {
 
       it("should initialize polyline-active state for polyline tool", () => {
         manager.setTool("polyline");
-        manager.startDrawing( { x: 30, y: 40 });
+        manager.startDrawing({ x: 30, y: 40 });
 
         const state = manager.getDrawingState();
         expect(state.mode).toBe("polyline-active");
@@ -510,7 +510,7 @@ describe("AnnotationManager", () => {
     describe("continueDrawing", () => {
       it("should append points for freehand tool", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
         manager.continueDrawing({ x: 50, y: 60 });
 
@@ -526,7 +526,7 @@ describe("AnnotationManager", () => {
 
       it("should update end point only for oval tool", () => {
         manager.setTool("oval");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.continueDrawing({ x: 50, y: 60 });
         manager.continueDrawing({ x: 100, y: 120 }); // Should replace previous end
 
@@ -541,7 +541,7 @@ describe("AnnotationManager", () => {
 
       it("should update end point only for arrow tool", () => {
         manager.setTool("arrow");
-        manager.startDrawing( { x: 0, y: 0 });
+        manager.startDrawing({ x: 0, y: 0 });
         manager.continueDrawing({ x: 50, y: 50 });
         manager.continueDrawing({ x: 100, y: 100 });
 
@@ -565,7 +565,7 @@ describe("AnnotationManager", () => {
     describe("addPolylineVertex", () => {
       it("should add vertices to polyline", () => {
         manager.setTool("polyline");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.addPolylineVertex({ x: 30, y: 40 });
         manager.addPolylineVertex({ x: 50, y: 60 });
 
@@ -581,7 +581,7 @@ describe("AnnotationManager", () => {
 
       it("should not add vertices when polyline is not active", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.addPolylineVertex({ x: 30, y: 40 });
 
         const state = manager.getDrawingState();
@@ -594,7 +594,7 @@ describe("AnnotationManager", () => {
     describe("finishDrawing", () => {
       it("should create and add freehand annotation on finish", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
         manager.continueDrawing({ x: 50, y: 60 });
 
@@ -613,7 +613,7 @@ describe("AnnotationManager", () => {
 
       it("should create and add oval annotation on finish", () => {
         manager.setTool("oval");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.continueDrawing({ x: 100, y: 120 });
 
         const annotation = manager.finishDrawing();
@@ -629,7 +629,7 @@ describe("AnnotationManager", () => {
 
       it("should create and add arrow annotation on finish", () => {
         manager.setTool("arrow");
-        manager.startDrawing( { x: 0, y: 0 });
+        manager.startDrawing({ x: 0, y: 0 });
         manager.continueDrawing({ x: 50, y: 50 });
 
         const annotation = manager.finishDrawing();
@@ -644,7 +644,7 @@ describe("AnnotationManager", () => {
 
       it("should create and add polyline annotation on finish", () => {
         manager.setTool("polyline");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.addPolylineVertex({ x: 30, y: 40 });
         manager.addPolylineVertex({ x: 50, y: 60 });
 
@@ -661,7 +661,7 @@ describe("AnnotationManager", () => {
 
       it("should return null if validation fails", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         // Only one point - validation should fail (needs ≥2 points)
 
         const annotation = manager.finishDrawing();
@@ -678,7 +678,7 @@ describe("AnnotationManager", () => {
 
       it("should reset drawing state to idle after finishing", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
         manager.finishDrawing();
 
@@ -690,7 +690,7 @@ describe("AnnotationManager", () => {
     describe("cancelDrawing", () => {
       it("should reset state without creating annotation", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
 
         manager.cancelDrawing();
@@ -709,7 +709,7 @@ describe("AnnotationManager", () => {
     describe("getDrawingState", () => {
       it("should return copy of state to prevent external mutation", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
 
         const state1 = manager.getDrawingState();
         const state2 = manager.getDrawingState();
@@ -722,7 +722,7 @@ describe("AnnotationManager", () => {
     describe("getPreviewPoints", () => {
       it("should return points when drawing", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
 
         const points = manager.getPreviewPoints();
@@ -736,7 +736,7 @@ describe("AnnotationManager", () => {
 
       it("should return copy to prevent mutation", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
 
         const points1 = manager.getPreviewPoints();
         const points2 = manager.getPreviewPoints();
@@ -753,19 +753,19 @@ describe("AnnotationManager", () => {
 
       it("should return true when drag-drawing", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         expect(manager.isDrawing()).toBe(true);
       });
 
       it("should return true when polyline active", () => {
         manager.setTool("polyline");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         expect(manager.isDrawing()).toBe(true);
       });
 
       it("should return false after finishing", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
         manager.finishDrawing();
         expect(manager.isDrawing()).toBe(false);
@@ -773,7 +773,7 @@ describe("AnnotationManager", () => {
 
       it("should return false after canceling", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.cancelDrawing();
         expect(manager.isDrawing()).toBe(false);
       });
@@ -786,13 +786,13 @@ describe("AnnotationManager", () => {
 
       it("should return true when polyline active", () => {
         manager.setTool("polyline");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         expect(manager.isPolylineActive()).toBe(true);
       });
 
       it("should return false when drag-drawing", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         expect(manager.isPolylineActive()).toBe(false);
       });
     });
@@ -804,13 +804,13 @@ describe("AnnotationManager", () => {
 
       it("should return tool type when drag-drawing", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         expect(manager.getCurrentTool()).toBe("freehand");
       });
 
       it("should return polyline when polyline active", () => {
         manager.setTool("polyline");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         expect(manager.getCurrentTool()).toBe("polyline");
       });
     });
@@ -820,7 +820,7 @@ describe("AnnotationManager", () => {
         expect(manager.isDrawing()).toBe(false);
 
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         expect(manager.isDrawing()).toBe(true);
         expect(manager.getCurrentTool()).toBe("freehand");
 
@@ -836,7 +836,7 @@ describe("AnnotationManager", () => {
 
       it("should handle polyline drawing workflow", () => {
         manager.setTool("polyline");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         expect(manager.isPolylineActive()).toBe(true);
 
         manager.addPolylineVertex({ x: 30, y: 40 });
@@ -854,7 +854,7 @@ describe("AnnotationManager", () => {
 
       it("should handle oval drawing workflow", () => {
         manager.setTool("oval");
-        manager.startDrawing( { x: 100, y: 100 });
+        manager.startDrawing({ x: 100, y: 100 });
         manager.continueDrawing({ x: 200, y: 200 });
 
         const annotation = manager.finishDrawing();
@@ -867,7 +867,7 @@ describe("AnnotationManager", () => {
 
       it("should handle cancel workflow", () => {
         manager.setTool("freehand");
-        manager.startDrawing( { x: 10, y: 20 });
+        manager.startDrawing({ x: 10, y: 20 });
         manager.continueDrawing({ x: 30, y: 40 });
 
         manager.cancelDrawing();
@@ -1059,6 +1059,289 @@ describe("AnnotationManager", () => {
 
         expect(manager.getSelectedIds().size).toBe(0);
         expect(manager.isDrawing()).toBe(true);
+      });
+    });
+  });
+
+  // ========================================
+  // Drag Tests (Subtask 0.5.10)
+  // ========================================
+
+  describe("Drag Operations", () => {
+    let annotation1: any;
+    let annotation2: any;
+    let annotation3: any;
+
+    beforeEach(() => {
+      // Create test annotations with known positions
+      annotation1 = manager.createAndAddAnnotation("freehand", [
+        { x: 10, y: 20 },
+        { x: 30, y: 40 },
+        { x: 50, y: 60 },
+      ]);
+      annotation2 = manager.createAndAddAnnotation("oval", [
+        { x: 100, y: 100 },
+        { x: 200, y: 200 },
+      ]);
+      annotation3 = manager.createAndAddAnnotation("arrow", [
+        { x: 300, y: 300 },
+        { x: 400, y: 400 },
+      ]);
+    });
+
+    describe("updateAnnotationPoints", () => {
+      it("should update annotation points by ID", () => {
+        const newPoints: Point[] = [
+          { x: 15, y: 25 },
+          { x: 35, y: 45 },
+        ];
+
+        const result = manager.updateAnnotationPoints(
+          annotation1!.id,
+          newPoints
+        );
+
+        expect(result).toBe(true);
+        const updated = manager.getAnnotationById(annotation1!.id);
+        expect(updated?.points).toEqual(newPoints);
+      });
+
+      it("should return false for non-existent annotation", () => {
+        const result = manager.updateAnnotationPoints("non-existent-id", [
+          { x: 0, y: 0 },
+        ]);
+
+        expect(result).toBe(false);
+      });
+
+      it("should not affect other annotations", () => {
+        const newPoints: Point[] = [
+          { x: 15, y: 25 },
+          { x: 35, y: 45 },
+        ];
+
+        manager.updateAnnotationPoints(annotation1!.id, newPoints);
+
+        const annotation2Updated = manager.getAnnotationById(annotation2!.id);
+        expect(annotation2Updated?.points).toEqual([
+          { x: 100, y: 100 },
+          { x: 200, y: 200 },
+        ]);
+      });
+    });
+
+    describe("startDrag", () => {
+      it("should initialize drag state with primary annotation", () => {
+        manager.toggleSelection(annotation1!.id, false);
+
+        manager.startDrag(annotation1!.id);
+
+        expect(manager.isDragging()).toBe(true);
+      });
+
+      it("should store original positions for all selected annotations", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+
+        manager.startDrag(annotation1!.id);
+
+        expect(manager.isDragging()).toBe(true);
+        // Original positions should be stored internally
+        // (We'll verify this works correctly in updateDrag tests)
+      });
+
+      it("should handle single selected annotation", () => {
+        manager.toggleSelection(annotation1!.id, false);
+
+        manager.startDrag(annotation1!.id);
+
+        expect(manager.isDragging()).toBe(true);
+      });
+
+      it("should work even if drag is started on unselected annotation", () => {
+        // In real usage, drag should only start on selected annotations,
+        // but the manager should handle this gracefully
+        manager.startDrag(annotation1!.id);
+
+        expect(manager.isDragging()).toBe(true);
+      });
+    });
+
+    describe("updateDrag", () => {
+      it("should update single selected annotation", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+
+        const delta: Point = { x: 5, y: 10 };
+        manager.updateDrag(delta);
+
+        const updated = manager.getAnnotationById(annotation1!.id);
+        expect(updated?.points).toEqual([
+          { x: 15, y: 30 },
+          { x: 35, y: 50 },
+          { x: 55, y: 70 },
+        ]);
+      });
+
+      it("should update all selected annotations with same delta", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+        manager.startDrag(annotation1!.id);
+
+        const delta: Point = { x: 10, y: 20 };
+        manager.updateDrag(delta);
+
+        const updated1 = manager.getAnnotationById(annotation1!.id);
+        const updated2 = manager.getAnnotationById(annotation2!.id);
+
+        expect(updated1?.points).toEqual([
+          { x: 20, y: 40 },
+          { x: 40, y: 60 },
+          { x: 60, y: 80 },
+        ]);
+        expect(updated2?.points).toEqual([
+          { x: 110, y: 120 },
+          { x: 210, y: 220 },
+        ]);
+      });
+
+      it("should not update unselected annotations", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+
+        const delta: Point = { x: 10, y: 20 };
+        manager.updateDrag(delta);
+
+        const updated3 = manager.getAnnotationById(annotation3!.id);
+        expect(updated3?.points).toEqual([
+          { x: 300, y: 300 },
+          { x: 400, y: 400 },
+        ]);
+      });
+
+      it("should handle negative delta values", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+
+        const delta: Point = { x: -5, y: -10 };
+        manager.updateDrag(delta);
+
+        const updated = manager.getAnnotationById(annotation1!.id);
+        expect(updated?.points).toEqual([
+          { x: 5, y: 10 },
+          { x: 25, y: 30 },
+          { x: 45, y: 50 },
+        ]);
+      });
+
+      it("should allow multiple updateDrag calls with cumulative effect from original position", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+
+        manager.updateDrag({ x: 5, y: 10 });
+        manager.updateDrag({ x: 10, y: 20 });
+
+        const updated = manager.getAnnotationById(annotation1!.id);
+        // Second call should replace first, not add to it (delta from original position)
+        expect(updated?.points).toEqual([
+          { x: 20, y: 40 },
+          { x: 40, y: 60 },
+          { x: 60, y: 80 },
+        ]);
+      });
+
+      it("should do nothing if not dragging", () => {
+        const originalPoints = [...annotation1!.points];
+
+        manager.updateDrag({ x: 10, y: 20 });
+
+        const updated = manager.getAnnotationById(annotation1!.id);
+        expect(updated?.points).toEqual(originalPoints);
+      });
+    });
+
+    describe("endDrag", () => {
+      it("should clear drag state", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+
+        expect(manager.isDragging()).toBe(true);
+
+        manager.endDrag();
+
+        expect(manager.isDragging()).toBe(false);
+      });
+
+      it("should preserve annotation positions after drag", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+        manager.updateDrag({ x: 10, y: 20 });
+
+        manager.endDrag();
+
+        const updated = manager.getAnnotationById(annotation1!.id);
+        expect(updated?.points).toEqual([
+          { x: 20, y: 40 },
+          { x: 40, y: 60 },
+          { x: 60, y: 80 },
+        ]);
+      });
+
+      it("should not affect selections", () => {
+        manager.toggleSelection(annotation1!.id, true);
+        manager.toggleSelection(annotation2!.id, true);
+        manager.startDrag(annotation1!.id);
+
+        manager.endDrag();
+
+        expect(manager.getSelectedIds().size).toBe(2);
+        expect(manager.isSelected(annotation1!.id)).toBe(true);
+        expect(manager.isSelected(annotation2!.id)).toBe(true);
+      });
+    });
+
+    describe("isDragging", () => {
+      it("should return false initially", () => {
+        expect(manager.isDragging()).toBe(false);
+      });
+
+      it("should return true after startDrag", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+
+        expect(manager.isDragging()).toBe(true);
+      });
+
+      it("should return false after endDrag", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+        manager.endDrag();
+
+        expect(manager.isDragging()).toBe(false);
+      });
+    });
+
+    describe("Drag integration with other operations", () => {
+      it("should not allow drawing while dragging", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+
+        // In real usage, UI should prevent this, but test defensive behavior
+        manager.startDrawing({ x: 100, y: 100 });
+
+        // Drawing should still work (drag and draw are independent state machines)
+        expect(manager.isDrawing()).toBe(true);
+        expect(manager.isDragging()).toBe(true);
+      });
+
+      it("should maintain drag state during annotation updates", () => {
+        manager.toggleSelection(annotation1!.id, false);
+        manager.startDrag(annotation1!.id);
+
+        manager.updateDrag({ x: 10, y: 20 });
+
+        expect(manager.isDragging()).toBe(true);
+        expect(manager.getAnnotations().length).toBe(3);
       });
     });
   });

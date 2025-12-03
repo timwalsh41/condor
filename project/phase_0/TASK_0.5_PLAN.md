@@ -2,9 +2,9 @@
 
 ## Status:
 
-**Last Subtask Completed:** 0.5.9 (annotation selection and deletion)
+**Last Subtask Completed:** 0.5.10
 **Skipped Subtasks:** 0.5.4, 0.5.6, 0.5.7, 0.5.8
-**Last Updated:** 2025-12-01 (Completed: Selection, multi-select, deletion, control points, Clear All buttons)
+**Last Updated:** 2025-12-02
 
 ## Overview
 
@@ -515,9 +515,49 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
 
 ### Subtask 0.5.10: (Optional) Annotation Dragging
 
-**Status**: Not started
+**Status**: ✅ COMPLETE
 
 **Goal**: Add ability to move annotations by dragging.
+
+**Implementation Summary**:
+
+- Added drag state management to AnnotationManager (5 methods: `updateAnnotationPoints`, `startDrag`, `updateDrag`, `endDrag`, `isDragging`)
+- Integrated drag handlers into `useVideoAnnotations` hook (mouseDown on annotations, stage mouseMove/mouseUp)
+- Point transformation approach: updates annotation points directly (no offset properties)
+- Multi-select group drag: all selected annotations move together as a unit
+- Cursor feedback: "move" cursor on hover when annotation selected and idle
+- Bug fixes: pre-computed cursor values for proper display, dragMoved state prevents deselection after drag
+
+**Deliverables**: ✅ All Complete
+
+- Single and multi-select annotation dragging functional
+- Live preview during drag (annotations follow cursor)
+- Proper cursor feedback (move cursor on hover)
+- Multi-select preserved after drag completion
+- 30 new tests: 21 AnnotationManager drag tests + 9 hook tests (135 total passing)
+
+**Testing**: ✅ Complete
+
+- Unit tests: 106 AnnotationManager tests + 29 hook tests (all passing)
+- Build validation: No TypeScript errors
+- Manual validation: Both cursor display and multi-select preservation verified
+
+**User-Facing**: ✅ Functional
+
+- Users can drag selected annotations to reposition them
+- Multi-select drag moves all selected annotations together
+- Visual cursor feedback indicates draggability
+- Demo exercisable via `npm run dev` at `/dual-video-sync`
+
+**Actual Time**: ~3 hours (including bug fixes)
+
+---
+
+### Subtask 0.5.11: (Optional) Annotation Transform (Resize/Rotate)
+
+**Status**: Not started
+
+**Goal**: Add resize and rotation handles using Konva.Transformer.
 
 **Optional Status**: This subtask is OPTIONAL for spike completion. Requires 0.5.9 (selection) to be implemented first. If not implemented, add as Phase 1 task. Document deferral in spike documentation.
 

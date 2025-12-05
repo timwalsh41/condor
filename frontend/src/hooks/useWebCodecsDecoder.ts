@@ -92,8 +92,9 @@ export interface UseWebCodecsDecoderResult {
     gopSize: number; // GOP size (avg keyframe interval)
     totalFrames: number; // Total frame count
     codec: string; // Codec string (e.g., "avc1.64001f")
-    width: number; // Video width in pixels
-    height: number; // Video height in pixels
+    width: number; // Video width in pixels (encoded dimensions)
+    height: number; // Video height in pixels (encoded dimensions)
+    rotation: number; // Video rotation in degrees (0, 90, 180, 270)
     fileSizeMB: number; // File size in megabytes
   } | null;
 }
@@ -980,6 +981,7 @@ export function useWebCodecsDecoder(
         // Extract video metadata
         const videoTrack = parser.getVideoTrackInfo();
         const gopSize = parser.getGopSize();
+        const rotation = parser.getRotation();
         const duration = samples.length / videoFramerate;
         const fileSizeMB = videoFile.size / 1024 / 1024; // Convert bytes to MB
 
@@ -991,10 +993,11 @@ export function useWebCodecsDecoder(
           codec: videoTrack.codec || "unknown",
           width: videoTrack.video.width,
           height: videoTrack.video.height,
+          rotation,
           fileSizeMB,
         });
         debugLog(
-          `[INIT] Video metadata: ${videoTrack.video.width}x${videoTrack.video.height}, ${samples.length} frames, GOP=${gopSize}`
+          `[INIT] Video metadata: ${videoTrack.video.width}x${videoTrack.video.height}, ${samples.length} frames, GOP=${gopSize}, rotation=${rotation}°`
         );
 
         // Build coordinate mapping (3-way isomorphism: Frame ↔ CTS ↔ Sample)

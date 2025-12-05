@@ -142,6 +142,9 @@ declare module 'mp4box' {
 
     /** Codec string */
     codec: string;
+
+    /** Transformation matrix (9 elements representing 3x3 matrix) */
+    matrix?: number[];
   }
 
   /**

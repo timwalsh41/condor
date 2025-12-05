@@ -574,4 +574,72 @@ export class MP4Parser {
     const sum = distances.reduce((a, b) => a + b, 0);
     return Math.round(sum / distances.length);
   }
+
+  /**
+   * Get video rotation from track transformation matrix
+   *
+   * Extracts rotation angle from the MP4 track header transformation matrix.
+   * Mobile devices often record portrait videos in landscape orientation with
+   * a rotation flag to indicate proper display orientation.
+   *
+   * @returns Rotation angle in degrees (0, 90, 180, or 270)
+   * @throws {MP4ParseError} If parser not initialized
+   */
+  getRotation(): number {
+    if (!this.videoTrack || !this.mp4File) {
+      throw new MP4ParseError(
+        "Parser not initialized. Call initialize() first."
+      );
+    }
+
+    // Get full track structure to access transformation matrix
+    const fullTrack = this.mp4File.getTrackById(this.videoTrack.id) as any;
+
+    // Matrix may be on the track or in the tkhd (Track Header) box
+    const matrix = fullTrack?.matrix || fullTrack?.tkhd?.matrix;
+
+    if (!matrix || matrix.length !== 9) {
+      // No matrix or invalid format - assume no rotation
+      return 0;
+    }
+
+    // MP4 transformation matrix format (3x3 matrix, row-major order):
+    // [a, b, u, c, d, v, x, y, w]
+    // Where the 2D rotation matrix is:
+    // [a  b]
+    // [c  d]
+    //
+    // Common rotation matrices (fixed-point, 16.16 format):
+    // 0°:   a=65536, b=0, c=0, d=65536
+    // 90°:  a=0, b=65536, c=-65536, d=0
+    // 180°: a=-65536, b=0, c=0, d=-65536
+    // 270°: a=0, b=-65536, c=65536, d=0
+
+    const a = matrix[0];
+    const b = matrix[1];
+    const c = matrix[3];
+    const d = matrix[4];
+
+    // Fixed point format: 65536 = 0x00010000 = 1.0 in 16.16 fixed point
+    const ONE = 65536;
+    const NEG_ONE = -65536;
+
+    // Match against known rotation patterns
+    if (a === ONE && b === 0 && c === 0 && d === ONE) {
+      return 0; // No rotation
+    } else if (a === 0 && b === ONE && c === NEG_ONE && d === 0) {
+      return 90; // 90° clockwise
+    } else if (a === NEG_ONE && b === 0 && c === 0 && d === NEG_ONE) {
+      return 180; // 180° rotation
+    } else if (a === 0 && b === NEG_ONE && c === ONE && d === 0) {
+      return 270; // 270° clockwise (or 90° counter-clockwise)
+    }
+
+    // Unknown matrix - default to no rotation
+    console.warn(
+      `[MP4Parser] Unknown transformation matrix: [${Array.from(matrix).join(", ")}]. Defaulting to 0° rotation.`
+    );
+    console.warn(`[MP4Parser] Matrix values - a=${a}, b=${b}, c=${c}, d=${d}`);
+    return 0;
+  }
 }

@@ -592,6 +592,20 @@ export function DualVideoSyncDemo() {
     };
   }, []);
 
+  // Clear annotations when Video A is loaded or changed
+  useEffect(() => {
+    if (videoA.isReady) {
+      clearAllA();
+    }
+  }, [videoA.isReady, clearAllA]);
+
+  // Clear annotations when Video B is loaded or changed
+  useEffect(() => {
+    if (videoB.isReady) {
+      clearAllB();
+    }
+  }, [videoB.isReady, clearAllB]);
+
   if (!support.isSupported) {
     return (
       <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
@@ -783,46 +797,90 @@ export function DualVideoSyncDemo() {
             <div>
               <h3 style={{ marginTop: 0 }}>Video A</h3>
 
-              {videoA.isReady ? (
+              {videoA.isReady && videoA.metadata ? (
                 <>
+                  {(() => {
+                    // Calculate display dimensions based on rotation
+                    const rotation = videoA.metadata.rotation || 0;
+                    const isRotated = rotation === 90 || rotation === 270;
+                    const baseDisplayWidth = isRotated ? videoA.metadata.height : videoA.metadata.width;
+                    const baseDisplayHeight = isRotated ? videoA.metadata.width : videoA.metadata.height;
+                    
+                    // Scale down if height exceeds max
+                    const maxHeight = 1280;
+                    const scale = baseDisplayHeight > maxHeight ? maxHeight / baseDisplayHeight : 1;
+                    const displayWidth = baseDisplayWidth * scale;
+                    const displayHeight = baseDisplayHeight * scale;
+                    
+                    const canvasWidth = videoA.metadata.width;
+                    const canvasHeight = videoA.metadata.height;
+
+                    return (
                   <div
                     style={{
                       border: "2px solid #333",
                       backgroundColor: "#000",
                       position: "relative",
+                      width: `${displayWidth}px`,
+                      height: `${displayHeight}px`,
+                      maxWidth: "100%",
                     }}
                   >
-                    <canvas
-                      ref={videoA.canvasRef}
-                      data-testid="video-canvas-a"
+                    {/* Container with explicit dimensions and scale transform */}
+                    <div
                       style={{
-                        display: "block",
-                        maxWidth: "100%",
-                        height: "auto",
+                        position: "relative",
+                        width: `${baseDisplayWidth}px`,
+                        height: `${baseDisplayHeight}px`,
+                        transform: `scale(${scale})`,
+                        transformOrigin: "top left",
+                        overflow: "hidden",
                       }}
-                    />
-                    {/* Annotation overlay canvas */}
-                    {videoA.metadata && (
-                      <div
+                    >
+                    {/* Video canvas with rotation */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        width: `${canvasWidth}px`,
+                        height: `${canvasHeight}px`,
+                        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                        transformOrigin: "center center",
+                      }}
+                    >
+                      <canvas
+                        ref={videoA.canvasRef}
+                        data-testid="video-canvas-a"
                         style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
+                          display: "block",
                           width: "100%",
                           height: "100%",
-                          pointerEvents: "auto", // Enable mouse events
-                          overflow: "hidden",
                         }}
-                      >
+                      />
+                    </div>
+                      {/* Annotation overlay canvas - independent of rotation */}
+                      {videoA.metadata && (
                         <div
                           style={{
-                            transform: `scale(${annotationScaleA})`,
-                            transformOrigin: "top left",
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            pointerEvents: "auto", // Enable mouse events
+                            overflow: "hidden",
                           }}
                         >
-                          <Stage
-                            width={videoA.metadata.width}
-                            height={videoA.metadata.height}
+                          <div
+                            style={{
+                              transform: `scale(${annotationScaleA})`,
+                              transformOrigin: "top left",
+                            }}
+                          >
+                            <Stage
+                              width={baseDisplayWidth}
+                              height={baseDisplayHeight}
                             onMouseDown={handlersA.handleMouseDown}
                             onMouseMove={
                               isDraggingAnnotationA
@@ -1040,11 +1098,10 @@ export function DualVideoSyncDemo() {
                                           annotationManagerA.getPreviewPoints()!
                                         }
                                         stroke="#FF0000"
-                                        strokeWidth={3}
+                                        strokeWidth={6}
                                         lineCap="round"
                                         lineJoin="round"
                                         tension={0.5}
-                                        dash={[10, 5]}
                                         listening={false}
                                       />
                                     )}
@@ -1074,8 +1131,7 @@ export function DualVideoSyncDemo() {
                                             ) / 2
                                           }
                                           stroke="#FF0000"
-                                          strokeWidth={3}
-                                          dash={[10, 5]}
+                                          strokeWidth={6}
                                           listening={false}
                                         />
                                       )}
@@ -1086,11 +1142,10 @@ export function DualVideoSyncDemo() {
                                             annotationManagerA.getPreviewPoints()!
                                           }
                                           stroke="#FF0000"
-                                          strokeWidth={3}
+                                          strokeWidth={6}
                                           fill="#FF0000"
                                           pointerLength={10}
                                           pointerWidth={10}
-                                          dash={[10, 5]}
                                           listening={false}
                                         />
                                       )}
@@ -1105,10 +1160,9 @@ export function DualVideoSyncDemo() {
                                       annotationManagerA.getPreviewPoints()!
                                     }
                                     stroke="#FF0000"
-                                    strokeWidth={3}
+                                    strokeWidth={6}
                                     lineCap="round"
                                     lineJoin="round"
-                                    dash={[10, 5]}
                                     listening={false}
                                   />
                                 )}
@@ -1129,10 +1183,9 @@ export function DualVideoSyncDemo() {
                                       polylineMousePosA.y,
                                     ]}
                                     stroke="#FF0000"
-                                    strokeWidth={3}
+                                    strokeWidth={6}
                                     lineCap="round"
                                     lineJoin="round"
-                                    dash={[10, 5]}
                                     opacity={0.6}
                                     listening={false}
                                   />
@@ -1142,7 +1195,10 @@ export function DualVideoSyncDemo() {
                         </div>
                       </div>
                     )}
+                    </div>
                   </div>
+                    );
+                  })()}
                   <div
                     data-testid="frame-counter-a"
                     style={{
@@ -1173,46 +1229,90 @@ export function DualVideoSyncDemo() {
             {/* Video B Canvas */}
             <div>
               <h3 style={{ marginTop: 0 }}>Video B</h3>
-              {videoB.isReady ? (
+              {videoB.isReady && videoB.metadata ? (
                 <>
+                  {(() => {
+                    // Calculate display dimensions based on rotation
+                    const rotation = videoB.metadata.rotation || 0;
+                    const isRotated = rotation === 90 || rotation === 270;
+                    const baseDisplayWidth = isRotated ? videoB.metadata.height : videoB.metadata.width;
+                    const baseDisplayHeight = isRotated ? videoB.metadata.width : videoB.metadata.height;
+                    
+                    // Scale down if height exceeds max
+                    const maxHeight = 1280;
+                    const scale = baseDisplayHeight > maxHeight ? maxHeight / baseDisplayHeight : 1;
+                    const displayWidth = baseDisplayWidth * scale;
+                    const displayHeight = baseDisplayHeight * scale;
+                    
+                    const canvasWidth = videoB.metadata.width;
+                    const canvasHeight = videoB.metadata.height;
+
+                    return (
                   <div
                     style={{
                       border: "2px solid #333",
                       backgroundColor: "#000",
                       position: "relative",
+                      width: `${displayWidth}px`,
+                      height: `${displayHeight}px`,
+                      maxWidth: "100%",
                     }}
                   >
-                    <canvas
-                      ref={videoB.canvasRef}
-                      data-testid="video-canvas-b"
+                    {/* Container with explicit dimensions and scale transform */}
+                    <div
                       style={{
-                        display: "block",
-                        maxWidth: "100%",
-                        height: "auto",
+                        position: "relative",
+                        width: `${baseDisplayWidth}px`,
+                        height: `${baseDisplayHeight}px`,
+                        transform: `scale(${scale})`,
+                        transformOrigin: "top left",
+                        overflow: "hidden",
                       }}
-                    />
-                    {/* Annotation overlay canvas */}
-                    {videoB.metadata && (
-                      <div
+                    >
+                    {/* Video canvas with rotation */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        width: `${canvasWidth}px`,
+                        height: `${canvasHeight}px`,
+                        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                        transformOrigin: "center center",
+                      }}
+                    >
+                      <canvas
+                        ref={videoB.canvasRef}
+                        data-testid="video-canvas-b"
                         style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
+                          display: "block",
                           width: "100%",
                           height: "100%",
-                          pointerEvents: "auto", // Enable mouse events
-                          overflow: "hidden",
                         }}
-                      >
+                      />
+                    </div>
+                      {/* Annotation overlay canvas - independent of rotation */}
+                      {videoB.metadata && (
                         <div
                           style={{
-                            transform: `scale(${annotationScaleB})`,
-                            transformOrigin: "top left",
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            pointerEvents: "auto", // Enable mouse events
+                            overflow: "hidden",
                           }}
                         >
-                          <Stage
-                            width={videoB.metadata.width}
-                            height={videoB.metadata.height}
+                          <div
+                            style={{
+                              transform: `scale(${annotationScaleB})`,
+                              transformOrigin: "top left",
+                            }}
+                          >
+                            <Stage
+                              width={baseDisplayWidth}
+                              height={baseDisplayHeight}
                             onMouseDown={handlersB.handleMouseDown}
                             onMouseMove={
                               isDraggingAnnotationB
@@ -1430,11 +1530,10 @@ export function DualVideoSyncDemo() {
                                           annotationManagerB.getPreviewPoints()!
                                         }
                                         stroke="#FF0000"
-                                        strokeWidth={3}
+                                        strokeWidth={6}
                                         lineCap="round"
                                         lineJoin="round"
                                         tension={0.5}
-                                        dash={[10, 5]}
                                         listening={false}
                                       />
                                     )}
@@ -1464,8 +1563,7 @@ export function DualVideoSyncDemo() {
                                             ) / 2
                                           }
                                           stroke="#FF0000"
-                                          strokeWidth={3}
-                                          dash={[10, 5]}
+                                          strokeWidth={6}
                                           listening={false}
                                         />
                                       )}
@@ -1476,11 +1574,10 @@ export function DualVideoSyncDemo() {
                                             annotationManagerB.getPreviewPoints()!
                                           }
                                           stroke="#FF0000"
-                                          strokeWidth={3}
+                                          strokeWidth={6}
                                           fill="#FF0000"
                                           pointerLength={10}
                                           pointerWidth={10}
-                                          dash={[10, 5]}
                                           listening={false}
                                         />
                                       )}
@@ -1495,10 +1592,9 @@ export function DualVideoSyncDemo() {
                                       annotationManagerB.getPreviewPoints()!
                                     }
                                     stroke="#FF0000"
-                                    strokeWidth={3}
+                                    strokeWidth={6}
                                     lineCap="round"
                                     lineJoin="round"
-                                    dash={[10, 5]}
                                     listening={false}
                                   />
                                 )}
@@ -1519,10 +1615,9 @@ export function DualVideoSyncDemo() {
                                       polylineMousePosB.y,
                                     ]}
                                     stroke="#FF0000"
-                                    strokeWidth={3}
+                                    strokeWidth={6}
                                     lineCap="round"
                                     lineJoin="round"
-                                    dash={[10, 5]}
                                     opacity={0.6}
                                     listening={false}
                                   />
@@ -1532,7 +1627,10 @@ export function DualVideoSyncDemo() {
                         </div>
                       </div>
                     )}
+                    </div>
                   </div>
+                    );
+                  })()}
                   <div
                     data-testid="frame-counter-b"
                     style={{

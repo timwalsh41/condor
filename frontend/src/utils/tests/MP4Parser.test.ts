@@ -331,4 +331,33 @@ describe('MP4Parser', () => {
       }
     });
   });
+
+  describe('Video Rotation', () => {
+    test('should return 0 rotation for standard landscape videos', async () => {
+      const parser = new MP4Parser();
+      await parser.initialize(h264File);
+
+      const rotation = parser.getRotation();
+
+      // Most test videos are recorded in standard landscape orientation
+      expect(rotation).toBe(0);
+    });
+
+    test('should throw error when calling getRotation() before initialize()', () => {
+      const parser = new MP4Parser();
+
+      expect(() => parser.getRotation()).toThrow(MP4ParseError);
+      expect(() => parser.getRotation()).toThrow('not initialized');
+    });
+
+    test('rotation value should be one of: 0, 90, 180, 270', async () => {
+      const parser = new MP4Parser();
+      await parser.initialize(h264File);
+
+      const rotation = parser.getRotation();
+
+      // Rotation must be one of the valid values
+      expect([0, 90, 180, 270]).toContain(rotation);
+    });
+  });
 });

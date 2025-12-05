@@ -35,7 +35,7 @@ export interface AnnotationStyle {
  */
 export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
   color: "#FF0000", // Red for visibility
-  strokeWidth: 3,
+  strokeWidth: 6,
 };
 
 /**

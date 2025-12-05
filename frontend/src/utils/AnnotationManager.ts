@@ -32,6 +32,17 @@ export class AnnotationManager {
     primaryAnnotationId: null,
     startPositions: new Map(),
   };
+  private reshapeState: {
+    isReshaping: boolean;
+    annotationId: string | null;
+    controlPointIndex: number | null;
+    originalPoints: Point[];
+  } = {
+    isReshaping: false,
+    annotationId: null,
+    controlPointIndex: null,
+    originalPoints: [],
+  };
 
   /**
    * Set the currently selected tool.
@@ -438,5 +449,157 @@ export class AnnotationManager {
    */
   isDragging(): boolean {
     return this.dragState.isDragging;
+  }
+
+  // ========================================
+  // Reshape Methods (Subtask 0.5.11)
+  // ========================================
+
+  /**
+   * Start reshaping operation for a single annotation.
+   * Stores original points for the annotation being reshaped.
+   * @param annotationId - ID of the annotation to reshape
+   * @param controlPointIndex - Index of the control point being dragged
+   * @returns true if reshape started successfully, false if annotation not found
+   */
+  startReshape(annotationId: string, controlPointIndex: number): boolean {
+    const annotation = this.getAnnotationById(annotationId);
+    if (!annotation) return false;
+
+    this.reshapeState = {
+      isReshaping: true,
+      annotationId,
+      controlPointIndex,
+      originalPoints: annotation.points.map((p) => ({ ...p })),
+    };
+    return true;
+  }
+
+  /**
+   * Update annotation shape during reshape.
+   * For arrow/polyline: directly updates the vertex at controlPointIndex.
+   * For oval: recalculates bounding box based on which control point moved.
+   * @param newPosition - New position for the control point
+   */
+  updateReshape(newPosition: Point): void {
+    if (!this.reshapeState.isReshaping || !this.reshapeState.annotationId) {
+      return;
+    }
+
+    const annotation = this.getAnnotationById(this.reshapeState.annotationId);
+    if (!annotation) return;
+
+    const controlIndex = this.reshapeState.controlPointIndex!;
+
+    switch (annotation.type) {
+      case "arrow":
+      case "polyline": {
+        // Direct vertex manipulation - update the point at controlIndex
+        if (controlIndex >= 0 && controlIndex < annotation.points.length) {
+          const newPoints = annotation.points.map((p, i) =>
+            i === controlIndex ? { ...newPosition } : { ...p }
+          );
+          this.updateAnnotationPoints(annotation.id, newPoints);
+        }
+        break;
+      }
+
+      case "oval": {
+        // Oval has 8 control points: 4 corners + 4 edges
+        // Map control point to bounding box manipulation
+        const original = this.reshapeState.originalPoints;
+        const start = original[0];
+        const end = original[1];
+        const minX = Math.min(start.x, end.x);
+        const maxX = Math.max(start.x, end.x);
+        const minY = Math.min(start.y, end.y);
+        const maxY = Math.max(start.y, end.y);
+
+        let newMinX = minX;
+        let newMaxX = maxX;
+        let newMinY = minY;
+        let newMaxY = maxY;
+
+        // Control point mapping (matches getControlPoints in DualVideoSyncDemo):
+        // 0: top-left corner, 1: top-center, 2: top-right corner, 3: right-center
+        // 4: bottom-right corner, 5: bottom-center, 6: bottom-left corner, 7: left-center
+        switch (controlIndex) {
+          case 0: // Top-left corner
+            newMinX = newPosition.x;
+            newMinY = newPosition.y;
+            break;
+          case 1: // Top-center edge
+            newMinY = newPosition.y;
+            break;
+          case 2: // Top-right corner
+            newMaxX = newPosition.x;
+            newMinY = newPosition.y;
+            break;
+          case 3: // Right-center edge
+            newMaxX = newPosition.x;
+            break;
+          case 4: // Bottom-right corner
+            newMaxX = newPosition.x;
+            newMaxY = newPosition.y;
+            break;
+          case 5: // Bottom-center edge
+            newMaxY = newPosition.y;
+            break;
+          case 6: // Bottom-left corner
+            newMinX = newPosition.x;
+            newMaxY = newPosition.y;
+            break;
+          case 7: // Left-center edge
+            newMinX = newPosition.x;
+            break;
+        }
+
+        // Update the two defining points (start, end) from new bounding box
+        const newPoints: Point[] = [
+          { x: newMinX, y: newMinY },
+          { x: newMaxX, y: newMaxY },
+        ];
+        this.updateAnnotationPoints(annotation.id, newPoints);
+        break;
+      }
+
+      case "freehand":
+        // Freehand doesn't support reshape
+        break;
+    }
+  }
+
+  /**
+   * End reshaping operation and clear reshape state.
+   */
+  endReshape(): void {
+    this.reshapeState = {
+      isReshaping: false,
+      annotationId: null,
+      controlPointIndex: null,
+      originalPoints: [],
+    };
+  }
+
+  /**
+   * Check if currently reshaping.
+   */
+  isReshaping(): boolean {
+    return this.reshapeState.isReshaping;
+  }
+
+  /**
+   * Get the current reshape state (for external queries).
+   */
+  getReshapeState(): {
+    isReshaping: boolean;
+    annotationId: string | null;
+    controlPointIndex: number | null;
+  } {
+    return {
+      isReshaping: this.reshapeState.isReshaping,
+      annotationId: this.reshapeState.annotationId,
+      controlPointIndex: this.reshapeState.controlPointIndex,
+    };
   }
 }

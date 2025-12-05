@@ -86,6 +86,7 @@ export function DualVideoSyncDemo() {
     handlers: handlersA,
     clearAll: clearAllA,
     isDraggingAnnotation: isDraggingAnnotationA,
+    isReshapingAnnotation: isReshapingAnnotationA,
   } = videoAAnnotations;
 
   // Annotation state for Video B (using custom hook)
@@ -107,6 +108,7 @@ export function DualVideoSyncDemo() {
     handlers: handlersB,
     clearAll: clearAllB,
     isDraggingAnnotation: isDraggingAnnotationB,
+    isReshapingAnnotation: isReshapingAnnotationB,
   } = videoBAnnotations;
 
   // Update refs on every render to capture latest state
@@ -883,20 +885,20 @@ export function DualVideoSyncDemo() {
                               height={baseDisplayHeight}
                             onMouseDown={handlersA.handleMouseDown}
                             onMouseMove={
-                              isDraggingAnnotationA
+                              isDraggingAnnotationA || isReshapingAnnotationA
                                 ? handlersA.handleStageMouseMove
                                 : handlersA.handleMouseMove
                             }
                             onMouseUp={
-                              isDraggingAnnotationA
+                              isDraggingAnnotationA || isReshapingAnnotationA
                                 ? handlersA.handleStageMouseUp
                                 : handlersA.handleMouseUp
                             }
                             onMouseLeave={
-                              isDraggingAnnotationA
+                              isDraggingAnnotationA || isReshapingAnnotationA
                                 ? handlersA.handleStageMouseUp
                                 : handlersA.handleMouseUp
-                            } // Finish drawing/drag if mouse leaves canvas
+                            } // Finish drawing/drag/reshape if mouse leaves canvas
                             onClick={handlersA.handleClick}
                             onDblClick={handlersA.handleDoubleClick}
                           >
@@ -963,7 +965,13 @@ export function DualVideoSyncDemo() {
                                                 cursor="pointer"
                                                 onClick={(e) => {
                                                   e.cancelBubble = true;
-                                                  // In 0.5.11, this will start reshape
+                                                }}
+                                                onMouseDown={(e) => {
+                                                  handlersA.handleControlPointMouseDown(
+                                                    annotation.id,
+                                                    idx,
+                                                    e
+                                                  );
                                                 }}
                                               />
                                             )
@@ -1022,7 +1030,13 @@ export function DualVideoSyncDemo() {
                                                 cursor="pointer"
                                                 onClick={(e) => {
                                                   e.cancelBubble = true;
-                                                  // In 0.5.11, this will start reshape
+                                                }}
+                                                onMouseDown={(e) => {
+                                                  handlersA.handleControlPointMouseDown(
+                                                    annotation.id,
+                                                    idx,
+                                                    e
+                                                  );
                                                 }}
                                               />
                                             )
@@ -1076,7 +1090,13 @@ export function DualVideoSyncDemo() {
                                                 cursor="pointer"
                                                 onClick={(e) => {
                                                   e.cancelBubble = true;
-                                                  // In 0.5.11, this will start reshape
+                                                }}
+                                                onMouseDown={(e) => {
+                                                  handlersA.handleControlPointMouseDown(
+                                                    annotation.id,
+                                                    idx,
+                                                    e
+                                                  );
                                                 }}
                                               />
                                             )
@@ -1315,20 +1335,20 @@ export function DualVideoSyncDemo() {
                               height={baseDisplayHeight}
                             onMouseDown={handlersB.handleMouseDown}
                             onMouseMove={
-                              isDraggingAnnotationB
+                              isDraggingAnnotationB || isReshapingAnnotationB
                                 ? handlersB.handleStageMouseMove
                                 : handlersB.handleMouseMove
                             }
                             onMouseUp={
-                              isDraggingAnnotationB
+                              isDraggingAnnotationB || isReshapingAnnotationB
                                 ? handlersB.handleStageMouseUp
                                 : handlersB.handleMouseUp
                             }
                             onMouseLeave={
-                              isDraggingAnnotationB
+                              isDraggingAnnotationB || isReshapingAnnotationB
                                 ? handlersB.handleStageMouseUp
                                 : handlersB.handleMouseUp
-                            } // Finish drawing/drag if mouse leaves canvas
+                            } // Finish drawing/drag/reshape if mouse leaves canvas
                             onClick={handlersB.handleClick}
                             onDblClick={handlersB.handleDoubleClick}
                           >
@@ -1395,7 +1415,13 @@ export function DualVideoSyncDemo() {
                                                 cursor="pointer"
                                                 onClick={(e) => {
                                                   e.cancelBubble = true;
-                                                  // In 0.5.11, this will start reshape
+                                                }}
+                                                onMouseDown={(e) => {
+                                                  handlersB.handleControlPointMouseDown(
+                                                    annotation.id,
+                                                    idx,
+                                                    e
+                                                  );
                                                 }}
                                               />
                                             )
@@ -1454,7 +1480,13 @@ export function DualVideoSyncDemo() {
                                                 cursor="pointer"
                                                 onClick={(e) => {
                                                   e.cancelBubble = true;
-                                                  // In 0.5.11, this will start reshape
+                                                }}
+                                                onMouseDown={(e) => {
+                                                  handlersB.handleControlPointMouseDown(
+                                                    annotation.id,
+                                                    idx,
+                                                    e
+                                                  );
                                                 }}
                                               />
                                             )
@@ -1508,7 +1540,13 @@ export function DualVideoSyncDemo() {
                                                 cursor="pointer"
                                                 onClick={(e) => {
                                                   e.cancelBubble = true;
-                                                  // In 0.5.11, this will start reshape
+                                                }}
+                                                onMouseDown={(e) => {
+                                                  handlersB.handleControlPointMouseDown(
+                                                    annotation.id,
+                                                    idx,
+                                                    e
+                                                  );
                                                 }}
                                               />
                                             )

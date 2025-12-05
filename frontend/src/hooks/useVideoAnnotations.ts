@@ -35,6 +35,11 @@ export interface AnnotationHandlers {
     annotationId: string,
     e: Konva.KonvaEventObject<MouseEvent>
   ) => void;
+  handleControlPointMouseDown: (
+    annotationId: string,
+    controlIndex: number,
+    e: Konva.KonvaEventObject<MouseEvent>
+  ) => void;
   handleStageMouseMove: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   handleStageMouseUp: () => void;
 }
@@ -54,6 +59,7 @@ export interface UseVideoAnnotationsResult {
   handlers: AnnotationHandlers;
   clearAll: () => void;
   isDraggingAnnotation: boolean;
+  isReshapingAnnotation: boolean;
 }
 
 /**
@@ -86,6 +92,9 @@ export function useVideoAnnotations(
   const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
   const [dragStartPos, setDragStartPos] = useState<Point | null>(null);
   const [dragMoved, setDragMoved] = useState(false); // Track if drag actually moved
+
+  // Reshape state (Subtask 0.5.11)
+  const [isReshapingAnnotation, setIsReshapingAnnotation] = useState(false);
 
   // Canvas scale for CSS transform
   const [scale, setScale] = useState(1);
@@ -388,44 +397,107 @@ export function useVideoAnnotations(
   );
 
   /**
-   * Handle mouse move during drag (on Stage).
-   * Updates all selected annotations with the current delta.
+   * Handle mouse down on control point for reshaping.
+   * Prevents reshape during drawing or dragging.
    */
-  const handleStageMouseMove = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!isDraggingAnnotation || !dragStartPos) return;
+  const handleControlPointMouseDown = useCallback(
+    (
+      annotationId: string,
+      controlIndex: number,
+      e: Konva.KonvaEventObject<MouseEvent>
+    ) => {
+      // Prevent reshape during drawing
+      if (manager.isDrawing() || manager.isPolylineActive()) {
+        return;
+      }
 
-      const point = getPoint(e);
-      if (!point) return;
+      // Stop event propagation to prevent triggering annotation drag or click
+      e.cancelBubble = true;
 
-      // Calculate delta from drag start
-      const delta: Point = {
-        x: point.x - dragStartPos.x,
-        y: point.y - dragStartPos.y,
-      };
+      console.log(
+        `Video ${videoId}: Starting reshape for annotation ${annotationId}, control point ${controlIndex}`
+      );
 
-      // Update all selected annotations
-      manager.updateDrag(delta);
-      setAnnotations(manager.getAnnotations());
-      setDragMoved(true); // Mark that we actually moved
+      const success = manager.startReshape(annotationId, controlIndex);
+      if (success) {
+        setIsReshapingAnnotation(true);
+      }
     },
-    [isDraggingAnnotation, dragStartPos, manager, getPoint]
+    [manager, videoId]
   );
 
   /**
-   * Handle mouse up during drag (on Stage).
-   * Finalizes the drag operation.
+   * Handle mouse move during drag (on Stage).
+   * Updates all selected annotations with the current delta.
+   * Also handles reshape updates.
+   */
+  const handleStageMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      // Handle annotation drag
+      if (isDraggingAnnotation && dragStartPos) {
+        const point = getPoint(e);
+        if (!point) return;
+
+        // Calculate delta from drag start
+        const delta: Point = {
+          x: point.x - dragStartPos.x,
+          y: point.y - dragStartPos.y,
+        };
+
+        // Update all selected annotations
+        manager.updateDrag(delta);
+        setAnnotations(manager.getAnnotations());
+        setDragMoved(true); // Mark that we actually moved
+        return;
+      }
+
+      // Handle reshape
+      if (isReshapingAnnotation) {
+        const point = getPoint(e);
+        if (!point) return;
+
+        manager.updateReshape(point);
+        setAnnotations(manager.getAnnotations());
+      }
+    },
+    [
+      isDraggingAnnotation,
+      dragStartPos,
+      isReshapingAnnotation,
+      manager,
+      getPoint,
+    ]
+  );
+
+  /**
+   * Handle mouse up during drag or reshape (on Stage).
+   * Finalizes the drag or reshape operation.
    */
   const handleStageMouseUp = useCallback(() => {
-    if (!isDraggingAnnotation) return;
+    // End annotation drag
+    if (isDraggingAnnotation) {
+      console.log(`Video ${videoId}: Drag ended`);
+      manager.endDrag();
+      setIsDraggingAnnotation(false);
+      setDragStartPos(null);
+      setAnnotations(manager.getAnnotations());
+      setSelectedIds(manager.getSelectedIds()); // Sync selection state after drag
+      return;
+    }
 
-    console.log(`Video ${videoId}: Drag ended`);
-    manager.endDrag();
-    setIsDraggingAnnotation(false);
-    setDragStartPos(null);
-    setAnnotations(manager.getAnnotations());
-    setSelectedIds(manager.getSelectedIds()); // Sync selection state after drag
-  }, [isDraggingAnnotation, manager, videoId]);
+    // End reshape
+    if (isReshapingAnnotation) {
+      console.log(`Video ${videoId}: Reshape ended`);
+      manager.endReshape();
+      setIsReshapingAnnotation(false);
+      setAnnotations(manager.getAnnotations());
+    }
+  }, [
+    isDraggingAnnotation,
+    isReshapingAnnotation,
+    manager,
+    videoId,
+  ]);
 
   return {
     manager,
@@ -444,10 +516,12 @@ export function useVideoAnnotations(
       handleDoubleClick,
       handleAnnotationClick,
       handleAnnotationDragStart,
+      handleControlPointMouseDown,
       handleStageMouseMove,
       handleStageMouseUp,
     },
     clearAll,
     isDraggingAnnotation,
+    isReshapingAnnotation,
   };
 }

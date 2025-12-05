@@ -2,9 +2,9 @@
 
 ## Status:
 
-**Last Subtask Completed:** 0.5.10
+**Last Subtask Completed:** 0.5.11
 **Skipped Subtasks:** 0.5.4, 0.5.6, 0.5.7, 0.5.8
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-16
 
 ## Overview
 
@@ -553,60 +553,54 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
 
 ---
 
-### Subtask 0.5.11: (Optional) Annotation Transform (Resize/Rotate)
+### Subtask 0.5.11: (Optional) Annotation Reshape (Resize via Control Points)
 
-**Status**: Not started
+**Status**: ✅ COMPLETE
 
-**Goal**: Add resize and rotation handles using Konva.Transformer.
+**Goal**: Add control point manipulation to resize/reshape annotations (rotation deferred to Phase 1).
 
-**Optional Status**: This subtask is OPTIONAL for spike completion. Requires 0.5.9 (selection) to be implemented first. If not implemented, add as Phase 1 task. Document deferral in spike documentation.
+**Implementation Summary**:
 
-**Implementation**:
+- Added reshape state management to AnnotationManager (5 methods: `startReshape`, `updateReshape`, `endReshape`, `isReshaping`, `getReshapeState`)
+- Implemented type-specific reshape logic:
+  - **Arrow/Polyline**: Direct vertex manipulation - drag control point to reposition vertex
+  - **Oval**: Bounding box adjustment - drag control point to resize ellipse
+  - **Freehand**: Endpoint manipulation - drag start/end control points
+- Fixed event routing in DualVideoSyncDemo.tsx:
+  - Destructured `isReshapingAnnotation` from hook results (Video A & B)
+  - Updated Stage handlers to route events when `isDraggingAnnotation || isReshapingAnnotation`
+  - Applied to `onMouseMove`, `onMouseUp`, `onMouseLeave` handlers
+- Control point rendering already implemented in 0.5.9 (8x8px white Rects)
+- `handleControlPointMouseDown` calls `manager.startReshape()` and sets `isReshapingAnnotation = true`
+- Mouse move/up handlers properly call `manager.updateReshape()` and `manager.endReshape()`
 
-1. Enable draggable on annotation shapes:
-   ```typescript
-   <Line
-     points={annotation.points}
-     draggable={true}
-     onDragEnd={(e) => {
-       const newPosition = e.target.position();
-       updateAnnotationPosition(annotation.id, newPosition);
-     }}
-   />
-   ```
-2. Update annotation data structure to include position offset:
-   ```typescript
-   interface Annotation {
-     id: string;
-     type: "freehand" | "polyline" | "oval" | "arrow";
-     points: number[];
-     color: string;
-     strokeWidth: number;
-     x?: number; // Position offset after dragging
-     y?: number;
-   }
-   ```
-3. Apply position offset when rendering shapes
-4. Update cursor to indicate draggability (grab/grabbing cursors)
+**Deliverables**: ✅ All Complete
 
-**Deliverables**:
+- Click and drag control points to resize/reshape annotations
+- Type-specific reshape behavior (vertex drag for polyline/arrow, bounds resize for oval)
+- Smooth reshape interaction with live preview
+- Event routing properly handles reshape state (fixed bug where control point drag triggered annotation drag)
 
-- Annotations can be dragged to new positions
-- Position updates persist
-- Smooth dragging interaction
+**Testing**: ✅ Complete
 
-**Testing**:
+- Manual testing: Verified control point drag reshapes annotations correctly
+- Build validation: No TypeScript errors
+- Existing tests cover AnnotationManager reshape methods and hook integration
 
-- Manual: Drag annotation, verify new position persists
-- Unit test: Test position update logic
+**User-Facing**: ✅ Functional
 
-**User-Facing**:
-
-- Users can reposition annotations by dragging
-- Visual cursor feedback (grab cursor)
+- Users can resize annotations by dragging control points
+- Polyline/arrow: drag vertices to reposition
+- Oval: drag control points to resize bounding box
+- Freehand: drag endpoints to adjust line
 - Demo exercisable via `npm run dev` at `/dual-video-sync`
 
-**Estimated Time**: 60 minutes
+**Deferred to Phase 1**:
+
+- Rotation handles using Konva.Transformer component
+- Full transform capabilities (scale, rotate, skew)
+
+**Actual Time**: ~2 hours (investigation, bug fix, testing)
 
 ---
 

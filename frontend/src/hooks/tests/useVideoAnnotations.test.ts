@@ -811,4 +811,523 @@ describe("useVideoAnnotations", () => {
       expect(result.current.annotations).toEqual(originalAnnotations);
     });
   });
+
+  // ========================================
+  // Reshape Operations Tests (Subtask 0.5.11)
+  // ========================================
+  describe("Reshape Operations", () => {
+    it("should expose handleControlPointMouseDown handler", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      expect(result.current.handlers.handleControlPointMouseDown).toBeDefined();
+      expect(
+        typeof result.current.handlers.handleControlPointMouseDown
+      ).toBe("function");
+    });
+
+    it("should start reshape when control point is clicked", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create an arrow annotation
+      let annotationId: string | undefined;
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "arrow",
+          [
+            { x: 100, y: 100 },
+            { x: 200, y: 200 },
+          ]
+        );
+        annotationId = annotation?.id;
+      });
+
+      expect(annotationId).toBeDefined();
+
+      // Mock event
+      const mockEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 100, y: 100 }),
+          }),
+        },
+      } as any;
+
+      // Click control point 0
+      act(() => {
+        result.current.handlers.handleControlPointMouseDown(
+          annotationId!,
+          0,
+          mockEvent
+        );
+      });
+
+      // Reshape should start
+      expect(result.current.isReshapingAnnotation).toBe(true);
+      expect(result.current.manager.isReshaping()).toBe(true);
+      expect(mockEvent.cancelBubble).toBe(true); // Event propagation stopped
+    });
+
+    it("should update annotation during reshape", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create an arrow annotation
+      let annotationId: string | undefined;
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "arrow",
+          [
+            { x: 100, y: 100 },
+            { x: 200, y: 200 },
+          ]
+        );
+        annotationId = annotation?.id;
+      });
+
+      // Start reshape on control point 0 (start point)
+      const startEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 100, y: 100 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleControlPointMouseDown(
+          annotationId!,
+          0,
+          startEvent
+        );
+      });
+
+      // Move mouse (reshape update)
+      const moveEvent = {
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 150, y: 150 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleStageMouseMove(moveEvent);
+      });
+
+      // Annotation should be updated
+      const updated = result.current.manager.getAnnotationById(annotationId!);
+      expect(updated!.points[0]).toEqual({ x: 150, y: 150 }); // Start point moved
+      expect(updated!.points[1]).toEqual({ x: 200, y: 200 }); // End point unchanged
+    });
+
+    it("should finalize reshape on mouse up", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create an arrow annotation
+      let annotationId: string | undefined;
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "arrow",
+          [
+            { x: 100, y: 100 },
+            { x: 200, y: 200 },
+          ]
+        );
+        annotationId = annotation?.id;
+      });
+
+      // Start reshape
+      const startEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 100, y: 100 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleControlPointMouseDown(
+          annotationId!,
+          0,
+          startEvent
+        );
+      });
+
+      expect(result.current.isReshapingAnnotation).toBe(true);
+
+      // Move mouse
+      const moveEvent = {
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 150, y: 150 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleStageMouseMove(moveEvent);
+      });
+
+      // Mouse up - finalize reshape
+      act(() => {
+        result.current.handlers.handleStageMouseUp();
+      });
+
+      // Reshape should end
+      expect(result.current.isReshapingAnnotation).toBe(false);
+      expect(result.current.manager.isReshaping()).toBe(false);
+
+      // Changes should persist
+      const updated = result.current.manager.getAnnotationById(annotationId!);
+      expect(updated!.points[0]).toEqual({ x: 150, y: 150 });
+    });
+
+    it("should reshape oval control points correctly", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create an oval annotation
+      let annotationId: string | undefined;
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "oval",
+          [
+            { x: 100, y: 100 }, // Top-left
+            { x: 300, y: 200 }, // Bottom-right
+          ]
+        );
+        annotationId = annotation?.id;
+      });
+
+      // Start reshape on control point 2 (top-right corner)
+      const startEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 300, y: 100 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleControlPointMouseDown(
+          annotationId!,
+          2,
+          startEvent
+        );
+      });
+
+      // Move mouse (expand right and up)
+      const moveEvent = {
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 320, y: 80 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleStageMouseMove(moveEvent);
+      });
+
+      // Annotation should be reshaped
+      const updated = result.current.manager.getAnnotationById(annotationId!);
+      expect(updated!.points[0]).toEqual({ x: 100, y: 80 }); // Top-left adjusted
+      expect(updated!.points[1]).toEqual({ x: 320, y: 200 }); // Bottom-right adjusted
+    });
+
+    it("should reshape polyline vertices", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create a polyline annotation
+      let annotationId: string | undefined;
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "polyline",
+          [
+            { x: 50, y: 50 },
+            { x: 100, y: 150 },
+            { x: 150, y: 100 },
+          ]
+        );
+        annotationId = annotation?.id;
+      });
+
+      // Start reshape on control point 1 (middle vertex)
+      const startEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 100, y: 150 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleControlPointMouseDown(
+          annotationId!,
+          1,
+          startEvent
+        );
+      });
+
+      // Move mouse
+      const moveEvent = {
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 110, y: 160 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleStageMouseMove(moveEvent);
+      });
+
+      // Only the moved vertex should change
+      const updated = result.current.manager.getAnnotationById(annotationId!);
+      expect(updated!.points[0]).toEqual({ x: 50, y: 50 }); // Unchanged
+      expect(updated!.points[1]).toEqual({ x: 110, y: 160 }); // Moved
+      expect(updated!.points[2]).toEqual({ x: 150, y: 100 }); // Unchanged
+    });
+
+    it("should not start reshape during drawing", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create an arrow annotation
+      let annotationId: string | undefined;
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "arrow",
+          [
+            { x: 100, y: 100 },
+            { x: 200, y: 200 },
+          ]
+        );
+        annotationId = annotation?.id;
+      });
+
+      // Start drawing
+      const stage = {
+        getPointerPosition: () => ({ x: 10, y: 10 }),
+      };
+      const drawEvent = {
+        target: stage,
+      } as any;
+      drawEvent.target.getStage = () => stage;
+
+      act(() => {
+        result.current.handlers.handleMouseDown(drawEvent);
+      });
+
+      expect(result.current.manager.isDrawing()).toBe(true);
+
+      // Try to start reshape
+      const reshapeEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 100, y: 100 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleControlPointMouseDown(
+          annotationId!,
+          0,
+          reshapeEvent
+        );
+      });
+
+      // Reshape should not start
+      expect(result.current.isReshapingAnnotation).toBe(false);
+      expect(result.current.manager.isReshaping()).toBe(false);
+    });
+
+    it("should allow reshape and drag to coexist (different annotations)", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create two annotations
+      let arrowId: string | undefined;
+      let ovalId: string | undefined;
+      act(() => {
+        const arrow = result.current.manager.createAndAddAnnotation("arrow", [
+          { x: 100, y: 100 },
+          { x: 200, y: 200 },
+        ]);
+        arrowId = arrow?.id;
+
+        const oval = result.current.manager.createAndAddAnnotation("oval", [
+          { x: 300, y: 300 },
+          { x: 400, y: 400 },
+        ]);
+        ovalId = oval?.id;
+      });
+
+      // Select arrow for dragging
+      act(() => {
+        result.current.manager.toggleSelection(arrowId!, false);
+      });
+
+      // Start drag on arrow
+      const dragEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 100, y: 100 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleAnnotationDragStart(arrowId!, dragEvent);
+      });
+
+      expect(result.current.isDraggingAnnotation).toBe(true);
+
+      // Start reshape on oval (unusual but technically possible)
+      const reshapeEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 300, y: 300 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleControlPointMouseDown(
+          ovalId!,
+          0,
+          reshapeEvent
+        );
+      });
+
+      // Both operations should be active (manager allows this)
+      expect(result.current.isDraggingAnnotation).toBe(true);
+      expect(result.current.isReshapingAnnotation).toBe(true);
+      expect(result.current.manager.isDragging()).toBe(true);
+      expect(result.current.manager.isReshaping()).toBe(true);
+    });
+
+    it("should not update reshape when not reshaping", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create annotation (not reshaping)
+      act(() => {
+        result.current.manager.createAndAddAnnotation("arrow", [
+          { x: 100, y: 100 },
+          { x: 200, y: 200 },
+        ]);
+      });
+
+      const originalAnnotations = result.current.annotations;
+
+      // Try to move mouse (no reshape active)
+      const moveEvent = {
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 150, y: 150 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleStageMouseMove(moveEvent);
+      });
+
+      // Annotations should not change
+      expect(result.current.annotations).toEqual(originalAnnotations);
+    });
+
+    it("should route control point clicks to reshape (not drag)", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create and select an arrow annotation
+      let annotationId: string | undefined;
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "arrow",
+          [
+            { x: 100, y: 100 },
+            { x: 200, y: 200 },
+          ]
+        );
+        annotationId = annotation?.id;
+        result.current.manager.toggleSelection(annotationId!, false);
+      });
+
+      // Click control point 0 (start point)
+      const controlPointEvent = {
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 100, y: 100 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleControlPointMouseDown(
+          annotationId!,
+          0,
+          controlPointEvent
+        );
+      });
+
+      // Should trigger reshape, NOT drag
+      expect(result.current.isReshapingAnnotation).toBe(true);
+      expect(result.current.isDraggingAnnotation).toBe(false);
+      expect(result.current.manager.isReshaping()).toBe(true);
+      expect(result.current.manager.isDragging()).toBe(false);
+
+      // Move mouse - should update via reshape path
+      const moveEvent = {
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 120, y: 130 }),
+          }),
+        },
+      } as any;
+
+      act(() => {
+        result.current.handlers.handleStageMouseMove(moveEvent);
+      });
+
+      // Annotation should be reshaped (only control point 0 moved)
+      const updated = result.current.manager.getAnnotationById(annotationId!);
+      expect(updated!.points[0]).toEqual({ x: 120, y: 130 }); // Moved
+      expect(updated!.points[1]).toEqual({ x: 200, y: 200 }); // Unchanged
+
+      // End with mouse up
+      act(() => {
+        result.current.handlers.handleStageMouseUp();
+      });
+
+      expect(result.current.isReshapingAnnotation).toBe(false);
+      expect(result.current.manager.isReshaping()).toBe(false);
+    });
+  });
 });

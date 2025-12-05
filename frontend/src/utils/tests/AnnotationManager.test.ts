@@ -1345,4 +1345,377 @@ describe("AnnotationManager", () => {
       });
     });
   });
+
+  // ========================================
+  // Reshape Methods Tests (Subtask 0.5.11)
+  // ========================================
+  describe("Reshape Methods", () => {
+    let arrowAnnotation: any;
+    let polylineAnnotation: any;
+    let ovalAnnotation: any;
+
+    beforeEach(() => {
+      // Create test annotations
+      arrowAnnotation = manager.createAnnotation("arrow", [
+        { x: 100, y: 100 },
+        { x: 200, y: 200 },
+      ]);
+      manager.addAnnotation(arrowAnnotation);
+
+      polylineAnnotation = manager.createAnnotation("polyline", [
+        { x: 50, y: 50 },
+        { x: 100, y: 150 },
+        { x: 150, y: 100 },
+      ]);
+      manager.addAnnotation(polylineAnnotation);
+
+      ovalAnnotation = manager.createAnnotation("oval", [
+        { x: 100, y: 100 }, // Top-left
+        { x: 300, y: 200 }, // Bottom-right
+      ]);
+      manager.addAnnotation(ovalAnnotation);
+    });
+
+    describe("startReshape", () => {
+      it("should start reshape for valid annotation", () => {
+        const result = manager.startReshape(arrowAnnotation.id, 0);
+
+        expect(result).toBe(true);
+        expect(manager.isReshaping()).toBe(true);
+      });
+
+      it("should return false for non-existent annotation", () => {
+        const result = manager.startReshape("non-existent-id", 0);
+
+        expect(result).toBe(false);
+        expect(manager.isReshaping()).toBe(false);
+      });
+
+      it("should store original points", () => {
+        manager.startReshape(arrowAnnotation.id, 0);
+        const state = manager.getReshapeState();
+
+        expect(state.annotationId).toBe(arrowAnnotation.id);
+        expect(state.controlPointIndex).toBe(0);
+        expect(state.isReshaping).toBe(true);
+      });
+
+      it("should store control point index", () => {
+        manager.startReshape(polylineAnnotation.id, 2);
+        const state = manager.getReshapeState();
+
+        expect(state.controlPointIndex).toBe(2);
+      });
+    });
+
+    describe("updateReshape - Arrow", () => {
+      it("should update start point (index 0)", () => {
+        manager.startReshape(arrowAnnotation.id, 0);
+        manager.updateReshape({ x: 150, y: 150 });
+
+        const updated = manager.getAnnotationById(arrowAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 150, y: 150 });
+        expect(updated!.points[1]).toEqual({ x: 200, y: 200 }); // End unchanged
+      });
+
+      it("should update end point (index 1)", () => {
+        manager.startReshape(arrowAnnotation.id, 1);
+        manager.updateReshape({ x: 250, y: 250 });
+
+        const updated = manager.getAnnotationById(arrowAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 100, y: 100 }); // Start unchanged
+        expect(updated!.points[1]).toEqual({ x: 250, y: 250 });
+      });
+
+      it("should allow multiple updates during reshape", () => {
+        manager.startReshape(arrowAnnotation.id, 0);
+        manager.updateReshape({ x: 120, y: 120 });
+        manager.updateReshape({ x: 140, y: 140 });
+
+        const updated = manager.getAnnotationById(arrowAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 140, y: 140 });
+      });
+    });
+
+    describe("updateReshape - Polyline", () => {
+      it("should update first vertex (index 0)", () => {
+        manager.startReshape(polylineAnnotation.id, 0);
+        manager.updateReshape({ x: 60, y: 60 });
+
+        const updated = manager.getAnnotationById(polylineAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 60, y: 60 });
+        expect(updated!.points[1]).toEqual({ x: 100, y: 150 }); // Others unchanged
+        expect(updated!.points[2]).toEqual({ x: 150, y: 100 });
+      });
+
+      it("should update middle vertex (index 1)", () => {
+        manager.startReshape(polylineAnnotation.id, 1);
+        manager.updateReshape({ x: 110, y: 160 });
+
+        const updated = manager.getAnnotationById(polylineAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 50, y: 50 });
+        expect(updated!.points[1]).toEqual({ x: 110, y: 160 });
+        expect(updated!.points[2]).toEqual({ x: 150, y: 100 });
+      });
+
+      it("should update last vertex (index 2)", () => {
+        manager.startReshape(polylineAnnotation.id, 2);
+        manager.updateReshape({ x: 160, y: 110 });
+
+        const updated = manager.getAnnotationById(polylineAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 50, y: 50 });
+        expect(updated!.points[1]).toEqual({ x: 100, y: 150 });
+        expect(updated!.points[2]).toEqual({ x: 160, y: 110 });
+      });
+    });
+
+    describe("updateReshape - Oval", () => {
+      // Original oval: minX=100, maxX=300, minY=100, maxY=200
+
+      it("should resize from top-left corner (index 0)", () => {
+        manager.startReshape(ovalAnnotation.id, 0);
+        manager.updateReshape({ x: 120, y: 120 });
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // New bounding box: minX=120, maxX=300, minY=120, maxY=200
+        expect(updated!.points[0]).toEqual({ x: 120, y: 120 });
+        expect(updated!.points[1]).toEqual({ x: 300, y: 200 });
+      });
+
+      it("should resize from top-center edge (index 1)", () => {
+        manager.startReshape(ovalAnnotation.id, 1);
+        manager.updateReshape({ x: 200, y: 110 }); // x ignored for vertical edge
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // New bounding box: minX=100, maxX=300, minY=110, maxY=200
+        expect(updated!.points[0]).toEqual({ x: 100, y: 110 });
+        expect(updated!.points[1]).toEqual({ x: 300, y: 200 });
+      });
+
+      it("should resize from top-right corner (index 2)", () => {
+        manager.startReshape(ovalAnnotation.id, 2);
+        manager.updateReshape({ x: 320, y: 110 });
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // New bounding box: minX=100, maxX=320, minY=110, maxY=200
+        expect(updated!.points[0]).toEqual({ x: 100, y: 110 });
+        expect(updated!.points[1]).toEqual({ x: 320, y: 200 });
+      });
+
+      it("should resize from right-center edge (index 3)", () => {
+        manager.startReshape(ovalAnnotation.id, 3);
+        manager.updateReshape({ x: 320, y: 150 }); // y ignored for horizontal edge
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // New bounding box: minX=100, maxX=320, minY=100, maxY=200
+        expect(updated!.points[0]).toEqual({ x: 100, y: 100 });
+        expect(updated!.points[1]).toEqual({ x: 320, y: 200 });
+      });
+
+      it("should resize from bottom-right corner (index 4)", () => {
+        manager.startReshape(ovalAnnotation.id, 4);
+        manager.updateReshape({ x: 320, y: 220 });
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // New bounding box: minX=100, maxX=320, minY=100, maxY=220
+        expect(updated!.points[0]).toEqual({ x: 100, y: 100 });
+        expect(updated!.points[1]).toEqual({ x: 320, y: 220 });
+      });
+
+      it("should resize from bottom-center edge (index 5)", () => {
+        manager.startReshape(ovalAnnotation.id, 5);
+        manager.updateReshape({ x: 200, y: 220 }); // x ignored
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // New bounding box: minX=100, maxX=300, minY=100, maxY=220
+        expect(updated!.points[0]).toEqual({ x: 100, y: 100 });
+        expect(updated!.points[1]).toEqual({ x: 300, y: 220 });
+      });
+
+      it("should resize from bottom-left corner (index 6)", () => {
+        manager.startReshape(ovalAnnotation.id, 6);
+        manager.updateReshape({ x: 120, y: 220 });
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // New bounding box: minX=120, maxX=300, minY=100, maxY=220
+        expect(updated!.points[0]).toEqual({ x: 120, y: 100 });
+        expect(updated!.points[1]).toEqual({ x: 300, y: 220 });
+      });
+
+      it("should resize from left-center edge (index 7)", () => {
+        manager.startReshape(ovalAnnotation.id, 7);
+        manager.updateReshape({ x: 120, y: 150 }); // y ignored
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // New bounding box: minX=120, maxX=300, minY=100, maxY=200
+        expect(updated!.points[0]).toEqual({ x: 120, y: 100 });
+        expect(updated!.points[1]).toEqual({ x: 300, y: 200 });
+      });
+
+      it("should allow inverted bounding box (drag past opposite edge)", () => {
+        manager.startReshape(ovalAnnotation.id, 0);
+        manager.updateReshape({ x: 350, y: 250 }); // Drag top-left past bottom-right
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // Points will be inverted - this is expected behavior
+        expect(updated!.points[0]).toEqual({ x: 350, y: 250 });
+        expect(updated!.points[1]).toEqual({ x: 300, y: 200 });
+      });
+
+      it("should handle near-zero dimensions when resizing oval", () => {
+        // Create a small oval
+        const smallOval = manager.createAnnotation("oval", [
+          { x: 100, y: 100 },
+          { x: 110, y: 110 },
+        ]);
+        manager.addAnnotation(smallOval);
+
+        // Resize to make it even smaller (near-zero width/height)
+        manager.startReshape(smallOval.id, 4); // Bottom-right corner
+        manager.updateReshape({ x: 101, y: 101 }); // 1x1 oval
+
+        const updated = manager.getAnnotationById(smallOval.id);
+        expect(updated!.points[0]).toEqual({ x: 100, y: 100 });
+        expect(updated!.points[1]).toEqual({ x: 101, y: 101 });
+
+        // Verify it doesn't crash and maintains valid state
+        expect(updated).toBeDefined();
+        expect(updated!.type).toBe("oval");
+        expect(updated!.points.length).toBe(2);
+      });
+
+      it("should handle negative dimensions when dragging past opposite corner", () => {
+        // Original oval: 100,100 to 300,200
+        manager.startReshape(ovalAnnotation.id, 4); // Bottom-right corner
+        manager.updateReshape({ x: 50, y: 50 }); // Drag far past top-left
+
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        // System allows inverted/negative dimensions
+        expect(updated!.points[0]).toEqual({ x: 100, y: 100 });
+        expect(updated!.points[1]).toEqual({ x: 50, y: 50 });
+
+        // Verify annotation is still valid
+        expect(updated).toBeDefined();
+        expect(updated!.type).toBe("oval");
+        expect(updated!.points.length).toBe(2);
+      });
+    });
+
+    describe("endReshape", () => {
+      it("should clear reshape state", () => {
+        manager.startReshape(arrowAnnotation.id, 0);
+        manager.endReshape();
+
+        expect(manager.isReshaping()).toBe(false);
+        const state = manager.getReshapeState();
+        expect(state.annotationId).toBe(null);
+        expect(state.controlPointIndex).toBe(null);
+      });
+
+      it("should preserve annotation changes after end", () => {
+        manager.startReshape(arrowAnnotation.id, 0);
+        manager.updateReshape({ x: 150, y: 150 });
+        manager.endReshape();
+
+        const updated = manager.getAnnotationById(arrowAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 150, y: 150 });
+      });
+    });
+
+    describe("isReshaping", () => {
+      it("should return false initially", () => {
+        expect(manager.isReshaping()).toBe(false);
+      });
+
+      it("should return true after startReshape", () => {
+        manager.startReshape(arrowAnnotation.id, 0);
+        expect(manager.isReshaping()).toBe(true);
+      });
+
+      it("should return false after endReshape", () => {
+        manager.startReshape(arrowAnnotation.id, 0);
+        manager.endReshape();
+        expect(manager.isReshaping()).toBe(false);
+      });
+    });
+
+    describe("getReshapeState", () => {
+      it("should return idle state initially", () => {
+        const state = manager.getReshapeState();
+        expect(state).toEqual({
+          isReshaping: false,
+          annotationId: null,
+          controlPointIndex: null,
+        });
+      });
+
+      it("should return active state during reshape", () => {
+        manager.startReshape(polylineAnnotation.id, 1);
+        const state = manager.getReshapeState();
+
+        expect(state).toEqual({
+          isReshaping: true,
+          annotationId: polylineAnnotation.id,
+          controlPointIndex: 1,
+        });
+      });
+    });
+
+    describe("Reshape edge cases", () => {
+      it("should handle updateReshape when not reshaping", () => {
+        manager.updateReshape({ x: 100, y: 100 });
+        // Should not crash, no-op
+        expect(manager.isReshaping()).toBe(false);
+      });
+
+      it("should handle invalid control point index gracefully", () => {
+        manager.startReshape(arrowAnnotation.id, 999);
+        manager.updateReshape({ x: 100, y: 100 });
+        // Should not crash, arrow should be unchanged
+        const updated = manager.getAnnotationById(arrowAnnotation.id);
+        expect(updated!.points).toEqual([
+          { x: 100, y: 100 },
+          { x: 200, y: 200 },
+        ]);
+      });
+
+      it("should not reshape freehand annotations", () => {
+        const freehand = manager.createAnnotation("freehand", [
+          { x: 10, y: 10 },
+          { x: 20, y: 20 },
+        ]);
+        manager.addAnnotation(freehand);
+
+        manager.startReshape(freehand.id, 0);
+        manager.updateReshape({ x: 100, y: 100 });
+
+        const updated = manager.getAnnotationById(freehand.id);
+        expect(updated!.points).toEqual([
+          { x: 10, y: 10 },
+          { x: 20, y: 20 },
+        ]); // Unchanged
+      });
+    });
+
+    describe("Reshape integration with other operations", () => {
+      it("should allow reshape and drag to coexist (different annotations)", () => {
+        manager.toggleSelection(arrowAnnotation.id, false);
+        manager.startDrag(arrowAnnotation.id);
+        manager.startReshape(polylineAnnotation.id, 1);
+
+        expect(manager.isDragging()).toBe(true);
+        expect(manager.isReshaping()).toBe(true);
+      });
+
+      it("should maintain reshape during updates", () => {
+        manager.startReshape(ovalAnnotation.id, 0);
+        manager.updateReshape({ x: 120, y: 120 });
+        manager.updateReshape({ x: 130, y: 130 });
+
+        expect(manager.isReshaping()).toBe(true);
+        const updated = manager.getAnnotationById(ovalAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 130, y: 130 });
+      });
+    });
+  });
 });

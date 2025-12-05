@@ -46,6 +46,12 @@ The implementation separates business logic from UI through a modular, testable 
   - `updateDrag(delta)`: Apply cumulative delta from original positions (all selected move together)
   - `endDrag()`: Finalize drag and reset state
   - `isDragging()`: Query active drag state
+- **Reshape Operations**: Control point manipulation for resizing
+  - `startReshape(annotationId, controlPointIndex)`: Store original points and reshape state
+  - `updateReshape(newPosition)`: Type-specific point updates (vertex move for arrow/polyline, bounds adjust for oval, endpoint move for freehand)
+  - `endReshape()`: Clear reshape state
+  - `isReshaping()`: Query active reshape state
+  - `getReshapeState()`: Get current reshape metadata
 
 **3. Custom Hook** (`src/hooks/useVideoAnnotations.ts`)
 
@@ -57,12 +63,16 @@ The implementation separates business logic from UI through a modular, testable 
 - **Keyboard Support**: 
   - Enter/Escape: Polyline finalization/cancellation
   - Delete: Removes selected annotations (with input/textarea safeguard)
-- **Drag Handlers**: 
+- **Drag Handlers**:
   - `handleAnnotationDragStart`: Initiates drag for selected annotations (prevents during drawing)
   - `handleStageMouseMove`: Updates drag position with live preview (calculates delta from start)
   - `handleStageMouseUp`: Finalizes drag operation
   - `dragMoved` state: Prevents onClick deselection after drag completes
-- **Returns**: Manager, tool state, drawing state, annotations, selectedIds, scale, drag state, and event handlers
+- **Reshape Handlers**:
+  - `handleControlPointMouseDown`: Initiates reshape via `manager.startReshape()`, sets `isReshapingAnnotation = true`
+  - `handleStageMouseMove`: When reshaping, calls `manager.updateReshape()` with current mouse position
+  - `handleStageMouseUp`: Finalizes reshape via `manager.endReshape()`, sets `isReshapingAnnotation = false`
+- **Returns**: Manager, tool state, drawing state, annotations, selectedIds, scale, drag state, reshape state, and event handlers
 
 **4. Component Integration** (`src/components/DualVideoSyncDemo.tsx`)
 
@@ -75,10 +85,15 @@ The implementation separates business logic from UI through a modular, testable 
   - Control points rendered as 8x8px white Rects with black stroke when annotation selected
   - `hitStrokeWidth={20}` on Line/Arrow for easier selection (20px clickable area vs 3px visual)
   - Preview shapes: `listening={false}` makes red dashed drawing previews non-interactive
-- **Drag UI**: 
+- **Drag UI**:
   - `onMouseDown` on annotation shapes triggers drag when selected and idle
   - Pre-computed cursor: "move" when draggable, "pointer" otherwise (Konva requires static values)
   - Live preview: annotations follow cursor during drag
+- **Reshape UI**:
+  - Control point Rects have `onMouseDown` handler calling `handleControlPointMouseDown(annotationId, idx, e)`
+  - `e.cancelBubble = true` prevents event propagation to annotation shape
+  - Stage handlers route to reshape logic when `isReshapingAnnotation = true`
+  - Stage `onMouseMove`/`onMouseUp`/`onMouseLeave` check `isDraggingAnnotation || isReshapingAnnotation` to route events correctly
 - **Clear All UI**: Buttons per video (disabled when empty) call `clearAll()` from hook
 
 ### Canvas Overlay Structure
@@ -123,6 +138,16 @@ Video Canvas Container (position: relative)
 1. Mouse Down on selected annotation → `handleAnnotationDragStart()` stores start position
 2. Mouse Move → `handleStageMouseMove()` calculates delta, updates all selected via `updateDrag()`
 3. Mouse Up → `handleStageMouseUp()` finalizes via `endDrag()`, sets dragMoved flag to prevent deselection
+
+**Annotation Reshaping** (Resize via Control Points):
+
+1. Mouse Down on control point → `handleControlPointMouseDown()` calls `manager.startReshape(annotationId, controlIndex)`
+2. Mouse Move → `handleStageMouseMove()` checks `isReshapingAnnotation`, calls `manager.updateReshape(point)` with type-specific logic:
+   - **Arrow/Polyline**: Updates the vertex at `controlIndex` to new position
+   - **Oval**: Recalculates bounding box based on which control point moved (8 control points: corners + midpoints)
+   - **Freehand**: Updates start or end point (only 2 control points)
+3. Mouse Up → `handleStageMouseUp()` calls `manager.endReshape()` to finalize
+4. **Event Routing**: Stage handlers check `isDraggingAnnotation || isReshapingAnnotation` to route to `handleStageMouseMove`/`handleStageMouseUp`
 
 ### State Management Flow
 
@@ -263,7 +288,7 @@ const getControlPoints = (annotation: Annotation): Point[] => {
 
 ### Unit Tests
 
-**AnnotationManager** (`src/utils/tests/AnnotationManager.test.ts`) - **106 tests**:
+**AnnotationManager** (`src/utils/tests/AnnotationManager.test.ts`) - **137 tests**:
 
 - Annotation CRUD operations
 - Tool selection integration (`setTool`, `getTool`)
@@ -271,8 +296,9 @@ const getControlPoints = (annotation: Annotation): Point[] => {
 - Point validation and workflows
 - Selection management (17 tests): `toggleSelection`, `isSelected`, `getSelectedIds`, `clearSelection`, `deleteSelected`, integration with `startDrawing`/`clearAll`
 - Drag operations (21 tests): `updateAnnotationPoints`, `startDrag`, `updateDrag` (including cumulative delta), `endDrag`, `isDragging`, integration scenarios
+- Reshape operations (31 tests): `startReshape`, `updateReshape` (arrow/polyline/oval/freehand), `endReshape`, `isReshaping`, `getReshapeState`, integration scenarios
 
-**useVideoAnnotations Hook** (`src/hooks/tests/useVideoAnnotations.test.ts`) - **29 tests**:
+**useVideoAnnotations Hook** (`src/hooks/tests/useVideoAnnotations.test.ts`) - **38 tests**:
 
 - Hook initialization and state management
 - Tool selection via hook API
@@ -282,8 +308,9 @@ const getControlPoints = (annotation: Annotation): Point[] => {
 - Video activation logic
 - Selection and deletion (6 tests): `handleAnnotationClick`, multi-select, Delete key, `clearAll`
 - Drag operations (9 tests): handler existence, drag workflow (start/move/end), prevention during drawing, multi-select group drag
+- Reshape operations (9 tests): handler existence, reshape workflow (start/move/end), prevention during drawing, type-specific reshape
 
-**Total: 135 tests passing** - Business logic, React integration, and drag functionality fully covered.
+**Total: 175 tests passing** - Business logic, React integration, drag functionality, and reshape functionality fully covered.
 
 ## Requirements Satisfied
 
@@ -312,6 +339,8 @@ const getControlPoints = (annotation: Annotation): Point[] => {
    - Preview shapes with `listening={false}` prevents blocking clicks (fixes polyline vertex addition)
 
 7. **Event Propagation**: Konva's `cancelBubble` prevents annotation clicks from triggering Stage handlers, but Stage handlers still fire - must check `event.target === stage` to distinguish background clicks from annotation clicks
+
+8. **Reshape Event Routing**: Control point reshape requires proper event routing in Stage handlers. Initial implementation only checked `isDraggingAnnotation` to route to `handleStageMouseMove`/`handleStageMouseUp`, causing control point drags to trigger drawing instead of reshape. Fix: destructure `isReshapingAnnotation` from hook and check `isDraggingAnnotation || isReshapingAnnotation` in Stage's `onMouseMove`/`onMouseUp`/`onMouseLeave` handlers. This ensures reshape events route to the correct handlers that call `manager.updateReshape()` and `manager.endReshape()`.
 
 ## References
 

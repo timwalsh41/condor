@@ -1,6 +1,8 @@
 # System Architecture Description
 
-*Last Updated: [Date]*
+## Document Control
+- **Version**: 1.0
+- **Last Updated**: [Date]
 
 ## Overview
 

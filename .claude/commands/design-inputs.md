@@ -2,9 +2,9 @@
 
 ## Design input file to create: $ARGUMENTS
 
-Interactive command to thoroughly explore and refine system design inputs before generating formal requirements and PRP. This command facilitates a structured conversation to clarify concepts, explore architecture patterns, identify requirements, and assess risks. The output is a comprehensive design inputs file suitable for `/generate-prp`.
+Interactively construct comprehensive design inputs with the user by exploring and refining the concept before generating formal requirements and other project documentation. This command facilitates a structured conversation to clarify concepts, explore architecture patterns, identify requirements, and assess risks. The output is a comprehensive design inputs file suitable for `/generate-prp`. The user will provide an initial starting point in $ARGUMENTS, and through this process we'll further flesh that out to the point that wee can generate a coherent project vision and requirements that must be met to ensure success. In this process, you will modify and update $ARGUMENTS based on your discussion with the user.
 
-**This is an interactive exercise** - not a one-shot file generation. The goal is to have a thorough discussion that produces high-quality design inputs. The first four steps below list a comprehensive set of questions to explore to clarify and crystallize the design intent and approach. This should be a combination of interactive discussion with the user along with recommendations from your own knowledge (augmented with external research as appropriate). The remaining steps then synthesize the findings from these initial explorations into clear, concise, and thorough design inputs that can be used in the further stages of the design process to create requirements, system architecture, and a project plan. The user will provide some initial design input information in $ARGUMENTS, to goal here to flesh that out and update the design input file based on the below guidance. Remember - any listed requirements should specify the "what", not the "how". Where we have guidance on "how" (algorithms, technologies, libraries, etc.), those should be part of examples, documentation, or other considerations sections, not the requirements themselves.
+**This is an interactive exercise** - not a one-shot file generation. The goal is to have a thorough discussion that produces high-quality design inputs. The first four steps below list a comprehensive set of questions to explore to clarify and crystallize the design intent and approach. This should be a combination of interactive discussion with the user along with recommendations from your own knowledge (augmented with external research as appropriate). The remaining steps then synthesize the findings from these initial explorations into clear, concise, and thorough design inputs that can be used in the further stages of the design process to create requirements, system architecture, and a project plan. The user will provide some initial design input information in $ARGUMENTS, the goal here is to flesh that out and update the design input file based on the below guidance. Remember - all requirements should specify the "what", not the "how". Where we have guidance on "how" (algorithms, technologies, libraries, etc.), those should be part of the system architecture, examples, or documentation sections, not captured in the requirements themselves.
 
 ## Execution Process
 
@@ -20,13 +20,10 @@ Interactive command to thoroughly explore and refine system design inputs before
    - What's in scope vs. out of scope for MVP?
    - What can be deferred to future phases?
    - Any specific constraints or limitations?
-   - Timeline or resource constraints?
 
 3. **Success Criteria Establishment**
-   - What does "done" look like?
    - Key performance indicators?
    - User acceptance criteria?
-   - Business value metrics?
 
 ### Step 2: Architectural Exploration
 1. **Technology Stack Research**
@@ -38,7 +35,7 @@ Interactive command to thoroughly explore and refine system design inputs before
 2. **Architecture Pattern Analysis**
    - What architectural patterns apply (microservices, monolith, event-driven, etc.)?
    - How should components be organized?
-   - What are the major system boundaries?
+   - What are the major subsystem boundaries?
    - How does data flow through the system?
 
 3. **Integration Points Identification**
@@ -81,7 +78,6 @@ Interactive command to thoroughly explore and refine system design inputs before
 2. **Implementation Complexity Evaluation**
    - What parts will be most challenging to implement?
    - Any particularly complex algorithms or logic?
-   - Difficult user interface requirements?
    - Challenging integration points?
 
 3. **Dependency Risk Assessment**
@@ -120,12 +116,11 @@ Interactive command to thoroughly explore and refine system design inputs before
 
 ### Step 6: Design Inputs Synthesis
 
-1. **Progressive Refinement Through Conversation**
+1. **Progressive Iterative Refinement Through Conversation**
    - Ask clarifying questions on unclear areas
    - Explore alternatives and trade-offs
    - Challenge assumptions and identify gaps
    - Validate understanding with user
-   - Iterate on design decisions
 
 2. **Option Exploration**
    - Present different architectural approaches
@@ -137,76 +132,37 @@ Interactive command to thoroughly explore and refine system design inputs before
 3. **Reality Checking**
    - Validate feasibility of requirements
    - Identify potential bottlenecks or issues
-   - Confirm resource and timeline assumptions
    - Challenge overly complex or ambitious scope
    - Ensure requirements are testable and measurable
 
-4. **Final Synthesis**
+5. **System Design Approach**
+   - xxx
+
+4. **Nominal Execution Plan**
+   - Provide initial assessment on sequencing project activities to address technical risk early
+   - Progressively build up functionality with user-verifiable checkpoints at each step
+   - Identify major project phases, e.g. technical spike(s), MVP, feature expansion, scale-up, etc.
+
+5. **Final Synthesis**
    - Summarize understanding and confirm alignment
    - Organize findings into coherent design inputs
    - Prioritize requirements and features
    - Document key decisions and rationale
-   - Prepare comprehensive design inputs file
 
 ### Step 7: Design Inputs File Generation
 
-Create comprehensive $ARGUMENTS file with:
-
-#### FEATURE Section
-- Clear, specific description of what's being built
-- Functional requirements with user workflows
-- Non-functional requirements (performance, security, scalability)
-- Integration requirements with external systems
-- Quality attributes and constraints
-
-#### EXAMPLES Section
-- Relevant code patterns from `examples/` folder (if existing project)
-- Specific files and patterns to follow
-- Both code structure and testing patterns
-- Architecture patterns to mirror
-- Error handling approaches to replicate
-
-#### DOCUMENTATION Section
-- Specific API documentation URLs with relevant sections
-- Library guides and best practices documentation
-- MCP server documentation for external integrations
-- Industry standards or compliance documentation
-- Security frameworks and guidelines
-- Performance benchmarks and testing tools
-
-#### OTHER CONSIDERATIONS Section
-- Technology-specific gotchas and common pitfalls
-- Security considerations and requirements
-- Performance thresholds and monitoring needs
-- Error handling and logging requirements
-- Testing strategy and coverage requirements
-- Deployment and operational considerations
-- Migration or integration considerations
-- Risk mitigation strategies
+Update $ARGUMENTS following the existing template/organization, concisely synthesizing the output of your exploratory conversation and decisions
 
 ## Interactive Guidelines
 
 ### Conversation Flow
-- **Start Open**: "Tell me about what you're trying to build..."
-- **Progressive Refinement**: Each question builds on previous answers
+
 - **Deep Dive**: Ask follow-ups to explore unclear areas
 - **Option Presentation**: Show alternatives and trade-offs
 - **Reality Check**: Challenge assumptions and identify gaps
 - **Confirmation**: Summarize and validate understanding
 
-### Key Questions to Explore
-- "What problem are you solving and for whom?"
-- "What would success look like?"
-- "What are your non-negotiable requirements?"
-- "What can be simplified or deferred?"
-- "What similar systems have you seen?"
-- "What are your biggest concerns or risks?"
-- "How will users interact with this?"
-- "What performance is required?"
-- "What security considerations apply?"
-- "How will this integrate with existing systems?"
-
-### Quality Checkpoints
+### Acceptance Criteria
 - [ ] Problem and users clearly defined
 - [ ] Success criteria measurable and specific
 - [ ] Functional requirements comprehensive
@@ -219,42 +175,9 @@ Create comprehensive $ARGUMENTS file with:
 - [ ] Documentation resources compiled
 - [ ] Scope appropriately bounded for MVP
 
-## Output Summary
+## Final Thought
 
-After interactive exploration, provide summary:
-
-```markdown
-# Design Inputs Assembly Complete
-
-## System Concept
-- **Purpose**: [Clear problem statement and value proposition]
-- **Users**: [Target users and use cases]
-- **Success Criteria**: [Measurable outcomes]
-
-## Architecture Approach
-- **Pattern**: [Selected architectural pattern with rationale]
-- **Technology Stack**: [Chosen technologies with justification]
-- **Integration Points**: [External systems and interfaces]
-
-## Requirements Summary
-- **Functional**: [Count] core features identified
-- **Non-Functional**: [Count] performance/security/scalability requirements
-- **Constraints**: [Key limitations and boundaries]
-
-## Risk Assessment
-- **High Risk Areas**: [Top 3 technical/implementation risks]
-- **Mitigation Strategies**: [Approaches to address risks]
-- **Complexity Factors**: [Most challenging aspects]
-
-## Design Inputs File
-- **Created**: $ARGUMENTS
-- **Sections**: Feature description, Examples, Documentation, Other Considerations
-- **Quality Score**: [1-10]/10 for PRP generation readiness
-
-## Next Steps
-1. Review $ARGUMENTS for completeness
-2. Run: `/generate-prp $ARGUMENTS`
-```
-
-Remember: The goal is thorough exploration through conversation, resulting in comprehensive design inputs that set up `/generate-prp` for success.
-
+Remember: The goal is thorough exploration through conversation, resulting in a comprehensive design inputs that get us off on the right track. We should have full understanding and documentation in $ARGUMENTS of:
+- What the system must do (requirements)
+- How we will achieve it (system architecture, subsystem design/implementation approach) with a clear approach to address risks and gaps
+- A plan of attack (how we will break down the implementation into phases and tasks, focusing on addressing technical risks and validating key design decisions early)

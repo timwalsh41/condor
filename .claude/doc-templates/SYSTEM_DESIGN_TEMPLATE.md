@@ -1,6 +1,8 @@
 # [Subsystem Name] - System Design Description
 
-*Last Updated: [Date]*
+## Document Control
+- **Version**: 1.0
+- **Last Updated**: [Date]
 
 ## Overview
 
@@ -83,9 +85,9 @@ note top of MainController : Main entry point for\nsubsystem operations
 @enduml
 ```
 
-### Component Relationships
+### Subcomponent Relationships
 
-[Describe how components within this subsystem interact]
+[Describe how subcomponents within this subsystem interact]
 
 ```plantuml
 @startuml
@@ -110,7 +112,7 @@ Rel(validator, storage, "Reads", "Validation rules")
 
 | Interface | Data Format | Protocol/Method | Description |
 |-----------|-------------|-----------------|-------------|
-| [Interface Name] | [JSON/XML/Object] | [HTTP/Method Call/Message] | [What data comes in] |
+| [Interface Name] | [JSON/XML/protobuf/Object] | [HTTP/PubSub/Method Call/Message] | [What data comes in] |
 
 #### Input Data Structures
 
@@ -238,37 +240,6 @@ endif
 
 - **Load Testing**: [Description of load testing approach]
 - **Benchmarks**: [Performance benchmarks and targets]
-
-## Code Examples
-
-### Basic Usage
-
-```python
-# Example of how to use this subsystem
-from subsystem import MainController
-
-controller = MainController(config)
-result = controller.process_request(input_data)
-
-if result.status == 'success':
-    print(f"Processing completed: {result.data}")
-else:
-    print(f"Error occurred: {result.error}")
-```
-
-### Advanced Configuration
-
-```python
-# Example of advanced configuration
-config = {
-    'processing_mode': 'batch',
-    'batch_size': 100,
-    'retry_attempts': 3,
-    'timeout': 30
-}
-
-controller = MainController(config)
-```
 
 ## Deployment Considerations
 

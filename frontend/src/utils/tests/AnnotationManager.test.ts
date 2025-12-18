@@ -591,6 +591,79 @@ describe("AnnotationManager", () => {
       });
     });
 
+    describe("finalizePolylineDoubleClick", () => {
+      it("should remove duplicate last point before finalizing", () => {
+        manager.setTool("polyline");
+        manager.startDrawing({ x: 10, y: 20 });
+        manager.addPolylineVertex({ x: 30, y: 40 });
+        manager.addPolylineVertex({ x: 50, y: 60 });
+        // Simulate first click of double-click adding duplicate
+        manager.addPolylineVertex({ x: 50, y: 60 });
+
+        const annotation = manager.finalizePolylineDoubleClick();
+
+        expect(annotation).not.toBeNull();
+        expect(annotation?.type).toBe("polyline");
+        // Should have removed the duplicate point
+        expect(annotation?.points).toEqual([
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+          { x: 50, y: 60 },
+        ]);
+        expect(manager.getCount()).toBe(1);
+        expect(manager.getDrawingState().mode).toBe("idle");
+      });
+
+      it("should handle single point polyline (edge case)", () => {
+        manager.setTool("polyline");
+        manager.startDrawing({ x: 10, y: 20 });
+        // Simulate double-click immediately (adds duplicate of first point)
+        manager.addPolylineVertex({ x: 10, y: 20 });
+
+        const annotation = manager.finalizePolylineDoubleClick();
+
+        // Should fail validation (polyline needs at least 2 distinct points)
+        // After removing duplicate, only 1 point remains
+        expect(annotation).toBeNull();
+        expect(manager.getCount()).toBe(0);
+        expect(manager.getDrawingState().mode).toBe("idle");
+      });
+
+      it("should return null when polyline not active", () => {
+        manager.setTool("freehand");
+        manager.startDrawing({ x: 10, y: 20 });
+
+        const annotation = manager.finalizePolylineDoubleClick();
+
+        expect(annotation).toBeNull();
+      });
+
+      it("should work correctly with many vertices", () => {
+        manager.setTool("polyline");
+        manager.startDrawing({ x: 10, y: 10 });
+        manager.addPolylineVertex({ x: 20, y: 20 });
+        manager.addPolylineVertex({ x: 30, y: 30 });
+        manager.addPolylineVertex({ x: 40, y: 40 });
+        manager.addPolylineVertex({ x: 50, y: 50 });
+        // Simulate double-click duplicate
+        manager.addPolylineVertex({ x: 50, y: 50 });
+
+        const annotation = manager.finalizePolylineDoubleClick();
+
+        expect(annotation).not.toBeNull();
+        expect(annotation?.points).toHaveLength(5);
+        expect(annotation?.points[4]).toEqual({ x: 50, y: 50 });
+        // Verify no duplicate at end
+        expect(annotation?.points).toEqual([
+          { x: 10, y: 10 },
+          { x: 20, y: 20 },
+          { x: 30, y: 30 },
+          { x: 40, y: 40 },
+          { x: 50, y: 50 },
+        ]);
+      });
+    });
+
     describe("finishDrawing", () => {
       it("should create and add freehand annotation on finish", () => {
         manager.setTool("freehand");

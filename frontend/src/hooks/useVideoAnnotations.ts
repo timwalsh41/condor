@@ -69,13 +69,17 @@ export interface UseVideoAnnotationsResult {
  * @param videoId - Identifier for this video channel ('A' or 'B')
  * @param activeVideo - Current active video (for keyboard shortcuts)
  * @param setActiveVideo - Callback to mark this video as active for keyboard shortcuts
+ * @param selectedTool - Currently selected annotation tool (managed by parent)
+ * @param onToolChange - Callback to change the selected tool
  * @returns Annotation state, manager, and event handlers
  */
 export function useVideoAnnotations(
   videoDecoder: UseWebCodecsDecoderResult,
   videoId: "A" | "B",
   activeVideo: "A" | "B" | null,
-  setActiveVideo: (id: "A" | "B") => void
+  setActiveVideo: (id: "A" | "B") => void,
+  selectedTool: AnnotationType,
+  onToolChange: (tool: AnnotationType) => void
 ): UseVideoAnnotationsResult {
   // Annotation manager instance (one per video)
   const [manager] = useState(() => new AnnotationManager());
@@ -98,6 +102,22 @@ export function useVideoAnnotations(
 
   // Canvas scale for CSS transform
   const [scale, setScale] = useState(1);
+
+  // Sync selected tool from prop to manager
+  useEffect(() => {
+    manager.setTool(selectedTool);
+  }, [selectedTool, manager]);
+
+  // Cancel in-progress drawing when this video loses focus
+  useEffect(() => {
+    // If this video is no longer active and we're drawing, cancel it
+    if (activeVideo !== videoId && manager.isDrawing()) {
+      console.log(`Video ${videoId}: Cancelling in-progress drawing (video lost focus)`);
+      manager.cancelDrawing();
+      setDrawingState(manager.getDrawingState());
+      setPolylineMousePos(null);
+    }
+  }, [activeVideo, videoId, manager]);
 
   // Calculate annotation canvas scale to match video display size
   useEffect(() => {
@@ -185,17 +205,6 @@ export function useVideoAnnotations(
     []
   );
 
-  // Selected tool - synced with manager
-  const selectedTool = manager.getTool();
-  const setSelectedTool = useCallback(
-    (tool: AnnotationType) => {
-      manager.setTool(tool);
-      // Force re-render by updating state
-      setDrawingState(manager.getDrawingState());
-    },
-    [manager]
-  );
-
   // Mouse handlers for drag-based tools (freehand, oval, arrow)
   const handleMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -211,6 +220,9 @@ export function useVideoAnnotations(
 
       setActiveVideo(videoId); // Mark this video as active
 
+      // Skip drawing if in select mode
+      if (selectedTool === "select") return;
+
       // Only handle drag-based tools in mouseDown
       const tool = manager.getTool();
       if (!(["freehand", "oval", "arrow"] as AnnotationType[]).includes(tool))
@@ -224,7 +236,7 @@ export function useVideoAnnotations(
       setDrawingState(manager.getDrawingState());
       setSelectedIds(manager.getSelectedIds()); // Sync selection state (cleared on draw start)
     },
-    [videoDecoder.isReady, videoId, setActiveVideo, manager, getPoint]
+    [videoDecoder.isReady, videoId, setActiveVideo, selectedTool, manager, getPoint]
   );
 
   const handleMouseMove = useCallback(
@@ -275,7 +287,13 @@ export function useVideoAnnotations(
   // Click handler for polyline tool
   const handleClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!videoDecoder.isReady || manager.getTool() !== "polyline") return;
+      if (!videoDecoder.isReady) return;
+
+      // Skip if in select mode
+      if (selectedTool === "select") return;
+
+      // Only handle polyline tool
+      if (manager.getTool() !== "polyline") return;
 
       // Don't start polyline if clicking on an annotation shape
       // (annotation shapes have onClick handlers that handle selection)
@@ -303,14 +321,14 @@ export function useVideoAnnotations(
 
       setDrawingState(manager.getDrawingState());
     },
-    [videoDecoder.isReady, videoId, setActiveVideo, manager, getPoint]
+    [videoDecoder.isReady, videoId, setActiveVideo, selectedTool, manager, getPoint]
   );
 
   // Double-click handler for polyline finalization
   const handleDoubleClick = useCallback(() => {
     if (!manager.isPolylineActive()) return;
 
-    const annotation = manager.finishDrawing();
+    const annotation = manager.finalizePolylineDoubleClick();
     if (annotation) {
       console.log(
         `Video ${videoId}: Polyline finalized via double-click:`,
@@ -502,7 +520,7 @@ export function useVideoAnnotations(
   return {
     manager,
     selectedTool,
-    setSelectedTool,
+    setSelectedTool: onToolChange,
     drawingState,
     annotations,
     selectedIds,

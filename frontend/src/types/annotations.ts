@@ -6,7 +6,7 @@
  * Subtask 0.5.3: Integrated annotation framework with all tools
  */
 
-export type AnnotationType = "freehand" | "polyline" | "oval" | "arrow";
+export type AnnotationType = "select" | "freehand" | "polyline" | "oval" | "arrow";
 
 /**
  * Point interface for type-safe coordinate handling

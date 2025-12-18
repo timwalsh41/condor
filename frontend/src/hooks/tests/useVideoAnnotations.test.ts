@@ -8,6 +8,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useVideoAnnotations } from "../useVideoAnnotations";
 import type { UseWebCodecsDecoderResult } from "../useWebCodecsDecoder";
+import type { AnnotationType } from "../../types/annotations";
+import { useState } from "react";
 
 // Mock video decoder result
 const createMockVideoDecoder = (): UseWebCodecsDecoderResult => ({
@@ -58,10 +60,30 @@ describe("useVideoAnnotations", () => {
     activeVideo = null; // Default to no active video
   });
 
+  // Helper wrapper to provide tool state management for tests
+  const useVideoAnnotationsWithTool = (
+    videoDecoder: UseWebCodecsDecoderResult,
+    videoId: "A" | "B",
+    activeVideo: "A" | "B" | null,
+    setActiveVideo: (id: "A" | "B") => void,
+    initialTool: AnnotationType = "freehand"
+  ) => {
+    const [selectedTool, setSelectedTool] = useState<AnnotationType>(initialTool);
+    const result = useVideoAnnotations(
+      videoDecoder,
+      videoId,
+      activeVideo,
+      setActiveVideo,
+      selectedTool,
+      setSelectedTool
+    );
+    return result;
+  };
+
   describe("initialization", () => {
     it("should initialize with default values", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       expect(result.current.selectedTool).toBe("freehand");
@@ -75,10 +97,10 @@ describe("useVideoAnnotations", () => {
 
     it("should create unique manager instances per hook", () => {
       const { result: resultA } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
       const { result: resultB } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "B", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "B", activeVideo, setActiveVideo)
       );
 
       expect(resultA.current.manager).not.toBe(resultB.current.manager);
@@ -88,7 +110,7 @@ describe("useVideoAnnotations", () => {
   describe("tool selection", () => {
     it("should update selected tool", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       act(() => {
@@ -101,7 +123,7 @@ describe("useVideoAnnotations", () => {
 
     it("should sync tool across multiple calls", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       act(() => {
@@ -114,12 +136,107 @@ describe("useVideoAnnotations", () => {
       });
       expect(result.current.selectedTool).toBe("arrow");
     });
+
+    it("should support select tool", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo, "select")
+      );
+
+      expect(result.current.selectedTool).toBe("select");
+      expect(result.current.manager.getTool()).toBe("select");
+    });
+
+    it("should not start drawing when select tool is active", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo, "select")
+      );
+
+      // Mock Konva event clicking on stage background
+      const mockStage = {
+        getPointerPosition: () => ({ x: 100, y: 200 }),
+      };
+      const mockEvent = {
+        target: mockStage,
+      } as any;
+      mockStage.getStage = () => mockStage;
+
+      // Try to start drawing with handleMouseDown
+      act(() => {
+        result.current.handlers.handleMouseDown(mockEvent);
+      });
+
+      // Should not start drawing
+      expect(result.current.manager.isDrawing()).toBe(false);
+      expect(result.current.drawingState).toEqual({ mode: "idle" });
+    });
+
+    it("should not start polyline when select tool is active", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo, "select")
+      );
+
+      // Mock Konva event clicking on stage background
+      const mockStage = {
+        getPointerPosition: () => ({ x: 100, y: 200 }),
+      };
+      const mockEvent = {
+        target: mockStage,
+      } as any;
+      mockStage.getStage = () => mockStage;
+
+      // Try to start polyline with handleClick
+      act(() => {
+        result.current.handlers.handleClick(mockEvent);
+      });
+
+      // Should not start drawing
+      expect(result.current.manager.isDrawing()).toBe(false);
+      expect(result.current.drawingState).toEqual({ mode: "idle" });
+    });
+
+    it("should allow annotation selection when select tool is active", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo, "select")
+      );
+
+      // Create an annotation
+      let annotationId: string = "";
+      act(() => {
+        const annotation = result.current.manager.createAndAddAnnotation(
+          "freehand",
+          [
+            { x: 10, y: 20 },
+            { x: 30, y: 40 },
+          ]
+        );
+        annotationId = annotation!.id;
+      });
+
+      // Mock annotation click event
+      const mockEvent = {
+        evt: { ctrlKey: false, metaKey: false },
+        cancelBubble: false,
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 10, y: 20 }),
+          }),
+        },
+      } as any;
+
+      // Click annotation to select it
+      act(() => {
+        result.current.handlers.handleAnnotationClick(annotationId, mockEvent);
+      });
+
+      // Should be selected
+      expect(result.current.selectedIds.has(annotationId)).toBe(true);
+    });
   });
 
   describe("handlers", () => {
     it("should provide all required event handlers", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       expect(result.current.handlers.handleMouseDown).toBeTypeOf("function");
@@ -131,7 +248,7 @@ describe("useVideoAnnotations", () => {
 
     it("should set active video on mouse interaction", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "B", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "B", activeVideo, setActiveVideo)
       );
 
       // Mock Konva event with stage and pointer position
@@ -155,7 +272,7 @@ describe("useVideoAnnotations", () => {
   describe("scale calculation", () => {
     it("should default to scale 1 when no canvas", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       expect(result.current.scale).toBe(1);
@@ -172,7 +289,7 @@ describe("useVideoAnnotations", () => {
       mockVideoDecoder.canvasRef.current = mockCanvas;
 
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Scale should be calculated as clientWidth / videoWidth = 960 / 1920 = 0.5
@@ -183,7 +300,7 @@ describe("useVideoAnnotations", () => {
   describe("integration with AnnotationManager", () => {
     it("should update annotations when drawing completes", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Simulate complete drawing workflow
@@ -206,10 +323,10 @@ describe("useVideoAnnotations", () => {
 
     it("should maintain drawing state independently per video", () => {
       const { result: resultA } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
       const { result: resultB } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "B", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "B", activeVideo, setActiveVideo)
       );
 
       act(() => {
@@ -226,7 +343,7 @@ describe("useVideoAnnotations", () => {
   describe("polyline mouse position tracking", () => {
     it("should initialize with null polylineMousePos", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       expect(result.current.polylineMousePos).toBeNull();
@@ -237,7 +354,7 @@ describe("useVideoAnnotations", () => {
     it("should finalize polyline on Enter key when video is active", () => {
       activeVideo = "A"; // Set Video A as active
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Start a polyline
@@ -262,7 +379,7 @@ describe("useVideoAnnotations", () => {
     it("should cancel polyline on Escape key when video is active", () => {
       activeVideo = "B"; // Set Video B as active
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "B", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "B", activeVideo, setActiveVideo)
       );
 
       // Start a polyline
@@ -314,6 +431,72 @@ describe("useVideoAnnotations", () => {
       // Polyline should still be active (not finalized)
       expect(result.current.manager.isPolylineActive()).toBe(true);
     });
+
+    it("should finalize polyline on double-click without duplicate point", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(
+          mockVideoDecoder,
+          "A",
+          activeVideo,
+          setActiveVideo,
+          "polyline"
+        )
+      );
+
+      // Mock Konva stage for event handling
+      const mockStage = {
+        getPointerPosition: vi.fn(),
+      };
+      mockStage.getStage = () => mockStage;
+
+      // Start polyline with click
+      mockStage.getPointerPosition.mockReturnValue({ x: 10, y: 20 });
+      const clickEvent1 = { target: mockStage } as any;
+      act(() => {
+        result.current.handlers.handleClick(clickEvent1);
+      });
+
+      // Add second vertex
+      mockStage.getPointerPosition.mockReturnValue({ x: 30, y: 40 });
+      const clickEvent2 = { target: mockStage } as any;
+      act(() => {
+        result.current.handlers.handleClick(clickEvent2);
+      });
+
+      // Add third vertex
+      mockStage.getPointerPosition.mockReturnValue({ x: 50, y: 60 });
+      const clickEvent3 = { target: mockStage } as any;
+      act(() => {
+        result.current.handlers.handleClick(clickEvent3);
+      });
+
+      // Simulate double-click to finalize
+      // First click of double-click adds a point
+      mockStage.getPointerPosition.mockReturnValue({ x: 50, y: 60 });
+      const doubleClickFirstClick = { target: mockStage } as any;
+      act(() => {
+        result.current.handlers.handleClick(doubleClickFirstClick);
+      });
+
+      // Second click triggers handleDoubleClick
+      act(() => {
+        result.current.handlers.handleDoubleClick();
+      });
+
+      // Verify polyline was finalized
+      expect(result.current.manager.isPolylineActive()).toBe(false);
+      expect(result.current.annotations).toHaveLength(1);
+
+      // Verify no duplicate point at the end
+      const annotation = result.current.annotations[0];
+      expect(annotation.points).toEqual([
+        { x: 10, y: 20 },
+        { x: 30, y: 40 },
+        { x: 50, y: 60 },
+      ]);
+      // Should have exactly 3 points, not 4
+      expect(annotation.points).toHaveLength(3);
+    });
   });
 
   describe("Selection and Deletion", () => {
@@ -331,7 +514,7 @@ describe("useVideoAnnotations", () => {
 
     it("should handle annotation click for selection", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create an annotation
@@ -361,7 +544,7 @@ describe("useVideoAnnotations", () => {
 
     it("should handle Ctrl-click for multi-select", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create two annotations
@@ -403,7 +586,7 @@ describe("useVideoAnnotations", () => {
 
     it("should not allow selection during drawing", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create an annotation
@@ -441,7 +624,7 @@ describe("useVideoAnnotations", () => {
 
     it("should delete selected annotations on Delete key", () => {
       const { result, rerender } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create two annotations and trigger state update
@@ -484,7 +667,7 @@ describe("useVideoAnnotations", () => {
 
     it("should clear all annotations", () => {
       const { result, rerender } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create annotations
@@ -515,7 +698,7 @@ describe("useVideoAnnotations", () => {
 
     it("should not delete when Delete key pressed on input element", () => {
       const { result, rerender } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create and select annotation
@@ -560,7 +743,7 @@ describe("useVideoAnnotations", () => {
   describe("Drag Handlers", () => {
     it("should initialize with isDraggingAnnotation false", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       expect(result.current.isDraggingAnnotation).toBe(false);
@@ -568,7 +751,7 @@ describe("useVideoAnnotations", () => {
 
     it("should provide handleAnnotationDragStart handler", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       expect(result.current.handlers.handleAnnotationDragStart).toBeDefined();
@@ -579,7 +762,7 @@ describe("useVideoAnnotations", () => {
 
     it("should provide handleStageMouseMove handler", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       expect(result.current.handlers.handleStageMouseMove).toBeDefined();
@@ -590,7 +773,7 @@ describe("useVideoAnnotations", () => {
 
     it("should provide handleStageMouseUp handler", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       expect(result.current.handlers.handleStageMouseUp).toBeDefined();
@@ -601,7 +784,7 @@ describe("useVideoAnnotations", () => {
 
     it("should set isDraggingAnnotation to true when drag starts", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create and select annotation
@@ -638,7 +821,7 @@ describe("useVideoAnnotations", () => {
 
     it("should update annotations during drag via handleStageMouseMove", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create and select annotation
@@ -694,7 +877,7 @@ describe("useVideoAnnotations", () => {
 
     it("should end drag on handleStageMouseUp", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create and select annotation
@@ -738,7 +921,7 @@ describe("useVideoAnnotations", () => {
 
     it("should not start drag during drawing", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create and select annotation
@@ -781,7 +964,7 @@ describe("useVideoAnnotations", () => {
 
     it("should not update drag when not dragging", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create annotation (not selected, not dragging)
@@ -818,7 +1001,7 @@ describe("useVideoAnnotations", () => {
   describe("Reshape Operations", () => {
     it("should expose handleControlPointMouseDown handler", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       expect(result.current.handlers.handleControlPointMouseDown).toBeDefined();
@@ -829,7 +1012,7 @@ describe("useVideoAnnotations", () => {
 
     it("should start reshape when control point is clicked", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create an arrow annotation
@@ -874,7 +1057,7 @@ describe("useVideoAnnotations", () => {
 
     it("should update annotation during reshape", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create an arrow annotation
@@ -929,7 +1112,7 @@ describe("useVideoAnnotations", () => {
 
     it("should finalize reshape on mouse up", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create an arrow annotation
@@ -994,7 +1177,7 @@ describe("useVideoAnnotations", () => {
 
     it("should reshape oval control points correctly", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create an oval annotation
@@ -1049,7 +1232,7 @@ describe("useVideoAnnotations", () => {
 
     it("should reshape polyline vertices", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create a polyline annotation
@@ -1106,7 +1289,7 @@ describe("useVideoAnnotations", () => {
 
     it("should not start reshape during drawing", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create an arrow annotation
@@ -1162,7 +1345,7 @@ describe("useVideoAnnotations", () => {
 
     it("should allow reshape and drag to coexist (different annotations)", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create two annotations
@@ -1230,7 +1413,7 @@ describe("useVideoAnnotations", () => {
 
     it("should not update reshape when not reshaping", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create annotation (not reshaping)
@@ -1262,7 +1445,7 @@ describe("useVideoAnnotations", () => {
 
     it("should route control point clicks to reshape (not drag)", () => {
       const { result } = renderHook(() =>
-        useVideoAnnotations(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
       );
 
       // Create and select an arrow annotation

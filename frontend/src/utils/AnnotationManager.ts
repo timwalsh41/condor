@@ -300,6 +300,35 @@ export class AnnotationManager {
   }
 
   /**
+   * Finalize polyline on double-click.
+   * Removes the duplicate point added by the first click of the double-click,
+   * then creates the annotation.
+   *
+   * Background: When user double-clicks to finish a polyline:
+   * - First click triggers addPolylineVertex (adds a point)
+   * - Second click triggers finalization
+   * This results in a duplicate point at the double-click location.
+   * This method removes that duplicate before finalizing.
+   *
+   * Returns the created annotation or null if validation failed.
+   */
+  finalizePolylineDoubleClick(
+    style: AnnotationStyle = DEFAULT_ANNOTATION_STYLE
+  ): Annotation | null {
+    if (this.drawingState.mode !== "polyline-active") return null;
+
+    const points = [...this.drawingState.points];
+
+    // Remove the duplicate point added by first click of double-click
+    if (points.length > 1) {
+      points.pop();
+    }
+
+    this.drawingState = { mode: "idle" };
+    return this.createAndAddAnnotation("polyline", points, style);
+  }
+
+  /**
    * Add a vertex to the polyline being drawn.
    * Only works when polyline is active.
    */

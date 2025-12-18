@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Stage, Layer, Line, Arrow, Ellipse, Rect } from "react-konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { useVideoAnnotations } from "../hooks/useVideoAnnotations";
-import type { Point } from "../types/annotations";
+import type { Point, AnnotationType } from "../types/annotations";
 import { checkWebCodecsSupport } from "../utils/featureDetection";
 import {
   initializePlayhead,
@@ -67,17 +67,20 @@ export function DualVideoSyncDemo() {
   // Track which video is active for keyboard shortcuts (used by annotation hooks for keyboard handling)
   const [activeVideo, setActiveVideo] = useState<"A" | "B" | null>(null);
 
+  // Unified annotation tool selection (shared between both videos)
+  const [selectedTool, setSelectedTool] = useState<AnnotationType>("select");
+
   // Annotation state for Video A (using custom hook)
   const videoAAnnotations = useVideoAnnotations(
     videoA,
     "A",
     activeVideo,
-    setActiveVideo
+    setActiveVideo,
+    selectedTool,
+    setSelectedTool
   );
   const {
     manager: annotationManagerA,
-    selectedTool: selectedToolA,
-    setSelectedTool: setSelectedToolA,
     drawingState: drawingStateA,
     annotations: annotationsA,
     selectedIds: selectedIdsA,
@@ -94,12 +97,12 @@ export function DualVideoSyncDemo() {
     videoB,
     "B",
     activeVideo,
-    setActiveVideo
+    setActiveVideo,
+    selectedTool,
+    setSelectedTool
   );
   const {
     manager: annotationManagerB,
-    selectedTool: selectedToolB,
-    setSelectedTool: setSelectedToolB,
     drawingState: drawingStateB,
     annotations: annotationsB,
     selectedIds: selectedIdsB,
@@ -643,9 +646,9 @@ export function DualVideoSyncDemo() {
       <div
         data-testid="mode-indicator"
         style={{
-          padding: "15px",
-          marginTop: "20px",
-          marginBottom: "20px",
+          padding: "10px",
+          marginTop: "15px",
+          marginBottom: "15px",
           backgroundColor: mode === "SYNC" ? "#e3f2fd" : "#e8f5e9",
           border: mode === "SYNC" ? "2px solid #2196F3" : "2px solid #4CAF50",
           borderRadius: "4px",
@@ -657,7 +660,7 @@ export function DualVideoSyncDemo() {
         >
           {mode === "SYNC" ? "🔵 SYNC MODE" : "🟢 PLAYBACK MODE"}
         </h2>
-        <p style={{ margin: "10px 0 0 0" }}>
+        <p style={{ margin: "8px 0 0 0" }}>
           {mode === "SYNC"
             ? "Use independent controls to set synchronization points for each video"
             : "Videos synchronized - use unified controls to analyze together"}
@@ -666,12 +669,12 @@ export function DualVideoSyncDemo() {
 
       {/* Mode Toggle Button */}
       {bothVideosReady && (
-        <div style={{ marginBottom: "20px", textAlign: "center" }}>
+        <div style={{ marginBottom: "15px", textAlign: "center" }}>
           <button
             data-testid="mode-toggle"
             onClick={mode === "SYNC" ? switchToPlaybackMode : switchToSyncMode}
             style={{
-              padding: "15px 30px",
+              padding: "12px 24px",
               fontSize: "16px",
               fontWeight: "bold",
               cursor: "pointer",
@@ -693,8 +696,8 @@ export function DualVideoSyncDemo() {
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: "20px",
-          marginBottom: "20px",
+          gap: "15px",
+          marginBottom: "15px",
         }}
       >
         <div>
@@ -791,8 +794,8 @@ export function DualVideoSyncDemo() {
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: "20px",
-              marginBottom: "20px",
+              gap: "15px",
+              marginBottom: "5px",
             }}
           >
             {/* Video A Canvas */}
@@ -1222,7 +1225,7 @@ export function DualVideoSyncDemo() {
                   <div
                     data-testid="frame-counter-a"
                     style={{
-                      fontSize: "20px",
+                      fontSize: "12px",
                       fontWeight: "bold",
                       marginTop: "10px",
                       fontFamily: "monospace",
@@ -1672,7 +1675,7 @@ export function DualVideoSyncDemo() {
                   <div
                     data-testid="frame-counter-b"
                     style={{
-                      fontSize: "20px",
+                      fontSize: "12px",
                       fontWeight: "bold",
                       marginTop: "10px",
                       fontFamily: "monospace",
@@ -1703,27 +1706,38 @@ export function DualVideoSyncDemo() {
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
-                gap: "20px",
-                marginBottom: "20px",
+                gap: "15px",
+                marginBottom: "15px",
               }}
             >
               {/* Video A Controls */}
               <div
                 data-testid="video-a-controls"
                 style={{
-                  padding: "15px",
+                  padding: "12px",
                   backgroundColor: "#f5f5f5",
                   borderRadius: "4px",
                 }}
               >
-                <h3 style={{ marginTop: 0 }}>Video A Controls</h3>
+                {/* Scrub Bar */}
+                <input
+                  data-testid="scrub-bar-a"
+                  type="range"
+                  min="0"
+                  max={videoA.totalFrames - 1}
+                  value={sliderValueA}
+                  onChange={handleSliderChangeA}
+                  onMouseUp={handleSliderReleaseA}
+                  onTouchEnd={handleSliderReleaseA}
+                  style={{ width: "100%", height: "30px", marginBottom: "8px" }}
+                />
 
                 {/* Play/Pause */}
                 <button
                   data-testid="play-pause-a"
                   onClick={handlePlayPauseA}
                   style={{
-                    padding: "15px 30px",
+                    padding: "10px 20px",
                     fontSize: "16px",
                     fontWeight: "bold",
                     cursor: "pointer",
@@ -1732,7 +1746,7 @@ export function DualVideoSyncDemo() {
                     border: "none",
                     borderRadius: "4px",
                     width: "100%",
-                    marginBottom: "10px",
+                    marginBottom: "8px",
                   }}
                 >
                   {videoA.isPlaying ? "⏸ Pause" : "▶ Play"}
@@ -1743,8 +1757,8 @@ export function DualVideoSyncDemo() {
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
-                    gap: "10px",
-                    marginBottom: "10px",
+                    gap: "8px",
+                    marginBottom: "8px",
                   }}
                 >
                   <button
@@ -1752,7 +1766,7 @@ export function DualVideoSyncDemo() {
                     onClick={handleCoarseStepBackwardA}
                     disabled={videoA.currentFrame === 0}
                     style={{
-                      padding: "10px",
+                      padding: "8px",
                       fontSize: "14px",
                       fontWeight: "bold",
                       cursor:
@@ -1771,7 +1785,7 @@ export function DualVideoSyncDemo() {
                     onClick={handleCoarseStepForwardA}
                     disabled={videoA.currentFrame >= videoA.totalFrames - 1}
                     style={{
-                      padding: "10px",
+                      padding: "8px",
                       fontSize: "14px",
                       fontWeight: "bold",
                       cursor:
@@ -1794,7 +1808,7 @@ export function DualVideoSyncDemo() {
                     onClick={handleFineStepBackwardA}
                     disabled={videoA.currentFrame === 0}
                     style={{
-                      padding: "10px",
+                      padding: "8px",
                       fontSize: "14px",
                       cursor:
                         videoA.currentFrame === 0 ? "not-allowed" : "pointer",
@@ -1812,7 +1826,7 @@ export function DualVideoSyncDemo() {
                     onClick={handleFineStepForwardA}
                     disabled={videoA.currentFrame >= videoA.totalFrames - 1}
                     style={{
-                      padding: "10px",
+                      padding: "8px",
                       fontSize: "14px",
                       cursor:
                         videoA.currentFrame >= videoA.totalFrames - 1
@@ -1860,49 +1874,36 @@ export function DualVideoSyncDemo() {
                     <option value="2">2.0x</option>
                   </select>
                 </label>
-
-                {/* Scrub Bar */}
-                <div style={{ marginTop: "15px" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: "5px",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Seek to Frame:
-                  </label>
-                  <input
-                    data-testid="scrub-bar-a"
-                    type="range"
-                    min="0"
-                    max={videoA.totalFrames - 1}
-                    value={sliderValueA}
-                    onChange={handleSliderChangeA}
-                    onMouseUp={handleSliderReleaseA}
-                    onTouchEnd={handleSliderReleaseA}
-                    style={{ width: "100%", height: "30px" }}
-                  />
-                </div>
               </div>
 
               {/* Video B Controls */}
               <div
                 data-testid="video-b-controls"
                 style={{
-                  padding: "15px",
+                  padding: "12px",
                   backgroundColor: "#f5f5f5",
                   borderRadius: "4px",
                 }}
               >
-                <h3 style={{ marginTop: 0 }}>Video B Controls</h3>
+                {/* Scrub Bar */}
+                <input
+                  data-testid="scrub-bar-b"
+                  type="range"
+                  min="0"
+                  max={videoB.totalFrames - 1}
+                  value={sliderValueB}
+                  onChange={handleSliderChangeB}
+                  onMouseUp={handleSliderReleaseB}
+                  onTouchEnd={handleSliderReleaseB}
+                  style={{ width: "100%", height: "30px", marginBottom: "8px" }}
+                />
 
                 {/* Play/Pause */}
                 <button
                   data-testid="play-pause-b"
                   onClick={handlePlayPauseB}
                   style={{
-                    padding: "15px 30px",
+                    padding: "10px 20px",
                     fontSize: "16px",
                     fontWeight: "bold",
                     cursor: "pointer",
@@ -1911,7 +1912,7 @@ export function DualVideoSyncDemo() {
                     border: "none",
                     borderRadius: "4px",
                     width: "100%",
-                    marginBottom: "10px",
+                    marginBottom: "8px",
                   }}
                 >
                   {videoB.isPlaying ? "⏸ Pause" : "▶ Play"}
@@ -1922,8 +1923,8 @@ export function DualVideoSyncDemo() {
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
-                    gap: "10px",
-                    marginBottom: "10px",
+                    gap: "8px",
+                    marginBottom: "8px",
                   }}
                 >
                   <button
@@ -1931,7 +1932,7 @@ export function DualVideoSyncDemo() {
                     onClick={handleCoarseStepBackwardB}
                     disabled={videoB.currentFrame === 0}
                     style={{
-                      padding: "10px",
+                      padding: "8px",
                       fontSize: "14px",
                       fontWeight: "bold",
                       cursor:
@@ -1950,7 +1951,7 @@ export function DualVideoSyncDemo() {
                     onClick={handleCoarseStepForwardB}
                     disabled={videoB.currentFrame >= videoB.totalFrames - 1}
                     style={{
-                      padding: "10px",
+                      padding: "8px",
                       fontSize: "14px",
                       fontWeight: "bold",
                       cursor:
@@ -1973,7 +1974,7 @@ export function DualVideoSyncDemo() {
                     onClick={handleFineStepBackwardB}
                     disabled={videoB.currentFrame === 0}
                     style={{
-                      padding: "10px",
+                      padding: "8px",
                       fontSize: "14px",
                       cursor:
                         videoB.currentFrame === 0 ? "not-allowed" : "pointer",
@@ -1991,7 +1992,7 @@ export function DualVideoSyncDemo() {
                     onClick={handleFineStepForwardB}
                     disabled={videoB.currentFrame >= videoB.totalFrames - 1}
                     style={{
-                      padding: "10px",
+                      padding: "8px",
                       fontSize: "14px",
                       cursor:
                         videoB.currentFrame >= videoB.totalFrames - 1
@@ -2039,325 +2040,7 @@ export function DualVideoSyncDemo() {
                     <option value="2">2.0x</option>
                   </select>
                 </label>
-
-                {/* Scrub Bar */}
-                <div style={{ marginTop: "15px" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: "5px",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Seek to Frame:
-                  </label>
-                  <input
-                    data-testid="scrub-bar-b"
-                    type="range"
-                    min="0"
-                    max={videoB.totalFrames - 1}
-                    value={sliderValueB}
-                    onChange={handleSliderChangeB}
-                    onMouseUp={handleSliderReleaseB}
-                    onTouchEnd={handleSliderReleaseB}
-                    style={{ width: "100%", height: "30px" }}
-                  />
-                </div>
               </div>
-            </div>
-          )}
-
-          {/* Annotation Tool Selection - Side by side for both videos */}
-          {(videoA.isReady || videoB.isReady) && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "20px",
-                marginBottom: "20px",
-              }}
-            >
-              {/* Video A Drawing Tools */}
-              {videoA.isReady && (
-                <div
-                  style={{
-                    padding: "15px",
-                    backgroundColor: "#f5f5f5",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                  }}
-                >
-                  <h3 style={{ marginTop: 0, marginBottom: "10px" }}>
-                    Video A - Drawing Tools
-                  </h3>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    <button
-                      data-testid="tool-freehand-a"
-                      onClick={() => setSelectedToolA("freehand")}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        border:
-                          selectedToolA === "freehand"
-                            ? "2px solid #2196F3"
-                            : "1px solid #999",
-                        backgroundColor:
-                          selectedToolA === "freehand" ? "#E3F2FD" : "white",
-                        fontWeight:
-                          selectedToolA === "freehand" ? "bold" : "normal",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      Freehand
-                    </button>
-                    <button
-                      data-testid="tool-polyline-a"
-                      onClick={() => setSelectedToolA("polyline")}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        border:
-                          selectedToolA === "polyline"
-                            ? "2px solid #2196F3"
-                            : "1px solid #999",
-                        backgroundColor:
-                          selectedToolA === "polyline" ? "#E3F2FD" : "white",
-                        fontWeight:
-                          selectedToolA === "polyline" ? "bold" : "normal",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      Polyline
-                    </button>
-                    <button
-                      data-testid="tool-oval-a"
-                      onClick={() => setSelectedToolA("oval")}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        border:
-                          selectedToolA === "oval"
-                            ? "2px solid #2196F3"
-                            : "1px solid #999",
-                        backgroundColor:
-                          selectedToolA === "oval" ? "#E3F2FD" : "white",
-                        fontWeight:
-                          selectedToolA === "oval" ? "bold" : "normal",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      Oval
-                    </button>
-                    <button
-                      data-testid="tool-arrow-a"
-                      onClick={() => setSelectedToolA("arrow")}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        border:
-                          selectedToolA === "arrow"
-                            ? "2px solid #2196F3"
-                            : "1px solid #999",
-                        backgroundColor:
-                          selectedToolA === "arrow" ? "#E3F2FD" : "white",
-                        fontWeight:
-                          selectedToolA === "arrow" ? "bold" : "normal",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      Arrow
-                    </button>
-                    <button
-                      data-testid="clear-all-a"
-                      onClick={clearAllA}
-                      disabled={annotationsA.length === 0}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor:
-                          annotationsA.length === 0 ? "not-allowed" : "pointer",
-                        border: "1px solid #d32f2f",
-                        backgroundColor:
-                          annotationsA.length === 0 ? "#f5f5f5" : "white",
-                        color: annotationsA.length === 0 ? "#999" : "#d32f2f",
-                        borderRadius: "4px",
-                        marginLeft: "10px",
-                      }}
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                  {/* Reserve space for polyline message to prevent layout shift */}
-                  <div
-                    style={{
-                      fontSize: "12px",
-                      minHeight: "20px",
-                      color:
-                        selectedToolA === "polyline" &&
-                        drawingStateA.mode === "polyline-active"
-                          ? "#666"
-                          : "transparent",
-                      fontStyle: "italic",
-                    }}
-                  >
-                    {selectedToolA === "polyline" &&
-                    drawingStateA.mode === "polyline-active"
-                      ? "Click to add vertices. Press Enter to finish or Escape to cancel."
-                      : "\u00A0"}
-                  </div>
-                </div>
-              )}
-
-              {/* Video B Drawing Tools */}
-              {videoB.isReady && (
-                <div
-                  style={{
-                    padding: "15px",
-                    backgroundColor: "#f5f5f5",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                  }}
-                >
-                  <h3 style={{ marginTop: 0, marginBottom: "10px" }}>
-                    Video B - Drawing Tools
-                  </h3>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    <button
-                      data-testid="tool-freehand-b"
-                      onClick={() => setSelectedToolB("freehand")}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        border:
-                          selectedToolB === "freehand"
-                            ? "2px solid #2196F3"
-                            : "1px solid #999",
-                        backgroundColor:
-                          selectedToolB === "freehand" ? "#E3F2FD" : "white",
-                        fontWeight:
-                          selectedToolB === "freehand" ? "bold" : "normal",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      Freehand
-                    </button>
-                    <button
-                      data-testid="tool-polyline-b"
-                      onClick={() => setSelectedToolB("polyline")}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        border:
-                          selectedToolB === "polyline"
-                            ? "2px solid #2196F3"
-                            : "1px solid #999",
-                        backgroundColor:
-                          selectedToolB === "polyline" ? "#E3F2FD" : "white",
-                        fontWeight:
-                          selectedToolB === "polyline" ? "bold" : "normal",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      Polyline
-                    </button>
-                    <button
-                      data-testid="tool-oval-b"
-                      onClick={() => setSelectedToolB("oval")}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        border:
-                          selectedToolB === "oval"
-                            ? "2px solid #2196F3"
-                            : "1px solid #999",
-                        backgroundColor:
-                          selectedToolB === "oval" ? "#E3F2FD" : "white",
-                        fontWeight:
-                          selectedToolB === "oval" ? "bold" : "normal",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      Oval
-                    </button>
-                    <button
-                      data-testid="tool-arrow-b"
-                      onClick={() => setSelectedToolB("arrow")}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        border:
-                          selectedToolB === "arrow"
-                            ? "2px solid #2196F3"
-                            : "1px solid #999",
-                        backgroundColor:
-                          selectedToolB === "arrow" ? "#E3F2FD" : "white",
-                        fontWeight:
-                          selectedToolB === "arrow" ? "bold" : "normal",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      Arrow
-                    </button>
-                    <button
-                      data-testid="clear-all-b"
-                      onClick={clearAllB}
-                      disabled={annotationsB.length === 0}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: "14px",
-                        cursor:
-                          annotationsB.length === 0 ? "not-allowed" : "pointer",
-                        border: "1px solid #d32f2f",
-                        backgroundColor:
-                          annotationsB.length === 0 ? "#f5f5f5" : "white",
-                        color: annotationsB.length === 0 ? "#999" : "#d32f2f",
-                        borderRadius: "4px",
-                        marginLeft: "10px",
-                      }}
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                  {/* Reserve space for polyline message to prevent layout shift */}
-                  <div
-                    style={{
-                      fontSize: "12px",
-                      minHeight: "20px",
-                      color:
-                        selectedToolB === "polyline" &&
-                        drawingStateB.mode === "polyline-active"
-                          ? "#666"
-                          : "transparent",
-                      fontStyle: "italic",
-                    }}
-                  >
-                    {selectedToolB === "polyline" &&
-                    drawingStateB.mode === "polyline-active"
-                      ? "Click to add vertices. Press Enter to finish or Escape to cancel."
-                      : "\u00A0"}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -2366,170 +2049,13 @@ export function DualVideoSyncDemo() {
             <div
               data-testid="playback-controls"
               style={{
-                padding: "20px",
+                padding: "12px",
                 backgroundColor: "#f5f5f5",
                 borderRadius: "4px",
-                marginBottom: "20px",
+                marginBottom: "15px",
               }}
             >
-              <h3 style={{ marginTop: 0 }}>Unified Playback Controls</h3>
-
-              {/* Sync Offset Display */}
-              <div
-                data-testid="sync-offset-display"
-                style={{
-                  padding: "10px",
-                  marginBottom: "15px",
-                  backgroundColor: "#fff",
-                  border: "1px solid #ddd",
-                  borderRadius: "4px",
-                  fontFamily: "monospace",
-                  fontSize: "16px",
-                }}
-              >
-                <strong>Sync Offset:</strong>{" "}
-                {syncOffset !== null
-                  ? (syncOffset > 0 ? "+" : "") + syncOffset
-                  : "N/A"}{" "}
-                frames
-                <div
-                  style={{ fontSize: "14px", marginTop: "5px", color: "#666" }}
-                >
-                  Video B is {Math.abs(syncOffset || 0)} frame
-                  {Math.abs(syncOffset || 0) !== 1 ? "s" : ""}{" "}
-                  {(syncOffset || 0) > 0
-                    ? "ahead"
-                    : (syncOffset || 0) < 0
-                    ? "behind"
-                    : "aligned with"}{" "}
-                  Video A
-                </div>
-              </div>
-
-              {/* Play/Pause */}
-              <button
-                data-testid="play-pause-both"
-                onClick={handlePlayPauseBoth}
-                style={{
-                  padding: "15px 30px",
-                  fontSize: "16px",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                  backgroundColor: isPlayingBoth ? "#FF5722" : "#4CAF50",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  width: "100%",
-                  marginBottom: "15px",
-                }}
-              >
-                {isPlayingBoth ? "⏸ Pause" : "▶ Play"}
-              </button>
-
-              {/* Stepping Controls */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                  gap: "10px",
-                  marginBottom: "15px",
-                }}
-              >
-                <button
-                  data-testid="step-backward-coarse-both"
-                  onClick={handleStepBackwardCoarse}
-                  style={{
-                    padding: "12px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    backgroundColor: "#4CAF50",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                  }}
-                >
-                  ← Back 5 Frames
-                </button>
-                <button
-                  data-testid="step-backward-fine-both"
-                  onClick={handleStepBackwardFine}
-                  style={{
-                    padding: "12px",
-                    fontSize: "14px",
-                    cursor: "pointer",
-                    backgroundColor: "#2196F3",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                  }}
-                >
-                  ← Back 1 Frame
-                </button>
-                <button
-                  data-testid="step-forward-fine-both"
-                  onClick={handleStepForwardFine}
-                  style={{
-                    padding: "12px",
-                    fontSize: "14px",
-                    cursor: "pointer",
-                    backgroundColor: "#2196F3",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                  }}
-                >
-                  Forward 1 Frame →
-                </button>
-                <button
-                  data-testid="step-forward-coarse-both"
-                  onClick={handleStepForwardCoarse}
-                  style={{
-                    padding: "12px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    backgroundColor: "#4CAF50",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                  }}
-                >
-                  Forward 5 Frames →
-                </button>
-              </div>
-
-              {/* Speed Control */}
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  fontWeight: "bold",
-                }}
-              >
-                Playback Speed:
-                <select
-                  data-testid="speed-select-both"
-                  value={playbackRateBoth}
-                  onChange={handleSpeedChange}
-                  style={{
-                    padding: "10px",
-                    fontSize: "14px",
-                    borderRadius: "4px",
-                    border: "1px solid #ccc",
-                    flex: 1,
-                  }}
-                >
-                  <option value="0.1">0.1x</option>
-                  <option value="0.25">0.25x</option>
-                  <option value="0.5">0.5x</option>
-                  <option value="1">1.0x</option>
-                  <option value="2">2.0x</option>
-                </select>
-              </label>
-
-              {/* Joint Scrub Bar */}
+              {/* Joint Scrub Bar - moved to top */}
               {playheadState &&
                 (() => {
                   const range = calculatePlayheadRange(
@@ -2538,17 +2064,7 @@ export function DualVideoSyncDemo() {
                     playheadState.syncOffset
                   );
                   return (
-                    <div style={{ marginTop: "15px" }}>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "5px",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        Seek to Frame (Video A position, Video B maintains
-                        offset):
-                      </label>
+                    <div style={{ marginBottom: "10px" }}>
                       <input
                         data-testid="scrub-bar-both"
                         type="range"
@@ -2575,6 +2091,337 @@ export function DualVideoSyncDemo() {
                     </div>
                   );
                 })()}
+
+              {/* Play/Pause */}
+              <button
+                data-testid="play-pause-both"
+                onClick={handlePlayPauseBoth}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "16px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  backgroundColor: isPlayingBoth ? "#FF5722" : "#4CAF50",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  width: "100%",
+                  marginBottom: "10px",
+                }}
+              >
+                {isPlayingBoth ? "⏸ Pause" : "▶ Play"}
+              </button>
+
+              {/* Stepping Controls */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                  gap: "8px",
+                  marginBottom: "10px",
+                }}
+              >
+                <button
+                  data-testid="step-backward-coarse-both"
+                  onClick={handleStepBackwardCoarse}
+                  style={{
+                    padding: "8px",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    backgroundColor: "#4CAF50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                  }}
+                >
+                  ← Back 5 Frames
+                </button>
+                <button
+                  data-testid="step-backward-fine-both"
+                  onClick={handleStepBackwardFine}
+                  style={{
+                    padding: "8px",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    backgroundColor: "#2196F3",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                  }}
+                >
+                  ← Back 1 Frame
+                </button>
+                <button
+                  data-testid="step-forward-fine-both"
+                  onClick={handleStepForwardFine}
+                  style={{
+                    padding: "8px",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    backgroundColor: "#2196F3",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                  }}
+                >
+                  Forward 1 Frame →
+                </button>
+                <button
+                  data-testid="step-forward-coarse-both"
+                  onClick={handleStepForwardCoarse}
+                  style={{
+                    padding: "8px",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    backgroundColor: "#4CAF50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                  }}
+                >
+                  Forward 5 Frames →
+                </button>
+              </div>
+
+              {/* Speed Control */}
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  fontWeight: "bold",
+                  marginBottom: "10px",
+                }}
+              >
+                Playback Speed:
+                <select
+                  data-testid="speed-select-both"
+                  value={playbackRateBoth}
+                  onChange={handleSpeedChange}
+                  style={{
+                    padding: "8px",
+                    fontSize: "14px",
+                    borderRadius: "4px",
+                    border: "1px solid #ccc",
+                    flex: 1,
+                  }}
+                >
+                  <option value="0.1">0.1x</option>
+                  <option value="0.25">0.25x</option>
+                  <option value="0.5">0.5x</option>
+                  <option value="1">1.0x</option>
+                  <option value="2">2.0x</option>
+                </select>
+              </label>
+
+              {/* Sync Offset Display - moved to bottom */}
+              <div
+                data-testid="sync-offset-display"
+                style={{
+                  padding: "8px",
+                  marginTop: "10px",
+                  backgroundColor: "#fff",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  fontFamily: "monospace",
+                  fontSize: "14px",
+                }}
+              >
+                <strong>Sync offset:</strong>{" "}
+                {syncOffset !== null
+                  ? (syncOffset > 0 ? "+" : "") + syncOffset
+                  : "N/A"}{" "}
+                frames (Video B is {Math.abs(syncOffset || 0)} frame
+                {Math.abs(syncOffset || 0) !== 1 ? "s" : ""}{" "}
+                {(syncOffset || 0) > 0
+                  ? "ahead of"
+                  : (syncOffset || 0) < 0
+                  ? "behind"
+                  : "aligned with"}{" "}
+                Video A)
+              </div>
+            </div>
+          )}
+
+          {/* Unified Annotation Tool Selection */}
+          {(videoA.isReady || videoB.isReady) && (
+            <div
+              style={{
+                padding: "10px",
+                backgroundColor: "#f5f5f5",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                marginBottom: "15px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  data-testid="tool-select"
+                  onClick={() => setSelectedTool("select")}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    border:
+                      selectedTool === "select"
+                        ? "2px solid #2196F3"
+                        : "1px solid #999",
+                    backgroundColor:
+                      selectedTool === "select" ? "#E3F2FD" : "white",
+                    fontWeight: selectedTool === "select" ? "bold" : "normal",
+                    borderRadius: "4px",
+                  }}
+                >
+                  Select
+                </button>
+                <button
+                  data-testid="tool-freehand"
+                  onClick={() => setSelectedTool("freehand")}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    border:
+                      selectedTool === "freehand"
+                        ? "2px solid #2196F3"
+                        : "1px solid #999",
+                    backgroundColor:
+                      selectedTool === "freehand" ? "#E3F2FD" : "white",
+                    fontWeight: selectedTool === "freehand" ? "bold" : "normal",
+                    borderRadius: "4px",
+                  }}
+                >
+                  Freehand
+                </button>
+                <button
+                  data-testid="tool-polyline"
+                  onClick={() => setSelectedTool("polyline")}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    border:
+                      selectedTool === "polyline"
+                        ? "2px solid #2196F3"
+                        : "1px solid #999",
+                    backgroundColor:
+                      selectedTool === "polyline" ? "#E3F2FD" : "white",
+                    fontWeight: selectedTool === "polyline" ? "bold" : "normal",
+                    borderRadius: "4px",
+                  }}
+                >
+                  Polyline
+                </button>
+                <button
+                  data-testid="tool-oval"
+                  onClick={() => setSelectedTool("oval")}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    border:
+                      selectedTool === "oval"
+                        ? "2px solid #2196F3"
+                        : "1px solid #999",
+                    backgroundColor:
+                      selectedTool === "oval" ? "#E3F2FD" : "white",
+                    fontWeight: selectedTool === "oval" ? "bold" : "normal",
+                    borderRadius: "4px",
+                  }}
+                >
+                  Oval
+                </button>
+                <button
+                  data-testid="tool-arrow"
+                  onClick={() => setSelectedTool("arrow")}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    border:
+                      selectedTool === "arrow"
+                        ? "2px solid #2196F3"
+                        : "1px solid #999",
+                    backgroundColor:
+                      selectedTool === "arrow" ? "#E3F2FD" : "white",
+                    fontWeight: selectedTool === "arrow" ? "bold" : "normal",
+                    borderRadius: "4px",
+                  }}
+                >
+                  Arrow
+                </button>
+                <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+                  {videoA.isReady && (
+                    <button
+                      data-testid="clear-all-a"
+                      onClick={clearAllA}
+                      disabled={annotationsA.length === 0}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor:
+                          annotationsA.length === 0 ? "not-allowed" : "pointer",
+                        border: "1px solid #d32f2f",
+                        backgroundColor:
+                          annotationsA.length === 0 ? "#f5f5f5" : "white",
+                        color: annotationsA.length === 0 ? "#999" : "#d32f2f",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Clear All A
+                    </button>
+                  )}
+                  {videoB.isReady && (
+                    <button
+                      data-testid="clear-all-b"
+                      onClick={clearAllB}
+                      disabled={annotationsB.length === 0}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        cursor:
+                          annotationsB.length === 0 ? "not-allowed" : "pointer",
+                        border: "1px solid #d32f2f",
+                        backgroundColor:
+                          annotationsB.length === 0 ? "#f5f5f5" : "white",
+                        color: annotationsB.length === 0 ? "#999" : "#d32f2f",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      Clear All B
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div
+                style={{
+                  fontSize: "12px",
+                  marginTop: "8px",
+                  minHeight: "18px",
+                  color:
+                    selectedTool === "polyline" &&
+                    (drawingStateA.mode === "polyline-active" ||
+                      drawingStateB.mode === "polyline-active")
+                      ? "#666"
+                      : "transparent",
+                  fontStyle: "italic",
+                }}
+              >
+                {selectedTool === "polyline" &&
+                (drawingStateA.mode === "polyline-active" ||
+                  drawingStateB.mode === "polyline-active")
+                  ? "Click to add vertices. Press Enter to finish or Escape to cancel."
+                  : "\u00A0"}
+              </div>
             </div>
           )}
         </div>

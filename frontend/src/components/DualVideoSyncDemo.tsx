@@ -3,7 +3,7 @@ import { Stage, Layer, Line, Arrow, Ellipse, Rect } from "react-konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { useVideoAnnotations } from "../hooks/useVideoAnnotations";
 import type { Point, AnnotationType } from "../types/annotations";
-import { checkWebCodecsSupport } from "../utils/featureDetection";
+import { checkWebCodecsSupport, getBrowserCodecSupport } from "../utils/featureDetection";
 import {
   initializePlayhead,
   advancePlayhead,
@@ -176,6 +176,12 @@ export function DualVideoSyncDemo() {
 
   // Check browser support
   const support = checkWebCodecsSupport();
+  const [browserCodecSupport, setBrowserCodecSupport] = useState<string>("");
+
+  // Load browser codec support on mount
+  useEffect(() => {
+    getBrowserCodecSupport().then(setBrowserCodecSupport);
+  }, []);
 
   // File upload handlers
   const handleFileAChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -642,6 +648,24 @@ export function DualVideoSyncDemo() {
         mode, then analyze with unified controls in PLAYBACK mode.
       </p>
 
+      {/* Browser Compatibility Display */}
+      {browserCodecSupport && (
+        <div
+          style={{
+            padding: "8px 12px",
+            marginBottom: "15px",
+            backgroundColor: "#e8f4f8",
+            border: "1px solid #b3d9e6",
+            borderRadius: "4px",
+            fontSize: "13px",
+            fontFamily: "monospace",
+            color: "#333",
+          }}
+        >
+          {browserCodecSupport}
+        </div>
+      )}
+
       {/* Mode Indicator */}
       <div
         data-testid="mode-indicator"
@@ -717,6 +741,39 @@ export function DualVideoSyncDemo() {
             onChange={handleFileAChange}
             style={{ padding: "10px", fontSize: "14px", width: "100%" }}
           />
+
+          {/* Codec Information for Video A */}
+          {fileA && (videoA.earlyMetadata || videoA.metadata) && (
+            <div
+              style={{
+                marginTop: "10px",
+                padding: "10px",
+                backgroundColor: "#f0f8ff",
+                border: "1px solid #9ec9e6",
+                borderRadius: "4px",
+                fontSize: "13px",
+                fontFamily: "monospace",
+              }}
+            >
+              <div><strong>Video Information:</strong></div>
+              <div>Codec: {(videoA.metadata || videoA.earlyMetadata)!.codec}</div>
+              <div>
+                Resolution: {(videoA.metadata || videoA.earlyMetadata)!.width}x
+                {(videoA.metadata || videoA.earlyMetadata)!.height}
+              </div>
+              {videoA.metadata && (
+                <>
+                  <div>Duration: {videoA.metadata.duration.toFixed(1)}s</div>
+                  <div>File size: {videoA.metadata.fileSizeMB.toFixed(1)}MB</div>
+                </>
+              )}
+              {fileA && (
+                <div>File size: {(fileA.size / 1024 / 1024).toFixed(1)}MB</div>
+              )}
+            </div>
+          )}
+
+          {/* Loading State for Video A */}
           {fileA && !videoA.isReady && !videoA.error && (
             <div
               style={{
@@ -724,21 +781,28 @@ export function DualVideoSyncDemo() {
                 padding: "10px",
                 backgroundColor: "#eff",
                 border: "1px solid #0cc",
+                borderRadius: "4px",
               }}
             >
               Initializing decoder A...
             </div>
           )}
+
+          {/* Error Display for Video A */}
           {videoA.error && (
             <div
               style={{
                 marginTop: "10px",
-                padding: "10px",
+                padding: "12px",
                 backgroundColor: "#fee",
                 border: "1px solid #c00",
+                borderRadius: "4px",
+                whiteSpace: "pre-line",
+                fontSize: "13px",
               }}
             >
-              <strong>Error:</strong> {videoA.error}
+              <strong style={{ color: "#c00" }}>Error:</strong>
+              <div style={{ marginTop: "8px" }}>{videoA.error}</div>
             </div>
           )}
         </div>
@@ -759,6 +823,39 @@ export function DualVideoSyncDemo() {
             onChange={handleFileBChange}
             style={{ padding: "10px", fontSize: "14px", width: "100%" }}
           />
+
+          {/* Codec Information for Video B */}
+          {fileB && (videoB.earlyMetadata || videoB.metadata) && (
+            <div
+              style={{
+                marginTop: "10px",
+                padding: "10px",
+                backgroundColor: "#f0f8ff",
+                border: "1px solid #9ec9e6",
+                borderRadius: "4px",
+                fontSize: "13px",
+                fontFamily: "monospace",
+              }}
+            >
+              <div><strong>Video Information:</strong></div>
+              <div>Codec: {(videoB.metadata || videoB.earlyMetadata)!.codec}</div>
+              <div>
+                Resolution: {(videoB.metadata || videoB.earlyMetadata)!.width}x
+                {(videoB.metadata || videoB.earlyMetadata)!.height}
+              </div>
+              {videoB.metadata && (
+                <>
+                  <div>Duration: {videoB.metadata.duration.toFixed(1)}s</div>
+                  <div>File size: {videoB.metadata.fileSizeMB.toFixed(1)}MB</div>
+                </>
+              )}
+              {fileB && (
+                <div>File size: {(fileB.size / 1024 / 1024).toFixed(1)}MB</div>
+              )}
+            </div>
+          )}
+
+          {/* Loading State for Video B */}
           {fileB && !videoB.isReady && !videoB.error && (
             <div
               style={{
@@ -766,21 +863,28 @@ export function DualVideoSyncDemo() {
                 padding: "10px",
                 backgroundColor: "#eff",
                 border: "1px solid #0cc",
+                borderRadius: "4px",
               }}
             >
               Initializing decoder B...
             </div>
           )}
+
+          {/* Error Display for Video B */}
           {videoB.error && (
             <div
               style={{
                 marginTop: "10px",
-                padding: "10px",
+                padding: "12px",
                 backgroundColor: "#fee",
                 border: "1px solid #c00",
+                borderRadius: "4px",
+                whiteSpace: "pre-line",
+                fontSize: "13px",
               }}
             >
-              <strong>Error:</strong> {videoB.error}
+              <strong style={{ color: "#c00" }}>Error:</strong>
+              <div style={{ marginTop: "8px" }}>{videoB.error}</div>
             </div>
           )}
         </div>

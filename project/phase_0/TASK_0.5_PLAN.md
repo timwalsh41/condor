@@ -302,7 +302,7 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
 
 **Status**: ⏭️ SKIPPED (for now)
 
-**Goal**: Automated cross-browser tests for canvas overlay functionality.
+**Goal**: Automated cross-browser tests for canvas overlay functionality and HEVC codec blocking.
 
 **Test File**: `tests/spikes/test_canvas_overlay.spec.ts`
 
@@ -330,14 +330,28 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
    - Check pixel alpha channel (annotation pixels should have alpha > 0)
 
 5. **Dual Video Independence Test**:
+
    - Draw on Video A and Video B
    - Verify annotations are independent (different annotation counts)
 
+6. **HEVC Codec Blocking Test**:
+
+   - Upload HEVC video file (fixture required: `tests/fixtures/test-hevc.mp4`)
+   - Verify HEVC-specific error message appears with correct content:
+     - "Unsupported video codec: HEVC/H.265"
+     - "unreliable browser support"
+     - "transcode to H.264"
+     - FFmpeg command: `ffmpeg -i input.mp4 -c:v libx264 -crf 23 -c:a copy output.mp4`
+   - Verify decoder initialization is prevented (no crash/freeze)
+   - Test both early detection path (fast-start HEVC) and post-parse path (moov-at-end HEVC)
+   - Cross-browser validation: Chrome, Firefox, WebKit (especially verify Brave-like behavior)
+
 **Deliverables**:
 
-- Playwright test suite with ~10-12 tests
+- Playwright test suite with ~15 tests
 - Tests pass cross-browser (Chrome, Firefox, WebKit)
 - Test helpers for navigation, drawing, and state inspection
+- Video test fixtures (H.264 and HEVC)
 
 **Testing**:
 
@@ -349,7 +363,7 @@ Delivered an **Enhanced AnnotationManager Pattern** that separates business logi
 - Automated validation ensures consistent behavior across browsers
 - CI-ready test suite
 
-**Estimated Time**: 90 minutes
+**Estimated Time**: 2 hours
 
 ---
 

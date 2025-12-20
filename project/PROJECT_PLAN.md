@@ -493,9 +493,11 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - FastAPI app initialized with CORS, logging, Pydantic models
   - POST `/api/upload` endpoint accepts multipart file uploads
   - File validation: size (<200MB), format (MP4), codec (H.264 or H.265/HEVC)
+  - HEVC/H.265 videos automatically converted to H.264 during upload processing
   - Videos stored in `/tmp/<session_id>/<video_id>.mp4`
   - Metadata extraction with ffprobe (framerate, duration, resolution)
   - Server-side video optimization integrated (GOP=30 re-encoding from Phase 0 Task 0.3)
+  - HEVC→H.264 conversion integrated into video optimization pipeline
   - Video rotation support integrated into re-encoding pipeline (REQ-F-UPLOAD-004)
   - FFmpeg transpose filter applied based on rotation parameter (0°, 90°, 180°, 270°)
   - Rotation triggers re-encoding even if video already has GOP=30
@@ -513,6 +515,9 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - ffprobe command: `ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate,duration,width,height -of json`
   - r_frame_rate returns fraction like "30000/1001" - parse and divide
   - StreamingResponse with range request handling for seeking
+  - HEVC→H.264 conversion: Detect HEVC codec (hvc1/hev1) and re-encode to H.264 with libx264
+  - FFmpeg HEVC conversion: `ffmpeg -i input.mp4 -c:v libx264 -crf 23 -c:a copy output.mp4`
+  - Codec detection: Check codec string from ffprobe for "hvc1" or "hev1" prefix
   - FFmpeg rotation: `transpose=1` (90° CW), `transpose=2` (90° CCW), `transpose=1,transpose=1` (180°)
   - Rotation integrated into video_optimizer.py re-encoding pipeline
 

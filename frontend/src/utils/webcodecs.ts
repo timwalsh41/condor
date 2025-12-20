@@ -8,8 +8,9 @@ export {
   checkWebCodecsSupport,
   assertWebCodecsSupport,
   isCodecSupported,
+  getBrowserCodecSupport,
   COMMON_CODECS,
   type FeatureSupport
 } from './featureDetection';
 
-export { MP4Parser, MP4ParseError } from './MP4Parser';
+export { MP4Parser, MP4ParseError, type VideoMetadata } from './MP4Parser';

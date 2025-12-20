@@ -21,6 +21,18 @@ export class MP4ParseError extends Error {
 }
 
 /**
+ * Video metadata extracted from MP4 headers
+ */
+export interface VideoMetadata {
+  codec: string;
+  width: number;
+  height: number;
+  duration?: number;
+  framerate?: number;
+  rotation?: number;
+}
+
+/**
  * MP4 Container Parser
  *
  * Parses MP4 files and extracts codec configuration and samples
@@ -40,6 +52,92 @@ export class MP4Parser {
   private videoTrack: MP4VideoTrack | null = null;
   private samples: Sample[] = [];
   private info: MP4Info | null = null;
+
+  /**
+   * Read partial MP4 file to extract codec metadata without loading full file.
+   *
+   * Attempts to read the first 200KB of the file to extract codec information
+   * from the MP4 headers (moov box). Works for most modern videos with
+   * fast-start optimization (moov at beginning).
+   *
+   * @param videoFile - MP4 video file to analyze
+   * @returns Video metadata if successful, null if headers not in first 200KB
+   * @throws {MP4ParseError} If file is invalid or has no video track
+   */
+  static async readPartialMetadata(
+    videoFile: File
+  ): Promise<VideoMetadata | null> {
+    return new Promise((resolve, reject) => {
+      const HEADER_SIZE = 200 * 1024; // 200KB
+
+      // Read first 200KB of file
+      const headerChunk = videoFile.slice(0, HEADER_SIZE);
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        if (!e.target?.result) {
+          reject(new MP4ParseError("Failed to read file headers"));
+          return;
+        }
+
+        const arrayBuffer = e.target.result as ArrayBuffer;
+        const buffer = arrayBuffer as ArrayBuffer & { fileStart: number };
+        buffer.fileStart = 0;
+
+        // Create MP4Box file instance
+        const mp4boxFile = createFile();
+        let metadataFound = false;
+
+        // Set timeout - if moov not found in 1 second, likely at end of file
+        const timeout = setTimeout(() => {
+          if (!metadataFound) {
+            resolve(null); // Headers not in first 200KB
+          }
+        }, 1000);
+
+        mp4boxFile.onReady = (info: MP4Info) => {
+          clearTimeout(timeout);
+          metadataFound = true;
+
+          // Find video track
+          if (!info.videoTracks || info.videoTracks.length === 0) {
+            reject(new MP4ParseError("No video track found in MP4 file"));
+            return;
+          }
+
+          const track = info.videoTracks[0];
+
+          // Extract metadata
+          const metadata: VideoMetadata = {
+            codec: track.codec || "unknown",
+            width: track.video.width,
+            height: track.video.height,
+            duration: info.duration / info.timescale,
+            framerate: track.nb_samples && track.duration && track.timescale
+              ? (track.nb_samples * track.timescale) / track.duration
+              : undefined,
+          };
+
+          resolve(metadata);
+        };
+
+        mp4boxFile.onError = (error: string) => {
+          clearTimeout(timeout);
+          reject(new MP4ParseError(`Failed to parse MP4 headers: ${error}`));
+        };
+
+        // Append buffer and flush
+        mp4boxFile.appendBuffer(buffer);
+        mp4boxFile.flush();
+      };
+
+      reader.onerror = () => {
+        reject(new MP4ParseError("Failed to read file headers"));
+      };
+
+      reader.readAsArrayBuffer(headerChunk);
+    });
+  }
 
   /**
    * Initialize parser with MP4 file

@@ -173,3 +173,21 @@ export const COMMON_CODECS = {
   H265_MAIN: 'hvc1.1.6.L93.B0',
   H265_MAIN10: 'hvc1.2.4.L93.B0'
 } as const;
+
+/**
+ * Get simple browser compatibility summary for common codecs
+ *
+ * @returns Human-readable string showing codec support
+ */
+export async function getBrowserCodecSupport(): Promise<string> {
+  const browserInfo = getBrowserInfo();
+
+  // Test H.264 and HEVC support
+  const h264Support = await isCodecSupported(COMMON_CODECS.H264_HIGH);
+  const hevcSupport = await isCodecSupported(COMMON_CODECS.H265_MAIN);
+
+  const h264Status = h264Support ? '✓' : '✗';
+  const hevcStatus = hevcSupport ? '✓' : '✗';
+
+  return `${browserInfo} | H.264: ${h264Status} | HEVC: ${hevcStatus}`;
+}

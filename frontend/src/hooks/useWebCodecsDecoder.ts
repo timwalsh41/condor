@@ -5,7 +5,7 @@ import {
   useCallback,
   type RefObject,
 } from "react";
-import { MP4Parser } from "../utils/MP4Parser";
+import { MP4Parser, type VideoMetadata } from "../utils/MP4Parser";
 import { FrameCache } from "../utils/FrameCache";
 import { CoordinateMapping } from "../utils/CoordinateMapping";
 import { calculateLookaheadRange } from "../utils/decodePlanning";
@@ -97,6 +97,8 @@ export interface UseWebCodecsDecoderResult {
     rotation: number; // Video rotation in degrees (0, 90, 180, 270)
     fileSizeMB: number; // File size in megabytes
   } | null;
+  /** Early metadata from partial file read (available before full load) */
+  earlyMetadata: VideoMetadata | null;
 }
 
 /**
@@ -166,6 +168,7 @@ export function useWebCodecsDecoder(
   const [lastLatencyMs, setLastLatencyMs] = useState(0);
   const [metadata, setMetadata] =
     useState<UseWebCodecsDecoderResult["metadata"]>(null);
+  const [earlyMetadata, setEarlyMetadata] = useState<VideoMetadata | null>(null);
 
   // Promise chain for sequential operation processing
   // Reason: Queue all seek operations to process them sequentially,
@@ -945,6 +948,8 @@ export function useWebCodecsDecoder(
     if (!videoFile) {
       setIsReady(false);
       setError(null);
+      setEarlyMetadata(null);
+      setMetadata(null);
       return;
     }
 
@@ -958,6 +963,79 @@ export function useWebCodecsDecoder(
       try {
         setIsReady(false);
         setError(null);
+
+        // File size validation - 500MB hard limit
+        const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+        const fileSizeMB = videoFile.size / 1024 / 1024;
+
+        if (videoFile.size > MAX_FILE_SIZE) {
+          throw new Error(
+            `File size (${fileSizeMB.toFixed(0)}MB) exceeds maximum allowed size (500MB). ` +
+            `Please use a smaller video file or reduce quality/duration.`
+          );
+        }
+
+        // Early codec detection - read partial file (first 200KB) to check codec
+        debugLog(`[INIT] File size: ${fileSizeMB.toFixed(1)}MB, attempting early codec detection...`);
+
+        let metadata: Awaited<ReturnType<typeof MP4Parser.readPartialMetadata>> = null;
+
+        try {
+          metadata = await MP4Parser.readPartialMetadata(videoFile);
+        } catch (err) {
+          debugWarn("[INIT] Early codec detection failed, will check after full parse:", err);
+        }
+
+        if (metadata) {
+          debugLog(`[INIT] Early detection succeeded: codec=${metadata.codec}, ${metadata.width}x${metadata.height}`);
+
+          // Store early metadata for UI display
+          setEarlyMetadata(metadata);
+
+          // Block HEVC entirely (unreliable browser support causes crashes)
+          const isHEVC = metadata.codec.startsWith('hvc') || metadata.codec.startsWith('hev');
+          if (isHEVC) {
+            throw new Error(
+              `Unsupported video codec: HEVC/H.265\n\n` +
+              `This video uses HEVC/H.265 which has unreliable browser support.\n\n` +
+              `Please transcode to H.264 using FFmpeg:\n` +
+              `  ffmpeg -i input.mp4 -c:v libx264 -crf 23 -c:a copy output.mp4\n\n` +
+              `Technical details:\n` +
+              `Codec: ${metadata.codec}\n` +
+              `Resolution: ${metadata.width}x${metadata.height}\n` +
+              `File size: ${fileSizeMB.toFixed(1)}MB`
+            );
+          }
+
+          // Check codec support before loading full file
+          const codecSupport = await VideoDecoder.isConfigSupported({
+            codec: metadata.codec,
+            codedWidth: metadata.width,
+            codedHeight: metadata.height,
+          });
+
+          if (!codecSupport.supported) {
+            // Determine codec type for user-friendly message
+            const codecName = metadata.codec;
+
+            throw new Error(
+              `Unsupported video codec: ${codecName}\n\n` +
+              `This video uses the ${codecName} codec which is not supported in your browser.\n\n` +
+              `Suggested solutions:\n` +
+              `• Use an H.264 encoded video (widely supported)\n` +
+              `• Try Safari browser (better HEVC support)\n` +
+              `• Transcode video using Handbrake or FFmpeg\n\n` +
+              `Technical details:\n` +
+              `Codec: ${metadata.codec}\n` +
+              `Resolution: ${metadata.width}x${metadata.height}\n` +
+              `File size: ${fileSizeMB.toFixed(1)}MB`
+            );
+          }
+
+          debugLog(`[INIT] Codec ${metadata.codec} is supported, proceeding with full file load`);
+        } else {
+          debugLog(`[INIT] Early detection returned null (moov likely at end), will check after full parse`);
+        }
 
         // Parse MP4 container
         const parser = new MP4Parser();
@@ -983,7 +1061,7 @@ export function useWebCodecsDecoder(
         const gopSize = parser.getGopSize();
         const rotation = parser.getRotation();
         const duration = samples.length / videoFramerate;
-        const fileSizeMB = videoFile.size / 1024 / 1024; // Convert bytes to MB
+        // fileSizeMB already declared above, reuse it
 
         setMetadata({
           duration,
@@ -999,6 +1077,22 @@ export function useWebCodecsDecoder(
         debugLog(
           `[INIT] Video metadata: ${videoTrack.video.width}x${videoTrack.video.height}, ${samples.length} frames, GOP=${gopSize}, rotation=${rotation}°`
         );
+
+        // Block HEVC entirely (check after full parse in case early detection failed)
+        const codec = videoTrack.codec || "";
+        const isHEVC = codec.startsWith('hvc') || codec.startsWith('hev');
+        if (isHEVC) {
+          throw new Error(
+            `Unsupported video codec: HEVC/H.265\n\n` +
+            `This video uses HEVC/H.265 which has unreliable browser support.\n\n` +
+            `Please transcode to H.264 using FFmpeg:\n` +
+            `  ffmpeg -i input.mp4 -c:v libx264 -crf 23 -c:a copy output.mp4\n\n` +
+            `Technical details:\n` +
+            `Codec: ${codec}\n` +
+            `Resolution: ${videoTrack.video.width}x${videoTrack.video.height}\n` +
+            `File size: ${fileSizeMB.toFixed(1)}MB`
+          );
+        }
 
         // Build coordinate mapping (3-way isomorphism: Frame ↔ CTS ↔ Sample)
         // Reason: sample.number is NOT presentation frame number
@@ -1190,10 +1284,25 @@ export function useWebCodecsDecoder(
           },
         });
 
-        // Check codec support
+        // Check codec support (fallback for cases where early detection didn't work)
         const support = await VideoDecoder.isConfigSupported(codecConfig);
         if (!support.supported) {
-          throw new Error(`Codec not supported: ${codecConfig.codec}`);
+          // Determine codec type for user-friendly message
+          const isHEVC = codecConfig.codec.startsWith('hvc') || codecConfig.codec.startsWith('hev');
+          const codecName = isHEVC ? 'HEVC/H.265' : codecConfig.codec;
+
+          throw new Error(
+            `Unsupported video codec: ${codecName}\n\n` +
+            `This video uses the ${codecName} codec which is not supported in your browser.\n\n` +
+            `Suggested solutions:\n` +
+            `• Use an H.264 encoded video (widely supported)\n` +
+            `• Try Safari browser (better HEVC support)\n` +
+            `• Transcode video using Handbrake or FFmpeg\n\n` +
+            `Technical details:\n` +
+            `Codec: ${codecConfig.codec}\n` +
+            `Resolution: ${codecConfig.codedWidth}x${codecConfig.codedHeight}\n` +
+            `File size: ${fileSizeMB.toFixed(1)}MB`
+          );
         }
 
         decoder.configure(codecConfig);
@@ -1325,5 +1434,6 @@ export function useWebCodecsDecoder(
     setPlaybackRate,
     framerate,
     metadata,
+    earlyMetadata,
   };
 }

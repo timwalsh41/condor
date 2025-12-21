@@ -47,7 +47,8 @@
       "mcp__serena__think_about_collected_information",
       "Bash(DISPLAY=:99 timeout 300 npx playwright test:*)",
       "Bash(DISPLAY=:99 timeout 180 npx playwright test:*)",
-      "mcp__serena__find_file"
+      "mcp__serena__find_file",
+      "mcp__serena__read_memory"
     ],
     "deny": []
   }

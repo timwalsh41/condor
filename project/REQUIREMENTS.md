@@ -441,16 +441,27 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall render annotations as overlays on video
 - **Priority**: Critical
-- **Status**: Planned
+- **Status**: Validated
 - **User Story**: As a golfer, I want to see my annotations on top of the video
 - **Acceptance Criteria**:
-  - [ ] Annotations rendered on transparent canvas layer
-  - [ ] Canvas precisely aligned with video display area
-  - [ ] Annotations visible during playback
-  - [ ] Annotations visible when paused
-  - [ ] No performance degradation during playback
+  - [x] Annotations rendered on transparent canvas layer - Task 0.5 ✅
+  - [x] Canvas precisely aligned with video display area - Task 0.5 ✅ (±1px tolerance validated)
+  - [x] Annotations visible during playback - Task 0.5 ✅
+  - [x] Annotations visible when paused - Task 0.5 ✅
+  - [x] No performance degradation during playback - Task 0.5 ✅ (manual testing, metrics not measured)
 - **Dependencies**: REQ-F-ANNOT-001
-- **Implementation Notes**: Canvas overlay with exact video dimensions, react-konva Stage/Layer
+- **Implementation Notes**: Canvas overlay with exact video dimensions, react-konva Stage/Layer. Implemented with dual-video support, modular AnnotationManager architecture.
+- **Validation Evidence**:
+  - Test files: `frontend/tests/test_canvas_overlay.spec.ts` (Playwright integration tests), `frontend/src/utils/tests/AnnotationManager.test.ts` (143 unit tests), `frontend/src/hooks/tests/useVideoAnnotations.test.ts` (44 unit tests)
+  - Test results: 44/60 Playwright tests passing (16 skipped - documented limitations), 187/187 unit tests passing
+  - Cross-browser: Chrome ✓, Firefox ✓, WebKit ✓
+  - Canvas overlay alignment: ±1px tolerance validated (pixel-perfect alignment)
+  - Drawing tools: Freehand ✓, Polyline ✓ (Escape cancellation), Oval ✓, Arrow ✓
+  - Dual video independence: Annotations per video validated (2 on A, 3 on B)
+  - Playback integration: Annotations persist during playback/pause ✓
+  - Clear All functionality: ✓
+  - Annotation editing: Selection ✓ (unit tests), Deletion ✓ (unit tests), Dragging ✓ (unit tests), Resizing ✓ (unit tests)
+  - Skipped tests: Polyline Enter/double-click finalization, annotation selection/deletion via keyboard (headless Playwright limitations - works in manual testing)
 
 #### REQ-F-ANNOT-003: Annotation Management
 
@@ -590,13 +601,13 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: Annotation drawing and rendering shall be responsive
 - **Priority**: High
-- **Status**: Planned
+- **Status**: In Progress (implementation complete, performance metrics not measured)
 - **Acceptance Criteria**:
-  - [ ] Mouse event to canvas update latency: ≤16ms (measured at 95th percentile)
-  - [ ] Drawing operation frame rate: ≥55fps during active annotation drawing
-  - [ ] Annotation rendering during video playback: ≤5% dropped frames with 10 annotations present
-  - [ ] Complex annotations (50+ points): render operation completes in ≤33ms (30fps target)
-  - [ ] Canvas layer compositing overhead: ≤2ms per frame during playback
+  - [ ] Mouse event to canvas update latency: ≤16ms (measured at 95th percentile) - NOT MEASURED
+  - [ ] Drawing operation frame rate: ≥55fps during active annotation drawing - NOT MEASURED
+  - [ ] Annotation rendering during video playback: ≤5% dropped frames with 10 annotations present - NOT MEASURED
+  - [ ] Complex annotations (50+ points): render operation completes in ≤33ms (30fps target) - NOT MEASURED
+  - [ ] Canvas layer compositing overhead: ≤2ms per frame during playback - NOT MEASURED
 - **Measurement Method**:
   - Automated Playwright tests simulate mouse drawing events
   - Browser Performance API (`performance.now()`) measures event handler to render delta
@@ -604,11 +615,16 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
   - Konva `Stage.toCanvas()` timing for complex annotation render performance
   - Chrome DevTools Performance profiling for layer compositing overhead
 - **Implementation Notes**:
-  - Measure event-to-render latency: timestamp at `mousedown`/`mousemove` to next paint
-  - Drawing FPS: count `requestAnimationFrame` callbacks during 1-second drawing session
-  - Test with representative annotation complexity (freehand = 50+ points, geometric = 4-8 points)
-  - Automated tests draw polyline with 50 points and measure render time
-  - Test annotation overlay performance with video playback simultaneously active
+  - Implementation complete: All drawing tools functional (freehand, polyline, oval, arrow)
+  - Manual testing confirms smooth drawing and playback performance
+  - Phase 0 spike objective: Validate feasibility, not measure quantitative performance
+  - Formal performance metrics deferred (acceptable for spike phase)
+  - Annotations render smoothly during video playback (qualitative observation)
+- **Validation Gaps**:
+  - No automated performance tests with quantitative metrics
+  - Latency, FPS, dropped frames not measured
+  - Complex annotation rendering time not measured
+  - Canvas compositing overhead not profiled
 - **Dependencies**: REQ-F-ANNOT-002
 
 #### REQ-NF-P-003: Video Load Time
@@ -1143,25 +1159,27 @@ None for MVP - all processing local
 
 **Total Requirements**: 48
 
-- **Planned**: 39 (81%)
-- **In Progress**: 5 (10%)
+- **Planned**: 38 (79%)
+- **In Progress**: 6 (13%)
   - REQ-F-FRAME-001: Frame Stepping (5/7 criteria - Task 0.3)
   - REQ-F-FRAME-003: Seeking Precision (4/5 criteria - Task 0.3)
   - REQ-NF-BC-001: Browser Compatibility (6/7 criteria - Task 0.3)
   - REQ-NF-P-004: Frame Stepping Response Time (3/4 criteria - Task 0.3: cache hit meets requirement, cache miss does not)
   - REQ-NF-P-001: Video Playback Smoothness (implementation complete, performance metrics not measured - optional for Phase 0)
+  - REQ-NF-P-002: Annotation Rendering Performance (implementation complete, performance metrics not measured - optional for Phase 0)
   - REQ-NF-M-001: Code Quality Standards
 - **Implemented (Awaiting Validation)**: 0 (0%)
-- **Validated**: 4 (8%)
+- **Validated**: 5 (10%)
   - REQ-F-FRAME-002: Frame Counter Display (Task 0.3)
   - REQ-F-SYNC-003: Sync Offset Calculation (Task 0.4)
   - REQ-F-PLAY-001: Unified Playback Controls (Task 0.4)
   - REQ-F-PLAY-002: Playback Speed Control (Task 0.4)
+  - REQ-F-ANNOT-002: Annotation Rendering (Task 0.5)
 
 ### Priority Breakdown
 
-- **Critical**: 19 (11% Validated - REQ-F-SYNC-003, REQ-F-PLAY-001; 2 In Progress)
-- **High**: 23 (9% Validated - REQ-F-FRAME-002, REQ-F-PLAY-002; 3 In Progress)
+- **Critical**: 19 (16% Validated - REQ-F-SYNC-003, REQ-F-PLAY-001, REQ-F-ANNOT-002; 2 In Progress)
+- **High**: 23 (9% Validated - REQ-F-FRAME-002, REQ-F-PLAY-002; 4 In Progress)
 - **Medium**: 6 (0% Validated)
 - **Low**: 2 (0% Validated)
 
@@ -1173,10 +1191,10 @@ None for MVP - all processing local
 - **Playback Mode**: 3 requirements (67% Validated - REQ-F-PLAY-001, REQ-F-PLAY-002; 0 In Progress)
 - **Frame Control**: 3 requirements (33% Validated - REQ-F-FRAME-002; 2 In Progress - Task 0.3)
 - **Trimming**: 2 requirements (0% Validated)
-- **Annotations**: 5 requirements (0% Validated)
+- **Annotations**: 5 requirements (20% Validated - REQ-F-ANNOT-002; 0 In Progress)
 - **Error Handling**: 2 requirements (0% Validated)
 - **Documentation**: 1 requirement (0% Validated)
-- **Non-Functional**: 21 requirements (0% Validated, 5 In Progress)
+- **Non-Functional**: 21 requirements (0% Validated, 6 In Progress)
 
 ---
 

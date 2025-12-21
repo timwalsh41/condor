@@ -971,6 +971,7 @@ export function DualVideoSyncDemo() {
                       {/* Annotation overlay canvas - independent of rotation */}
                       {videoA.metadata && (
                         <div
+                          data-testid="annotation-container-a"
                           style={{
                             position: "absolute",
                             top: 0,
@@ -1421,6 +1422,7 @@ export function DualVideoSyncDemo() {
                       {/* Annotation overlay canvas - independent of rotation */}
                       {videoB.metadata && (
                         <div
+                          data-testid="annotation-container-b"
                           style={{
                             position: "absolute",
                             top: 0,

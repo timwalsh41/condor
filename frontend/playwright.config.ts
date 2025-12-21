@@ -45,19 +45,30 @@ const chromeEndpoint = process.env.CHROME_CDP_URL
 
 export default defineConfig({
   testDir: "./tests",
-  fullyParallel: true,
+  fullyParallel: false, // Run tests sequentially to prevent resource exhaustion
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // Limit workers to prevent memory issues with video decoding
+
+  // CRITICAL: Use only 1 worker to prevent memory exhaustion
   // Each test can use 300MB+ (120-frame cache + browser overhead)
-  workers: process.env.CI ? 1 : 2, // Max 2 workers locally to prevent OOM
+  // With 3 browser projects, workers: 1 means max 1 test at a time across ALL browsers
+  workers: 1,
+
+  // Global timeout to prevent hung tests
+  timeout: 60000, // 60 seconds per test (increased from default 30s for video tests)
+  globalTimeout: 600000, // 10 minutes for entire test suite
+
   reporter: "html",
 
   use: {
     baseURL: "http://localhost:5173",
     trace: "on-first-retry",
-    video: "retain-on-failure",
+    video: "off", // Disable video recording to save memory (we have screenshots)
     screenshot: "only-on-failure",
+
+    // Action timeout to prevent indefinite waits
+    actionTimeout: 15000, // 15 seconds for actions like click, fill, etc.
+    navigationTimeout: 30000, // 30 seconds for page navigations
   },
 
   projects: [

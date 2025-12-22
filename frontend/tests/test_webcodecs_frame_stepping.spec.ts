@@ -32,21 +32,21 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
 
     await page.goto("/");
 
-    // Upload test video
+    // Upload test video to Video A
     const testVideoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
 
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.locator('[data-testid="file-input-a"]');
     await fileInput.setInputFiles(testVideoPath);
 
     // Wait for decoder to be ready
-    await page.waitForSelector('[data-testid="frame-counter"]', {
+    await page.waitForSelector('[data-testid="frame-counter-a"]', {
       timeout: 10000,
     });
 
     // Wait for initial frame to be decoded and displayed
     await page.waitForFunction(
       () => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         return counter?.textContent?.includes("Frame");
       },
       { timeout: 5000 }
@@ -62,7 +62,7 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
      * Validates: REQ-F-FRAME-002
      * Acceptance Criteria: Frame counter shows "Frame X of Y" format
      */
-    const frameCounter = page.locator('[data-testid="frame-counter"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
 
     await expect(frameCounter).toBeVisible();
 
@@ -80,18 +80,18 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
      * Validates: REQ-F-FRAME-001 (fine stepping), REQ-F-FRAME-003 (exact positioning)
      * Acceptance Criteria: Fine step forward button advances EXACTLY 1 frame (0 tolerance)
      */
-    const frameCounter = page.locator('[data-testid="frame-counter"]');
-    const stepButton = page.locator('[data-testid="step-forward-fine"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const stepButton = page.locator('[data-testid="step-forward-fine-a"]');
 
     // Use slider to seek to frame 100 for stable testing
-    const slider = page.locator('input[type="range"]');
+    const slider = page.locator('[data-testid="scrub-bar-a"]');
     await slider.fill("100");
     await slider.dispatchEvent("mouseup");
 
     // Wait for exact frame 100
     await page.waitForFunction(
       () => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame === 100;
@@ -111,7 +111,7 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
     // Wait for EXACT frame update (0 tolerance)
     await page.waitForFunction(
       (expected) => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame === expected; // EXACT equality required
@@ -153,17 +153,17 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
      * Validates: REQ-F-FRAME-001 (fine stepping backward), REQ-F-FRAME-003 (exact positioning)
      * Acceptance Criteria: Fine step backward button moves EXACTLY 1 frame back (0 tolerance)
      */
-    const frameCounter = page.locator('[data-testid="frame-counter"]');
-    const stepBackward = page.locator('[data-testid="step-backward-fine"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const stepBackward = page.locator('[data-testid="step-backward-fine-a"]');
 
     // Use slider to seek to frame 100
-    const slider = page.locator('input[type="range"]');
+    const slider = page.locator('[data-testid="scrub-bar-a"]');
     await slider.fill("100");
     await slider.dispatchEvent("mouseup");
 
     await page.waitForFunction(
       () => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame === 100;
@@ -181,7 +181,7 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
     // Wait for EXACT frame update
     await page.waitForFunction(
       (expected) => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame === expected; // EXACT equality required
@@ -206,17 +206,17 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
      * Validates: REQ-F-FRAME-001 (coarse stepping), REQ-F-FRAME-003 (exact positioning)
      * Acceptance Criteria: Coarse step forward button advances EXACTLY 5 frames (0 tolerance)
      */
-    const frameCounter = page.locator('[data-testid="frame-counter"]');
-    const stepButton = page.locator('[data-testid="step-forward-coarse"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const stepButton = page.locator('[data-testid="step-forward-coarse-a"]');
 
     // Use slider to seek to frame 100
-    const slider = page.locator('input[type="range"]');
+    const slider = page.locator('[data-testid="scrub-bar-a"]');
     await slider.fill("100");
     await slider.dispatchEvent("mouseup");
 
     await page.waitForFunction(
       () => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame === 100;
@@ -235,7 +235,7 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
     // Wait for EXACT frame update
     await page.waitForFunction(
       (expected) => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame === expected; // EXACT equality required
@@ -264,17 +264,17 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
      * Validates: REQ-F-FRAME-001 (coarse stepping backward), REQ-F-FRAME-003 (exact positioning)
      * Acceptance Criteria: Coarse step backward moves EXACTLY 5 frames back (0 tolerance)
      */
-    const frameCounter = page.locator('[data-testid="frame-counter"]');
-    const stepBackward = page.locator('[data-testid="step-backward-coarse"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const stepBackward = page.locator('[data-testid="step-backward-coarse-a"]');
 
     // Use slider to seek to frame 100
-    const slider = page.locator('input[type="range"]');
+    const slider = page.locator('[data-testid="scrub-bar-a"]');
     await slider.fill("100");
     await slider.dispatchEvent("mouseup");
 
     await page.waitForFunction(
       () => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame === 100;
@@ -292,7 +292,7 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
     // Wait for EXACT frame update
     await page.waitForFunction(
       (expected) => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame === expected; // EXACT equality required
@@ -317,17 +317,17 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
      * Validates: REQ-F-FRAME-002
      * Acceptance Criteria: Counter updates in real-time during playback
      */
-    const frameCounter = page.locator('[data-testid="frame-counter"]');
-    const playButton = page.locator('[data-testid="play-pause"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const playButton = page.locator('[data-testid="play-pause-a"]');
 
     // Start from beginning using slider
-    const slider = page.locator('input[type="range"]');
+    const slider = page.locator('[data-testid="scrub-bar-a"]');
     await slider.fill("0");
     await slider.dispatchEvent("mouseup");
 
     await page.waitForFunction(
       () => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame === 0;
@@ -346,7 +346,7 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
     // Wait for frame counter to advance (should advance to at least frame 30 in 1 second at 30fps)
     await page.waitForFunction(
       (initial) => {
-        const counter = document.querySelector('[data-testid="frame-counter"]');
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
         const text = counter?.textContent || "";
         const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
         return currentFrame > initial + 10; // Wait for at least 10 frames

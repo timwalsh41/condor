@@ -37,27 +37,25 @@ test.describe("Cache Performance Validation", () => {
 
     await page.goto("/");
 
-    // Upload 10-second test video (300 frames)
-    const fileInput = page.locator('input[type="file"]');
+    // Upload 10-second test video (300 frames) to Video A
+    const fileInput = page.locator('[data-testid="file-input-a"]');
     await fileInput.setInputFiles(testVideo10s);
 
     // Wait for decoder ready
+    await page.waitForSelector('[data-testid="frame-counter-a"]', {
+      timeout: 10000,
+    });
+
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api && api.isReady();
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        return counter?.textContent?.includes("Frame");
       },
-      { timeout: 10000 }
+      { timeout: 5000 }
     );
 
-    await page.waitForSelector('[data-testid="frame-counter"]', {
-      timeout: 5000,
-    });
-
-    const totalFrames = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getTotalFrames();
-    });
+    const frameCounterText = await page.locator('[data-testid="frame-counter-a"]').textContent();
+    const totalFrames = parseInt(frameCounterText?.match(/of (\d+)/)?.[1] || '0');
 
     console.log(
       `Test video loaded: ${totalFrames} frames (10s @ 30fps, GOP=30)`
@@ -69,75 +67,59 @@ test.describe("Cache Performance Validation", () => {
     page,
   }) => {
     /**
-     * Validates: Cache miss handling with large forward seek
-     * - 120-frame cache + 60-frame buffer = 180 frames max
-     * - Seeking from frame 10 to 250 (240-frame gap) forces cache miss
-     * - Must maintain exact frame accuracy during cache rebuild
+     * Validates: Large forward seek maintains exact frame accuracy
+     * - Seeking from frame 10 to 250 (240-frame gap)
+     * - Must maintain exact frame accuracy
+     * Note: Cache stats no longer exposed in integrated component
      */
 
     // Start at frame 10
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(10);
-    });
+    const scrubBar = page.locator('[data-testid="scrub-bar-a"]');
+    await scrubBar.fill('10');
+    await scrubBar.dispatchEvent('mouseup');
 
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 10;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 10;
       },
       { timeout: 5000 }
     );
 
-    const initialFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const initialText = await frameCounter.textContent();
+    const initialFrame = parseInt(initialText?.match(/Frame (\d+)/)?.[1] || '0');
 
     expect(initialFrame).toBe(10);
 
-    // Get initial cache stats
-    const initialCacheStats = await page
-      .locator('[data-testid="cache-stats"]')
-      .textContent();
-    console.log(
-      `Initial cache state: ${initialCacheStats?.substring(0, 200)}...`
-    );
-
-    // Seek to frame 250 (forces cache miss - 240 frame gap)
+    // Seek to frame 250 (large seek - 240 frame gap)
     const seekStartTime = Date.now();
 
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(250);
-    });
+    await scrubBar.fill('250');
+    await scrubBar.dispatchEvent('mouseup');
 
     // Wait for EXACT frame 250
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 250;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 250;
       },
       { timeout: 10000 }
     );
 
     const seekLatency = Date.now() - seekStartTime;
 
-    const finalFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const finalText = await frameCounter.textContent();
+    const finalFrame = parseInt(finalText?.match(/Frame (\d+)/)?.[1] || '0');
 
     // Verify EXACT frame accuracy (0 tolerance - non-negotiable)
     expect(finalFrame).toBe(250);
 
-    // Get final cache stats
-    const finalCacheStats = await page
-      .locator('[data-testid="cache-stats"]')
-      .textContent();
-    console.log(`Final cache state: ${finalCacheStats?.substring(0, 200)}...`);
-
-    console.log(`✓ Cache miss seek latency: ${seekLatency}ms (frame 10 → 250)`);
+    console.log(`✓ Large forward seek latency: ${seekLatency}ms (frame 10 → 250)`);
 
     // Performance validation:
     // Target: <300ms for GOP=30 worst case (decode from nearest keyframe)
@@ -155,73 +137,61 @@ test.describe("Cache Performance Validation", () => {
     page,
   }) => {
     /**
-     * Validates: Backward seek cache miss after forward navigation
-     * - Navigate to frame 250 (fills cache with frames 190-310 region)
-     * - Seek back to frame 10 (cache miss - frame 10 evicted)
-     * - Must rebuild cache from keyframe and maintain exact accuracy
+     * Validates: Large backward seek maintains exact frame accuracy
+     * - Navigate to frame 250, then seek back to frame 10 (240-frame gap)
+     * - Must maintain exact accuracy
+     * Note: Cache stats no longer exposed in integrated component
      */
 
+    const scrubBar = page.locator('[data-testid="scrub-bar-a"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+
     // Navigate to frame 250 first
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(250);
-    });
+    await scrubBar.fill('250');
+    await scrubBar.dispatchEvent('mouseup');
 
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 250;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 250;
       },
       { timeout: 10000 }
     );
 
-    const startFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const startText = await frameCounter.textContent();
+    const startFrame = parseInt(startText?.match(/Frame (\d+)/)?.[1] || '0');
 
     expect(startFrame).toBe(250);
 
-    // Get cache stats at frame 250
-    const cacheAtFrame250 = await page
-      .locator('[data-testid="cache-stats"]')
-      .textContent();
-    console.log(`Cache at frame 250: ${cacheAtFrame250?.substring(0, 200)}...`);
-
-    // Seek backward to frame 10 (cache miss - frame 10 evicted from cache)
+    // Seek backward to frame 10 (large backward seek)
     const seekStartTime = Date.now();
 
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(10);
-    });
+    await scrubBar.fill('10');
+    await scrubBar.dispatchEvent('mouseup');
 
     // Wait for EXACT frame 10
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 10;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 10;
       },
       { timeout: 15000 } // Longer timeout for WebKit
     );
 
     const seekLatency = Date.now() - seekStartTime;
 
-    const finalFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const finalText = await frameCounter.textContent();
+    const finalFrame = parseInt(finalText?.match(/Frame (\d+)/)?.[1] || '0');
 
     // Verify EXACT frame accuracy (0 tolerance)
     expect(finalFrame).toBe(10);
 
-    const cacheAtFrame10 = await page
-      .locator('[data-testid="cache-stats"]')
-      .textContent();
-    console.log(`Cache at frame 10: ${cacheAtFrame10?.substring(0, 200)}...`);
-
     console.log(
-      `✓ Backward cache miss latency: ${seekLatency}ms (frame 250 → 10)`
+      `✓ Large backward seek latency: ${seekLatency}ms (frame 250 → 10)`
     );
 
     // Same performance criteria as forward seek
@@ -238,43 +208,46 @@ test.describe("Cache Performance Validation", () => {
     page,
   }) => {
     /**
-     * Validates: Continuous playback with cache buffer refill
+     * Validates: Continuous playback maintains frame accuracy
      * - Play from frame 10 for ~1 second (30 frames at 30fps)
-     * - Cache must refill continuously via 60-frame read-ahead
      * - Frame counter must advance sequentially without skips (exact accuracy)
+     * Note: Cache stats no longer exposed in integrated component
      */
 
+    const scrubBar = page.locator('[data-testid="scrub-bar-a"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+
     // Seek to frame 10
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(10);
-    });
+    await scrubBar.fill('10');
+    await scrubBar.dispatchEvent('mouseup');
 
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 10;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 10;
       },
       { timeout: 5000 }
     );
 
-    const initialFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const initialText = await frameCounter.textContent();
+    const initialFrame = parseInt(initialText?.match(/Frame (\d+)/)?.[1] || '0');
 
     expect(initialFrame).toBe(10);
 
     // Start playback
-    const playButton = page.locator('[data-testid="play-pause"]');
+    const playButton = page.locator('[data-testid="play-pause-a"]');
     await playButton.click();
 
     // Wait for playback to advance ~30 frames (1 second at 30fps)
     // Increased timeout for headless mode where RAF timing is less reliable
     await page.waitForFunction(
       (initial) => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() >= initial + 30;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame >= initial + 30;
       },
       initialFrame,
       { timeout: 10000 }
@@ -283,10 +256,8 @@ test.describe("Cache Performance Validation", () => {
     // Pause playback
     await playButton.click();
 
-    const finalFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const finalText = await frameCounter.textContent();
+    const finalFrame = parseInt(finalText?.match(/Frame (\d+)/)?.[1] || '0');
 
     // Verify frames advanced (should be ~40, allow variance due to timing in headless)
     expect(finalFrame).toBeGreaterThanOrEqual(initialFrame + 25);
@@ -295,28 +266,9 @@ test.describe("Cache Performance Validation", () => {
     console.log(
       `✓ Continuous playback: advanced from frame ${initialFrame} to ${finalFrame}`
     );
-
-    // Get cache stats after playback
-    const cacheAfterPlayback = await page
-      .locator('[data-testid="cache-stats"]')
-      .textContent();
-    console.log(
-      `Cache after playback: ${cacheAfterPlayback?.substring(0, 200)}...`
-    );
-
-    // Verify cache hit rate is high during continuous playback (read-ahead effective)
-    const hitRateMatch = cacheAfterPlayback?.match(/(\d+\.\d+)%/);
-    if (hitRateMatch) {
-      const hitRate = parseFloat(hitRateMatch[1]);
-      console.log(`Cache hit rate: ${hitRate}%`);
-
-      // During continuous playback with read-ahead, hit rate should be very high
-      // Target: >90% (most frames from cache, occasional read-ahead refills)
-      expect(hitRate).toBeGreaterThan(80); // Conservative threshold for headless
-    }
   });
 
-  test("should demonstrate cache size limitation (300-frame video, 120-frame cache)", async ({
+  test("should handle multiple random seeks with exact frame accuracy", async ({
     page,
     browserName,
   }) => {
@@ -327,67 +279,46 @@ test.describe("Cache Performance Validation", () => {
     test.skip(browserName === 'webkit', 'WebKit headless decoder stalls on large seek sequences');
 
     /**
-     * Validates: Cache capacity limitation with 10-second video
-     * - Video: 300 frames total
-     * - Cache: 120 frames max + 60-frame read-ahead buffer = 180 frames
-     * - Demonstrate cache cannot hold entire video (40% capacity)
+     * Validates: Multiple seeks maintain exact frame accuracy
+     * - Video: 300 frames total (10 seconds @ 30fps)
+     * - Test random seek pattern
+     * Note: Cache stats no longer exposed in integrated component
      */
 
-    // Seek through video in large jumps to populate and evict cache
+    const scrubBar = page.locator('[data-testid="scrub-bar-a"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+
+    // Seek through video in large jumps
     const seekSequence = [0, 100, 200, 50, 250, 25, 275];
 
     for (const targetFrame of seekSequence) {
-      await page.evaluate(async (frame) => {
-        const api = (window as any).__webCodecsTestAPI;
-        await api.seekToFrame(frame);
-      }, targetFrame);
+      await scrubBar.fill(targetFrame.toString());
+      await scrubBar.dispatchEvent('mouseup');
 
       // Wait for seek to complete
       // WebKit can be slower on large seeks (200+ frames), especially in headless mode
       await page.waitForFunction(
         (expected) => {
-          const api = (window as any).__webCodecsTestAPI;
-          return api.getCurrentFrame() === expected;
+          const counter = document.querySelector('[data-testid="frame-counter-a"]');
+          const text = counter?.textContent || '';
+          const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+          return currentFrame === expected;
         },
         targetFrame,
         { timeout: 30000 } // 30s timeout for WebKit large seeks in headless mode
       );
 
-      const currentFrame = await page.evaluate(() => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame();
-      });
+      const currentText = await frameCounter.textContent();
+      const currentFrame = parseInt(currentText?.match(/Frame (\d+)/)?.[1] || '0');
 
       // Verify exact frame accuracy at each seek
       expect(currentFrame).toBe(targetFrame);
 
-      const cacheStats = await page
-        .locator('[data-testid="cache-stats"]')
-        .textContent();
-      console.log(`Frame ${targetFrame}: ${cacheStats?.substring(0, 150)}...`);
-    }
-
-    // Get final statistics
-    const finalCacheStats = await page
-      .locator('[data-testid="cache-stats"]')
-      .textContent();
-    console.log(`Final cache statistics:\n${finalCacheStats}`);
-
-    // Extract cache size (should be at or near 120 frame limit)
-    const sizeMatch = finalCacheStats?.match(/Cache: (\d+)\/(\d+)/);
-    if (sizeMatch) {
-      const currentSize = parseInt(sizeMatch[1]);
-      const maxSize = parseInt(sizeMatch[2]);
-
-      console.log(`Cache size: ${currentSize}/${maxSize} frames`);
-
-      expect(maxSize).toBe(120); // Verify 120-frame cache capacity
-      expect(currentSize).toBeGreaterThan(0); // Cache should have frames
-      expect(currentSize).toBeLessThanOrEqual(120); // Should not exceed capacity
+      console.log(`✓ Seek to frame ${targetFrame}: accurate`);
     }
 
     console.log(
-      `✓ Cache size limitation validated: 120-frame capacity with 300-frame video`
+      `✓ Multiple random seeks validated: all seeks maintained exact frame accuracy`
     );
   });
 });

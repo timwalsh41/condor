@@ -30,10 +30,7 @@ import { test, expect } from "@playwright/test";
 async function navigateToDualVideoDemo(page: any) {
   await page.goto("/");
 
-  // Click "Dual Video Sync Demo" button
-  await page.click("text=Dual Video Sync Demo (Task 0.4)");
-
-  // Wait for component to be visible
+  // Wait for component to be visible (app directly renders DualVideoSyncDemo)
   await page.waitForSelector('[data-testid="mode-indicator"]', {
     timeout: 5000,
   });

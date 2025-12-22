@@ -29,23 +29,22 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
 
     await page.goto('/');
 
-    // Upload test video
-    const fileInput = page.locator('input[type="file"]');
+    // Upload test video to Video A
+    const fileInput = page.locator('[data-testid="file-input-a"]');
     await fileInput.setInputFiles(testVideoPath);
 
-    // Wait for WebCodecs decoder to be ready
+    // Wait for frame counter to be visible and show frame data
+    await page.waitForSelector('[data-testid="frame-counter-a"]', { timeout: 10000 });
+
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api && api.isReady();
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        return counter?.textContent?.includes('Frame');
       },
-      { timeout: 10000 }
+      { timeout: 5000 }
     );
 
-    // Wait for frame counter to be visible
-    await page.waitForSelector('[data-testid="frame-counter"]', { timeout: 5000 });
-
-    console.log('WebCodecs decoder ready');
+    console.log('Video decoder ready');
   });
 
   test('should display frame counter with accurate frame numbers', async ({ page }) => {
@@ -53,7 +52,7 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
      * Validates: REQ-F-FRAME-002
      * Acceptance Criteria: Frame counter shows "Frame X of Y" format with exact accuracy
      */
-    const frameCounter = page.locator('[data-testid="frame-counter"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
 
     await expect(frameCounter).toBeVisible();
 
@@ -69,29 +68,28 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
      * Validates: REQ-F-FRAME-001 (fine stepping) with EXACT frame accuracy
      * Acceptance Criteria: Fine step forward button advances EXACTLY 1 frame (0 tolerance)
      */
-    const frameCounter = page.locator('[data-testid="frame-counter"]');
-    const stepButton = page.locator('[data-testid="step-forward-fine"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const stepButton = page.locator('[data-testid="step-forward-fine-a"]');
 
     // Seek to frame 100 to avoid edge cases near frame 0
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(100);
-    });
+    const scrubBar = page.locator('[data-testid="scrub-bar-a"]');
+    await scrubBar.fill('100');
+    await scrubBar.dispatchEvent('mouseup');
 
     // Wait for seek to complete
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 100;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 100;
       },
       { timeout: 5000 }
     );
 
     // Get initial frame number
-    const initialFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const initialText = await frameCounter.textContent();
+    const initialFrame = parseInt(initialText?.match(/Frame (\d+)/)?.[1] || '0');
 
     expect(initialFrame).toBe(100);
 
@@ -102,8 +100,10 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
     // Wait for frame to update to EXACTLY initialFrame + 1
     await page.waitForFunction(
       (expected) => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === expected;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === expected;
       },
       initialFrame + 1,
       { timeout: 2000 }
@@ -112,10 +112,8 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
     const latency = Date.now() - startTime;
 
     // Get final frame number
-    const finalFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const finalText = await frameCounter.textContent();
+    const finalFrame = parseInt(finalText?.match(/Frame (\d+)/)?.[1] || '0');
 
     // Verify EXACT frame accuracy (0 tolerance - non-negotiable)
     expect(finalFrame).toBe(initialFrame + 1);
@@ -138,26 +136,26 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
      * Validates: REQ-F-FRAME-001 (fine stepping backward) with EXACT accuracy
      * Acceptance Criteria: Fine step backward button moves EXACTLY 1 frame back (0 tolerance)
      */
-    const stepBackward = page.locator('[data-testid="step-backward-fine"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const stepBackward = page.locator('[data-testid="step-backward-fine-a"]');
 
     // Seek to frame 100
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(100);
-    });
+    const scrubBar = page.locator('[data-testid="scrub-bar-a"]');
+    await scrubBar.fill('100');
+    await scrubBar.dispatchEvent('mouseup');
 
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 100;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 100;
       },
       { timeout: 5000 }
     );
 
-    const beforeFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const beforeText = await frameCounter.textContent();
+    const beforeFrame = parseInt(beforeText?.match(/Frame (\d+)/)?.[1] || '0');
 
     expect(beforeFrame).toBe(100);
 
@@ -167,17 +165,17 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
     // Wait for EXACT frame update
     await page.waitForFunction(
       (expected) => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === expected;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === expected;
       },
       beforeFrame - 1,
       { timeout: 2000 }
     );
 
-    const afterFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const afterText = await frameCounter.textContent();
+    const afterFrame = parseInt(afterText?.match(/Frame (\d+)/)?.[1] || '0');
 
     // Verify EXACT backward step (0 tolerance)
     expect(afterFrame).toBe(beforeFrame - 1);
@@ -190,26 +188,26 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
      * Validates: REQ-F-FRAME-001 (coarse stepping) with EXACT accuracy
      * Acceptance Criteria: Coarse step forward button advances EXACTLY 5 frames (0 tolerance)
      */
-    const stepButton = page.locator('[data-testid="step-forward-coarse"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const stepButton = page.locator('[data-testid="step-forward-coarse-a"]');
 
     // Seek to frame 100
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(100);
-    });
+    const scrubBar = page.locator('[data-testid="scrub-bar-a"]');
+    await scrubBar.fill('100');
+    await scrubBar.dispatchEvent('mouseup');
 
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 100;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 100;
       },
       { timeout: 5000 }
     );
 
-    const initialFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const initialText = await frameCounter.textContent();
+    const initialFrame = parseInt(initialText?.match(/Frame (\d+)/)?.[1] || '0');
 
     expect(initialFrame).toBe(100);
 
@@ -218,17 +216,17 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
     // Wait for EXACT 5-frame advance
     await page.waitForFunction(
       (expected) => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === expected;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === expected;
       },
       initialFrame + 5,
       { timeout: 5000 }
     );
 
-    const finalFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const finalText = await frameCounter.textContent();
+    const finalFrame = parseInt(finalText?.match(/Frame (\d+)/)?.[1] || '0');
 
     // Verify EXACT coarse step (0 tolerance)
     expect(finalFrame).toBe(initialFrame + 5);
@@ -240,26 +238,26 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
     /**
      * Validates: REQ-F-FRAME-001 (coarse stepping backward) with EXACT accuracy
      */
-    const stepBackward = page.locator('[data-testid="step-backward-coarse"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const stepBackward = page.locator('[data-testid="step-backward-coarse-a"]');
 
     // Seek to frame 100
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(100);
-    });
+    const scrubBar = page.locator('[data-testid="scrub-bar-a"]');
+    await scrubBar.fill('100');
+    await scrubBar.dispatchEvent('mouseup');
 
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 100;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 100;
       },
       { timeout: 5000 }
     );
 
-    const beforeFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const beforeText = await frameCounter.textContent();
+    const beforeFrame = parseInt(beforeText?.match(/Frame (\d+)/)?.[1] || '0');
 
     expect(beforeFrame).toBe(100);
 
@@ -268,17 +266,17 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
     // Wait for EXACT 5-frame backward movement
     await page.waitForFunction(
       (expected) => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === expected;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === expected;
       },
       beforeFrame - 5,
       { timeout: 5000 }
     );
 
-    const afterFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const afterText = await frameCounter.textContent();
+    const afterFrame = parseInt(afterText?.match(/Frame (\d+)/)?.[1] || '0');
 
     // Verify EXACT coarse step backward (0 tolerance)
     expect(afterFrame).toBe(beforeFrame - 5);
@@ -291,26 +289,26 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
      * Validates: REQ-F-FRAME-002
      * Acceptance Criteria: Counter updates in real-time during playback with EXACT accuracy
      */
-    const playButton = page.locator('[data-testid="play-pause"]');
+    const frameCounter = page.locator('[data-testid="frame-counter-a"]');
+    const playButton = page.locator('[data-testid="play-pause-a"]');
 
     // Seek to frame 10
-    await page.evaluate(async () => {
-      const api = (window as any).__webCodecsTestAPI;
-      await api.seekToFrame(10);
-    });
+    const scrubBar = page.locator('[data-testid="scrub-bar-a"]');
+    await scrubBar.fill('10');
+    await scrubBar.dispatchEvent('mouseup');
 
     await page.waitForFunction(
       () => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() === 10;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame === 10;
       },
       { timeout: 5000 }
     );
 
-    const initialFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const initialText = await frameCounter.textContent();
+    const initialFrame = parseInt(initialText?.match(/Frame (\d+)/)?.[1] || '0');
 
     expect(initialFrame).toBe(10);
 
@@ -320,8 +318,10 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
     // Wait for frames to advance during playback (at least 10 frames at 30fps ≈ 333ms)
     await page.waitForFunction(
       (initial) => {
-        const api = (window as any).__webCodecsTestAPI;
-        return api.getCurrentFrame() >= initial + 10;
+        const counter = document.querySelector('[data-testid="frame-counter-a"]');
+        const text = counter?.textContent || '';
+        const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || '0');
+        return currentFrame >= initial + 10;
       },
       initialFrame,
       { timeout: 3000 }
@@ -330,10 +330,8 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
     // Pause
     await playButton.click();
 
-    const finalFrame = await page.evaluate(() => {
-      const api = (window as any).__webCodecsTestAPI;
-      return api.getCurrentFrame();
-    });
+    const finalText = await frameCounter.textContent();
+    const finalFrame = parseInt(finalText?.match(/Frame (\d+)/)?.[1] || '0');
 
     // Verify frames advanced during playback
     expect(finalFrame).toBeGreaterThan(initialFrame);

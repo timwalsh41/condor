@@ -46,7 +46,7 @@ npx playwright test --project=chrome
 npx playwright test test_frame_stepping.spec.ts
 npx playwright test --grep "step forward"
 
-DISPLAY=:99 timeout 180 npx playwright test test_canvas_overlay.spec.ts --reporter=list
+DISPLAY=:99 timeout 600 npx playwright test --reporter=list
 ```
 
 ### Manual Tests

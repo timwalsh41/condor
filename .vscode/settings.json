@@ -25,5 +25,7 @@
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "editor.tabCompletion": "on",
-  "editor.inlineSuggest.enabled": true
+  "editor.inlineSuggest.enabled": true,
+  "plantuml.server": "http://localhost:8080",
+  "plantuml.render": "PlantUMLServer"
 }

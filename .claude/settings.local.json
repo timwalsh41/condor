@@ -51,5 +51,10 @@
       "mcp__serena__read_memory"
     ],
     "deny": []
+  },
+  "statusLine": {
+    "type": "command",
+    "command": ".claude/hooks/status-line.sh",
+    "padding": 0
   }
 }

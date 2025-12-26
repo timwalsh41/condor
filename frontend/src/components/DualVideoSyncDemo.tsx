@@ -3,7 +3,10 @@ import { Stage, Layer, Line, Arrow, Ellipse, Rect } from "react-konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { useVideoAnnotations } from "../hooks/useVideoAnnotations";
 import type { Point, AnnotationType } from "../types/annotations";
-import { checkWebCodecsSupport, getBrowserCodecSupport } from "../utils/featureDetection";
+import {
+  checkWebCodecsSupport,
+  getBrowserCodecSupport,
+} from "../utils/featureDetection";
 import {
   initializePlayhead,
   advancePlayhead,
@@ -22,6 +25,12 @@ import {
  *
  * Phase 0, Task 0.4 deliverable.
  */
+
+// Control point sizing configuration
+const CONTROL_POINT_SIZE = 12; // Visual size of control point square in pixels
+const CONTROL_POINT_HIT_SCALE = 1.5; // Hit detection area scale factor (1.5x = 18px)
+const CONTROL_POINT_HIT_SIZE = CONTROL_POINT_SIZE * CONTROL_POINT_HIT_SCALE;
+
 export function DualVideoSyncDemo() {
   // File state
   const [fileA, setFileA] = useState<File | null>(null);
@@ -642,7 +651,7 @@ export function DualVideoSyncDemo() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
-      <h1>Dual Video Synchronization Demo</h1>
+      <h1>The Condor: Dual Video Synchronization Demo</h1>
       <p>
         Synchronized dual-video playback with WebCodecs. Set sync points in SYNC
         mode, then analyze with unified controls in PLAYBACK mode.
@@ -755,8 +764,12 @@ export function DualVideoSyncDemo() {
                 fontFamily: "monospace",
               }}
             >
-              <div><strong>Video Information:</strong></div>
-              <div>Codec: {(videoA.metadata || videoA.earlyMetadata)!.codec}</div>
+              <div>
+                <strong>Video Information:</strong>
+              </div>
+              <div>
+                Codec: {(videoA.metadata || videoA.earlyMetadata)!.codec}
+              </div>
               <div>
                 Resolution: {(videoA.metadata || videoA.earlyMetadata)!.width}x
                 {(videoA.metadata || videoA.earlyMetadata)!.height}
@@ -764,11 +777,10 @@ export function DualVideoSyncDemo() {
               {videoA.metadata && (
                 <>
                   <div>Duration: {videoA.metadata.duration.toFixed(1)}s</div>
-                  <div>File size: {videoA.metadata.fileSizeMB.toFixed(1)}MB</div>
+                  <div>
+                    File size: {videoA.metadata.fileSizeMB.toFixed(1)}MB
+                  </div>
                 </>
-              )}
-              {fileA && (
-                <div>File size: {(fileA.size / 1024 / 1024).toFixed(1)}MB</div>
               )}
             </div>
           )}
@@ -837,8 +849,12 @@ export function DualVideoSyncDemo() {
                 fontFamily: "monospace",
               }}
             >
-              <div><strong>Video Information:</strong></div>
-              <div>Codec: {(videoB.metadata || videoB.earlyMetadata)!.codec}</div>
+              <div>
+                <strong>Video Information:</strong>
+              </div>
+              <div>
+                Codec: {(videoB.metadata || videoB.earlyMetadata)!.codec}
+              </div>
               <div>
                 Resolution: {(videoB.metadata || videoB.earlyMetadata)!.width}x
                 {(videoB.metadata || videoB.earlyMetadata)!.height}
@@ -846,11 +862,10 @@ export function DualVideoSyncDemo() {
               {videoB.metadata && (
                 <>
                   <div>Duration: {videoB.metadata.duration.toFixed(1)}s</div>
-                  <div>File size: {videoB.metadata.fileSizeMB.toFixed(1)}MB</div>
+                  <div>
+                    File size: {videoB.metadata.fileSizeMB.toFixed(1)}MB
+                  </div>
                 </>
-              )}
-              {fileB && (
-                <div>File size: {(fileB.size / 1024 / 1024).toFixed(1)}MB</div>
               )}
             </div>
           )}
@@ -912,419 +927,442 @@ export function DualVideoSyncDemo() {
                     // Calculate display dimensions based on rotation
                     const rotation = videoA.metadata.rotation || 0;
                     const isRotated = rotation === 90 || rotation === 270;
-                    const baseDisplayWidth = isRotated ? videoA.metadata.height : videoA.metadata.width;
-                    const baseDisplayHeight = isRotated ? videoA.metadata.width : videoA.metadata.height;
-                    
+                    const baseDisplayWidth = isRotated
+                      ? videoA.metadata.height
+                      : videoA.metadata.width;
+                    const baseDisplayHeight = isRotated
+                      ? videoA.metadata.width
+                      : videoA.metadata.height;
+
                     // Scale down if height exceeds max
                     const maxHeight = 1280;
-                    const scale = baseDisplayHeight > maxHeight ? maxHeight / baseDisplayHeight : 1;
+                    const scale =
+                      baseDisplayHeight > maxHeight
+                        ? maxHeight / baseDisplayHeight
+                        : 1;
                     const displayWidth = baseDisplayWidth * scale;
                     const displayHeight = baseDisplayHeight * scale;
-                    
+
                     const canvasWidth = videoA.metadata.width;
                     const canvasHeight = videoA.metadata.height;
 
                     return (
-                  <div
-                    style={{
-                      border: "2px solid #333",
-                      backgroundColor: "#000",
-                      position: "relative",
-                      width: `${displayWidth}px`,
-                      height: `${displayHeight}px`,
-                      maxWidth: "100%",
-                    }}
-                  >
-                    {/* Container with explicit dimensions and scale transform */}
-                    <div
-                      style={{
-                        position: "relative",
-                        width: `${baseDisplayWidth}px`,
-                        height: `${baseDisplayHeight}px`,
-                        transform: `scale(${scale})`,
-                        transformOrigin: "top left",
-                        overflow: "hidden",
-                      }}
-                    >
-                    {/* Video canvas with rotation */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        width: `${canvasWidth}px`,
-                        height: `${canvasHeight}px`,
-                        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-                        transformOrigin: "center center",
-                      }}
-                    >
-                      <canvas
-                        ref={videoA.canvasRef}
-                        data-testid="video-canvas-a"
+                      <div
                         style={{
-                          display: "block",
-                          width: "100%",
-                          height: "100%",
+                          border: "2px solid #333",
+                          backgroundColor: "#000",
+                          position: "relative",
+                          width: `${displayWidth}px`,
+                          height: `${displayHeight}px`,
+                          maxWidth: "100%",
                         }}
-                      />
-                    </div>
-                      {/* Annotation overlay canvas - independent of rotation */}
-                      {videoA.metadata && (
+                      >
+                        {/* Container with explicit dimensions and scale transform */}
                         <div
-                          data-testid="annotation-container-a"
                           style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: "100%",
-                            pointerEvents: "auto", // Enable mouse events
+                            position: "relative",
+                            width: `${baseDisplayWidth}px`,
+                            height: `${baseDisplayHeight}px`,
+                            transform: `scale(${scale})`,
+                            transformOrigin: "top left",
                             overflow: "hidden",
                           }}
                         >
+                          {/* Video canvas with rotation */}
                           <div
                             style={{
-                              transform: `scale(${annotationScaleA})`,
-                              transformOrigin: "top left",
+                              position: "absolute",
+                              top: "50%",
+                              left: "50%",
+                              width: `${canvasWidth}px`,
+                              height: `${canvasHeight}px`,
+                              transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                              transformOrigin: "center center",
                             }}
                           >
-                            <Stage
-                              width={baseDisplayWidth}
-                              height={baseDisplayHeight}
-                            onMouseDown={handlersA.handleMouseDown}
-                            onMouseMove={
-                              isDraggingAnnotationA || isReshapingAnnotationA
-                                ? handlersA.handleStageMouseMove
-                                : handlersA.handleMouseMove
-                            }
-                            onMouseUp={
-                              isDraggingAnnotationA || isReshapingAnnotationA
-                                ? handlersA.handleStageMouseUp
-                                : handlersA.handleMouseUp
-                            }
-                            onMouseLeave={
-                              isDraggingAnnotationA || isReshapingAnnotationA
-                                ? handlersA.handleStageMouseUp
-                                : handlersA.handleMouseUp
-                            } // Finish drawing/drag/reshape if mouse leaves canvas
-                            onClick={handlersA.handleClick}
-                            onDblClick={handlersA.handleDoubleClick}
-                          >
-                            <Layer>
-                              {/* Render completed annotations */}
-                              {annotationsA.map((annotation) => {
-                                const isSelected = selectedIdsA.has(
-                                  annotation.id
-                                );
-                                const canDrag =
-                                  isSelected && drawingStateA.mode === "idle";
-                                const cursorStyle = canDrag
-                                  ? "move"
-                                  : "pointer";
-                                switch (annotation.type) {
-                                  case "freehand":
-                                  case "polyline":
-                                    return (
-                                      <>
-                                        <Line
-                                          key={annotation.id}
-                                          points={pointsToKonva(
-                                            annotation.points
-                                          )}
-                                          stroke={annotation.color}
-                                          strokeWidth={annotation.strokeWidth}
-                                          lineCap="round"
-                                          lineJoin="round"
-                                          tension={
-                                            annotation.type === "freehand"
-                                              ? 0.5
-                                              : 0
-                                          }
-                                          hitStrokeWidth={20}
-                                          cursor={cursorStyle}
-                                          onClick={(e) =>
-                                            handlersA.handleAnnotationClick(
-                                              annotation.id,
-                                              e
-                                            )
-                                          }
-                                          onMouseDown={(e) => {
-                                            if (canDrag) {
-                                              handlersA.handleAnnotationDragStart(
-                                                annotation.id,
-                                                e
-                                              );
-                                            }
-                                          }}
-                                        />
-                                        {/* Render control points if selected */}
-                                        {isSelected &&
-                                          getControlPoints(annotation).map(
-                                            (point, idx) => (
-                                              <Rect
-                                                key={`cp-${annotation.id}-${idx}`}
-                                                x={point.x - 4}
-                                                y={point.y - 4}
-                                                width={8}
-                                                height={8}
-                                                fill="white"
-                                                stroke="black"
-                                                strokeWidth={1}
-                                                cursor="pointer"
-                                                onClick={(e) => {
-                                                  e.cancelBubble = true;
-                                                }}
-                                                onMouseDown={(e) => {
-                                                  handlersA.handleControlPointMouseDown(
-                                                    annotation.id,
-                                                    idx,
-                                                    e
-                                                  );
-                                                }}
-                                              />
-                                            )
-                                          )}
-                                      </>
-                                    );
-                                  case "oval": {
-                                    // Points format: [start, end] where each is {x, y}
-                                    const start = annotation.points[0];
-                                    const end = annotation.points[1];
-                                    const centerX = (start.x + end.x) / 2;
-                                    const centerY = (start.y + end.y) / 2;
-                                    const radiusX =
-                                      Math.abs(end.x - start.x) / 2;
-                                    const radiusY =
-                                      Math.abs(end.y - start.y) / 2;
-                                    return (
-                                      <>
-                                        <Ellipse
-                                          key={annotation.id}
-                                          x={centerX}
-                                          y={centerY}
-                                          radiusX={radiusX}
-                                          radiusY={radiusY}
-                                          stroke={annotation.color}
-                                          strokeWidth={annotation.strokeWidth}
-                                          cursor={cursorStyle}
-                                          onClick={(e) =>
-                                            handlersA.handleAnnotationClick(
-                                              annotation.id,
-                                              e
-                                            )
-                                          }
-                                          onMouseDown={(e) => {
-                                            if (canDrag) {
-                                              handlersA.handleAnnotationDragStart(
-                                                annotation.id,
-                                                e
-                                              );
-                                            }
-                                          }}
-                                        />
-                                        {/* Render control points if selected */}
-                                        {isSelected &&
-                                          getControlPoints(annotation).map(
-                                            (point, idx) => (
-                                              <Rect
-                                                key={`cp-${annotation.id}-${idx}`}
-                                                x={point.x - 4}
-                                                y={point.y - 4}
-                                                width={8}
-                                                height={8}
-                                                fill="white"
-                                                stroke="black"
-                                                strokeWidth={1}
-                                                cursor="pointer"
-                                                onClick={(e) => {
-                                                  e.cancelBubble = true;
-                                                }}
-                                                onMouseDown={(e) => {
-                                                  handlersA.handleControlPointMouseDown(
-                                                    annotation.id,
-                                                    idx,
-                                                    e
-                                                  );
-                                                }}
-                                              />
-                                            )
-                                          )}
-                                      </>
-                                    );
+                            <canvas
+                              ref={videoA.canvasRef}
+                              data-testid="video-canvas-a"
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                height: "100%",
+                              }}
+                            />
+                          </div>
+                          {/* Annotation overlay canvas - independent of rotation */}
+                          {videoA.metadata && (
+                            <div
+                              data-testid="annotation-container-a"
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                height: "100%",
+                                pointerEvents: "auto", // Enable mouse events
+                                overflow: "hidden",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  transform: `scale(${annotationScaleA})`,
+                                  transformOrigin: "top left",
+                                }}
+                              >
+                                <Stage
+                                  width={baseDisplayWidth}
+                                  height={baseDisplayHeight}
+                                  onMouseDown={handlersA.handleMouseDown}
+                                  onMouseMove={
+                                    isDraggingAnnotationA ||
+                                    isReshapingAnnotationA
+                                      ? handlersA.handleStageMouseMove
+                                      : handlersA.handleMouseMove
                                   }
-                                  case "arrow":
-                                    return (
-                                      <>
-                                        <Arrow
-                                          key={annotation.id}
-                                          points={pointsToKonva(
-                                            annotation.points
-                                          )}
-                                          stroke={annotation.color}
-                                          strokeWidth={annotation.strokeWidth}
-                                          fill={annotation.color}
-                                          pointerLength={10}
-                                          pointerWidth={10}
-                                          hitStrokeWidth={20}
-                                          cursor={cursorStyle}
-                                          onClick={(e) =>
-                                            handlersA.handleAnnotationClick(
-                                              annotation.id,
-                                              e
-                                            )
-                                          }
-                                          onMouseDown={(e) => {
-                                            if (canDrag) {
-                                              handlersA.handleAnnotationDragStart(
-                                                annotation.id,
-                                                e
-                                              );
-                                            }
-                                          }}
-                                        />
-                                        {/* Render control points if selected */}
-                                        {isSelected &&
-                                          getControlPoints(annotation).map(
-                                            (point, idx) => (
-                                              <Rect
-                                                key={`cp-${annotation.id}-${idx}`}
-                                                x={point.x - 4}
-                                                y={point.y - 4}
-                                                width={8}
-                                                height={8}
-                                                fill="white"
-                                                stroke="black"
-                                                strokeWidth={1}
-                                                cursor="pointer"
-                                                onClick={(e) => {
-                                                  e.cancelBubble = true;
-                                                }}
-                                                onMouseDown={(e) => {
-                                                  handlersA.handleControlPointMouseDown(
+                                  onMouseUp={
+                                    isDraggingAnnotationA ||
+                                    isReshapingAnnotationA
+                                      ? handlersA.handleStageMouseUp
+                                      : handlersA.handleMouseUp
+                                  }
+                                  onMouseLeave={
+                                    isDraggingAnnotationA ||
+                                    isReshapingAnnotationA
+                                      ? handlersA.handleStageMouseUp
+                                      : handlersA.handleMouseUp
+                                  } // Finish drawing/drag/reshape if mouse leaves canvas
+                                  onClick={handlersA.handleClick}
+                                  onDblClick={handlersA.handleDoubleClick}
+                                >
+                                  <Layer>
+                                    {/* Render completed annotations */}
+                                    {annotationsA.map((annotation) => {
+                                      const isSelected = selectedIdsA.has(
+                                        annotation.id
+                                      );
+                                      const canDrag =
+                                        isSelected &&
+                                        drawingStateA.mode === "idle";
+                                      const cursorStyle = canDrag
+                                        ? "move"
+                                        : "pointer";
+                                      switch (annotation.type) {
+                                        case "freehand":
+                                        case "polyline":
+                                          return (
+                                            <>
+                                              <Line
+                                                key={annotation.id}
+                                                points={pointsToKonva(
+                                                  annotation.points
+                                                )}
+                                                stroke={annotation.color}
+                                                strokeWidth={
+                                                  annotation.strokeWidth
+                                                }
+                                                lineCap="round"
+                                                lineJoin="round"
+                                                tension={
+                                                  annotation.type === "freehand"
+                                                    ? 0.5
+                                                    : 0
+                                                }
+                                                hitStrokeWidth={20}
+                                                cursor={cursorStyle}
+                                                onClick={(e) =>
+                                                  handlersA.handleAnnotationClick(
                                                     annotation.id,
-                                                    idx,
                                                     e
-                                                  );
+                                                  )
+                                                }
+                                                onMouseDown={(e) => {
+                                                  if (canDrag) {
+                                                    handlersA.handleAnnotationDragStart(
+                                                      annotation.id,
+                                                      e
+                                                    );
+                                                  }
                                                 }}
                                               />
-                                            )
-                                          )}
-                                      </>
-                                    );
-                                  default:
-                                    return null;
-                                }
-                              })}
-
-                              {/* Render live preview during drawing */}
-                              {drawingStateA.mode === "drag-drawing" &&
-                                drawingStateA.points.length >= 2 && (
-                                  <>
-                                    {drawingStateA.tool === "freehand" && (
-                                      <Line
-                                        points={
-                                          annotationManagerA.getPreviewPoints()!
+                                              {/* Render control points if selected */}
+                                              {isSelected &&
+                                                getControlPoints(
+                                                  annotation
+                                                ).map((point, idx) => (
+                                                  <Rect
+                                                    key={`cp-${annotation.id}-${idx}`}
+                                                    x={point.x - CONTROL_POINT_SIZE / 2}
+                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    width={CONTROL_POINT_SIZE}
+                                                    height={CONTROL_POINT_SIZE}
+                                                    fill="white"
+                                                    stroke="black"
+                                                    strokeWidth={1}
+                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    cursor="pointer"
+                                                    onClick={(e) => {
+                                                      e.cancelBubble = true;
+                                                    }}
+                                                    onMouseDown={(e) => {
+                                                      handlersA.handleControlPointMouseDown(
+                                                        annotation.id,
+                                                        idx,
+                                                        e
+                                                      );
+                                                    }}
+                                                  />
+                                                ))}
+                                            </>
+                                          );
+                                        case "oval": {
+                                          // Points format: [start, end] where each is {x, y}
+                                          const start = annotation.points[0];
+                                          const end = annotation.points[1];
+                                          const centerX = (start.x + end.x) / 2;
+                                          const centerY = (start.y + end.y) / 2;
+                                          const radiusX =
+                                            Math.abs(end.x - start.x) / 2;
+                                          const radiusY =
+                                            Math.abs(end.y - start.y) / 2;
+                                          return (
+                                            <>
+                                              <Ellipse
+                                                key={annotation.id}
+                                                x={centerX}
+                                                y={centerY}
+                                                radiusX={radiusX}
+                                                radiusY={radiusY}
+                                                stroke={annotation.color}
+                                                strokeWidth={
+                                                  annotation.strokeWidth
+                                                }
+                                                cursor={cursorStyle}
+                                                onClick={(e) =>
+                                                  handlersA.handleAnnotationClick(
+                                                    annotation.id,
+                                                    e
+                                                  )
+                                                }
+                                                onMouseDown={(e) => {
+                                                  if (canDrag) {
+                                                    handlersA.handleAnnotationDragStart(
+                                                      annotation.id,
+                                                      e
+                                                    );
+                                                  }
+                                                }}
+                                              />
+                                              {/* Render control points if selected */}
+                                              {isSelected &&
+                                                getControlPoints(
+                                                  annotation
+                                                ).map((point, idx) => (
+                                                  <Rect
+                                                    key={`cp-${annotation.id}-${idx}`}
+                                                    x={point.x - CONTROL_POINT_SIZE / 2}
+                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    width={CONTROL_POINT_SIZE}
+                                                    height={CONTROL_POINT_SIZE}
+                                                    fill="white"
+                                                    stroke="black"
+                                                    strokeWidth={1}
+                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    cursor="pointer"
+                                                    onClick={(e) => {
+                                                      e.cancelBubble = true;
+                                                    }}
+                                                    onMouseDown={(e) => {
+                                                      handlersA.handleControlPointMouseDown(
+                                                        annotation.id,
+                                                        idx,
+                                                        e
+                                                      );
+                                                    }}
+                                                  />
+                                                ))}
+                                            </>
+                                          );
                                         }
-                                        stroke="#FF0000"
-                                        strokeWidth={6}
-                                        lineCap="round"
-                                        lineJoin="round"
-                                        tension={0.5}
-                                        listening={false}
-                                      />
-                                    )}
-                                    {drawingStateA.tool === "oval" &&
-                                      drawingStateA.points.length === 2 && (
-                                        <Ellipse
-                                          x={
-                                            (drawingStateA.points[0].x +
-                                              drawingStateA.points[1].x) /
-                                            2
-                                          }
-                                          y={
-                                            (drawingStateA.points[0].y +
-                                              drawingStateA.points[1].y) /
-                                            2
-                                          }
-                                          radiusX={
-                                            Math.abs(
-                                              drawingStateA.points[1].x -
-                                                drawingStateA.points[0].x
-                                            ) / 2
-                                          }
-                                          radiusY={
-                                            Math.abs(
-                                              drawingStateA.points[1].y -
-                                                drawingStateA.points[0].y
-                                            ) / 2
-                                          }
-                                          stroke="#FF0000"
-                                          strokeWidth={6}
-                                          listening={false}
-                                        />
+                                        case "arrow":
+                                          return (
+                                            <>
+                                              <Arrow
+                                                key={annotation.id}
+                                                points={pointsToKonva(
+                                                  annotation.points
+                                                )}
+                                                stroke={annotation.color}
+                                                strokeWidth={
+                                                  annotation.strokeWidth
+                                                }
+                                                fill={annotation.color}
+                                                pointerLength={10}
+                                                pointerWidth={10}
+                                                hitStrokeWidth={20}
+                                                cursor={cursorStyle}
+                                                onClick={(e) =>
+                                                  handlersA.handleAnnotationClick(
+                                                    annotation.id,
+                                                    e
+                                                  )
+                                                }
+                                                onMouseDown={(e) => {
+                                                  if (canDrag) {
+                                                    handlersA.handleAnnotationDragStart(
+                                                      annotation.id,
+                                                      e
+                                                    );
+                                                  }
+                                                }}
+                                              />
+                                              {/* Render control points if selected */}
+                                              {isSelected &&
+                                                getControlPoints(
+                                                  annotation
+                                                ).map((point, idx) => (
+                                                  <Rect
+                                                    key={`cp-${annotation.id}-${idx}`}
+                                                    x={point.x - CONTROL_POINT_SIZE / 2}
+                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    width={CONTROL_POINT_SIZE}
+                                                    height={CONTROL_POINT_SIZE}
+                                                    fill="white"
+                                                    stroke="black"
+                                                    strokeWidth={1}
+                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    cursor="pointer"
+                                                    onClick={(e) => {
+                                                      e.cancelBubble = true;
+                                                    }}
+                                                    onMouseDown={(e) => {
+                                                      handlersA.handleControlPointMouseDown(
+                                                        annotation.id,
+                                                        idx,
+                                                        e
+                                                      );
+                                                    }}
+                                                  />
+                                                ))}
+                                            </>
+                                          );
+                                        default:
+                                          return null;
+                                      }
+                                    })}
+
+                                    {/* Render live preview during drawing */}
+                                    {drawingStateA.mode === "drag-drawing" &&
+                                      drawingStateA.points.length >= 2 && (
+                                        <>
+                                          {drawingStateA.tool ===
+                                            "freehand" && (
+                                            <Line
+                                              points={
+                                                annotationManagerA.getPreviewPoints()!
+                                              }
+                                              stroke="#FF0000"
+                                              strokeWidth={6}
+                                              lineCap="round"
+                                              lineJoin="round"
+                                              tension={0.5}
+                                              listening={false}
+                                            />
+                                          )}
+                                          {drawingStateA.tool === "oval" &&
+                                            drawingStateA.points.length ===
+                                              2 && (
+                                              <Ellipse
+                                                x={
+                                                  (drawingStateA.points[0].x +
+                                                    drawingStateA.points[1].x) /
+                                                  2
+                                                }
+                                                y={
+                                                  (drawingStateA.points[0].y +
+                                                    drawingStateA.points[1].y) /
+                                                  2
+                                                }
+                                                radiusX={
+                                                  Math.abs(
+                                                    drawingStateA.points[1].x -
+                                                      drawingStateA.points[0].x
+                                                  ) / 2
+                                                }
+                                                radiusY={
+                                                  Math.abs(
+                                                    drawingStateA.points[1].y -
+                                                      drawingStateA.points[0].y
+                                                  ) / 2
+                                                }
+                                                stroke="#FF0000"
+                                                strokeWidth={6}
+                                                listening={false}
+                                              />
+                                            )}
+                                          {drawingStateA.tool === "arrow" &&
+                                            drawingStateA.points.length ===
+                                              2 && (
+                                              <Arrow
+                                                points={
+                                                  annotationManagerA.getPreviewPoints()!
+                                                }
+                                                stroke="#FF0000"
+                                                strokeWidth={6}
+                                                fill="#FF0000"
+                                                pointerLength={10}
+                                                pointerWidth={10}
+                                                listening={false}
+                                              />
+                                            )}
+                                        </>
                                       )}
-                                    {drawingStateA.tool === "arrow" &&
-                                      drawingStateA.points.length === 2 && (
-                                        <Arrow
+
+                                    {/* Render polyline in progress */}
+                                    {drawingStateA.mode === "polyline-active" &&
+                                      drawingStateA.points.length >= 2 && (
+                                        <Line
                                           points={
                                             annotationManagerA.getPreviewPoints()!
                                           }
                                           stroke="#FF0000"
                                           strokeWidth={6}
-                                          fill="#FF0000"
-                                          pointerLength={10}
-                                          pointerWidth={10}
+                                          lineCap="round"
+                                          lineJoin="round"
                                           listening={false}
                                         />
                                       )}
-                                  </>
-                                )}
 
-                              {/* Render polyline in progress */}
-                              {drawingStateA.mode === "polyline-active" &&
-                                drawingStateA.points.length >= 2 && (
-                                  <Line
-                                    points={
-                                      annotationManagerA.getPreviewPoints()!
-                                    }
-                                    stroke="#FF0000"
-                                    strokeWidth={6}
-                                    lineCap="round"
-                                    lineJoin="round"
-                                    listening={false}
-                                  />
-                                )}
-
-                              {/* Render polyline preview segment (last vertex to mouse cursor) */}
-                              {drawingStateA.mode === "polyline-active" &&
-                                polylineMousePosA &&
-                                drawingStateA.points.length >= 1 && (
-                                  <Line
-                                    points={[
-                                      drawingStateA.points[
-                                        drawingStateA.points.length - 1
-                                      ].x,
-                                      drawingStateA.points[
-                                        drawingStateA.points.length - 1
-                                      ].y,
-                                      polylineMousePosA.x,
-                                      polylineMousePosA.y,
-                                    ]}
-                                    stroke="#FF0000"
-                                    strokeWidth={6}
-                                    lineCap="round"
-                                    lineJoin="round"
-                                    opacity={0.6}
-                                    listening={false}
-                                  />
-                                )}
-                            </Layer>
-                          </Stage>
+                                    {/* Render polyline preview segment (last vertex to mouse cursor) */}
+                                    {drawingStateA.mode === "polyline-active" &&
+                                      polylineMousePosA &&
+                                      drawingStateA.points.length >= 1 && (
+                                        <Line
+                                          points={[
+                                            drawingStateA.points[
+                                              drawingStateA.points.length - 1
+                                            ].x,
+                                            drawingStateA.points[
+                                              drawingStateA.points.length - 1
+                                            ].y,
+                                            polylineMousePosA.x,
+                                            polylineMousePosA.y,
+                                          ]}
+                                          stroke="#FF0000"
+                                          strokeWidth={6}
+                                          lineCap="round"
+                                          lineJoin="round"
+                                          opacity={0.6}
+                                          listening={false}
+                                        />
+                                      )}
+                                  </Layer>
+                                </Stage>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
-                    </div>
-                  </div>
                     );
                   })()}
                   <div
@@ -1363,419 +1401,442 @@ export function DualVideoSyncDemo() {
                     // Calculate display dimensions based on rotation
                     const rotation = videoB.metadata.rotation || 0;
                     const isRotated = rotation === 90 || rotation === 270;
-                    const baseDisplayWidth = isRotated ? videoB.metadata.height : videoB.metadata.width;
-                    const baseDisplayHeight = isRotated ? videoB.metadata.width : videoB.metadata.height;
-                    
+                    const baseDisplayWidth = isRotated
+                      ? videoB.metadata.height
+                      : videoB.metadata.width;
+                    const baseDisplayHeight = isRotated
+                      ? videoB.metadata.width
+                      : videoB.metadata.height;
+
                     // Scale down if height exceeds max
                     const maxHeight = 1280;
-                    const scale = baseDisplayHeight > maxHeight ? maxHeight / baseDisplayHeight : 1;
+                    const scale =
+                      baseDisplayHeight > maxHeight
+                        ? maxHeight / baseDisplayHeight
+                        : 1;
                     const displayWidth = baseDisplayWidth * scale;
                     const displayHeight = baseDisplayHeight * scale;
-                    
+
                     const canvasWidth = videoB.metadata.width;
                     const canvasHeight = videoB.metadata.height;
 
                     return (
-                  <div
-                    style={{
-                      border: "2px solid #333",
-                      backgroundColor: "#000",
-                      position: "relative",
-                      width: `${displayWidth}px`,
-                      height: `${displayHeight}px`,
-                      maxWidth: "100%",
-                    }}
-                  >
-                    {/* Container with explicit dimensions and scale transform */}
-                    <div
-                      style={{
-                        position: "relative",
-                        width: `${baseDisplayWidth}px`,
-                        height: `${baseDisplayHeight}px`,
-                        transform: `scale(${scale})`,
-                        transformOrigin: "top left",
-                        overflow: "hidden",
-                      }}
-                    >
-                    {/* Video canvas with rotation */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        width: `${canvasWidth}px`,
-                        height: `${canvasHeight}px`,
-                        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-                        transformOrigin: "center center",
-                      }}
-                    >
-                      <canvas
-                        ref={videoB.canvasRef}
-                        data-testid="video-canvas-b"
+                      <div
                         style={{
-                          display: "block",
-                          width: "100%",
-                          height: "100%",
+                          border: "2px solid #333",
+                          backgroundColor: "#000",
+                          position: "relative",
+                          width: `${displayWidth}px`,
+                          height: `${displayHeight}px`,
+                          maxWidth: "100%",
                         }}
-                      />
-                    </div>
-                      {/* Annotation overlay canvas - independent of rotation */}
-                      {videoB.metadata && (
+                      >
+                        {/* Container with explicit dimensions and scale transform */}
                         <div
-                          data-testid="annotation-container-b"
                           style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: "100%",
-                            pointerEvents: "auto", // Enable mouse events
+                            position: "relative",
+                            width: `${baseDisplayWidth}px`,
+                            height: `${baseDisplayHeight}px`,
+                            transform: `scale(${scale})`,
+                            transformOrigin: "top left",
                             overflow: "hidden",
                           }}
                         >
+                          {/* Video canvas with rotation */}
                           <div
                             style={{
-                              transform: `scale(${annotationScaleB})`,
-                              transformOrigin: "top left",
+                              position: "absolute",
+                              top: "50%",
+                              left: "50%",
+                              width: `${canvasWidth}px`,
+                              height: `${canvasHeight}px`,
+                              transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                              transformOrigin: "center center",
                             }}
                           >
-                            <Stage
-                              width={baseDisplayWidth}
-                              height={baseDisplayHeight}
-                            onMouseDown={handlersB.handleMouseDown}
-                            onMouseMove={
-                              isDraggingAnnotationB || isReshapingAnnotationB
-                                ? handlersB.handleStageMouseMove
-                                : handlersB.handleMouseMove
-                            }
-                            onMouseUp={
-                              isDraggingAnnotationB || isReshapingAnnotationB
-                                ? handlersB.handleStageMouseUp
-                                : handlersB.handleMouseUp
-                            }
-                            onMouseLeave={
-                              isDraggingAnnotationB || isReshapingAnnotationB
-                                ? handlersB.handleStageMouseUp
-                                : handlersB.handleMouseUp
-                            } // Finish drawing/drag/reshape if mouse leaves canvas
-                            onClick={handlersB.handleClick}
-                            onDblClick={handlersB.handleDoubleClick}
-                          >
-                            <Layer>
-                              {/* Render completed annotations */}
-                              {annotationsB.map((annotation) => {
-                                const isSelected = selectedIdsB.has(
-                                  annotation.id
-                                );
-                                const canDrag =
-                                  isSelected && drawingStateB.mode === "idle";
-                                const cursorStyle = canDrag
-                                  ? "move"
-                                  : "pointer";
-                                switch (annotation.type) {
-                                  case "freehand":
-                                  case "polyline":
-                                    return (
-                                      <>
-                                        <Line
-                                          key={annotation.id}
-                                          points={pointsToKonva(
-                                            annotation.points
-                                          )}
-                                          stroke={annotation.color}
-                                          strokeWidth={annotation.strokeWidth}
-                                          lineCap="round"
-                                          lineJoin="round"
-                                          tension={
-                                            annotation.type === "freehand"
-                                              ? 0.5
-                                              : 0
-                                          }
-                                          hitStrokeWidth={20}
-                                          cursor={cursorStyle}
-                                          onClick={(e) =>
-                                            handlersB.handleAnnotationClick(
-                                              annotation.id,
-                                              e
-                                            )
-                                          }
-                                          onMouseDown={(e) => {
-                                            if (canDrag) {
-                                              handlersB.handleAnnotationDragStart(
-                                                annotation.id,
-                                                e
-                                              );
-                                            }
-                                          }}
-                                        />
-                                        {/* Render control points if selected */}
-                                        {isSelected &&
-                                          getControlPoints(annotation).map(
-                                            (point, idx) => (
-                                              <Rect
-                                                key={`cp-${annotation.id}-${idx}`}
-                                                x={point.x - 4}
-                                                y={point.y - 4}
-                                                width={8}
-                                                height={8}
-                                                fill="white"
-                                                stroke="black"
-                                                strokeWidth={1}
-                                                cursor="pointer"
-                                                onClick={(e) => {
-                                                  e.cancelBubble = true;
-                                                }}
-                                                onMouseDown={(e) => {
-                                                  handlersB.handleControlPointMouseDown(
-                                                    annotation.id,
-                                                    idx,
-                                                    e
-                                                  );
-                                                }}
-                                              />
-                                            )
-                                          )}
-                                      </>
-                                    );
-                                  case "oval": {
-                                    // Points format: [start, end] where each is {x, y}
-                                    const start = annotation.points[0];
-                                    const end = annotation.points[1];
-                                    const centerX = (start.x + end.x) / 2;
-                                    const centerY = (start.y + end.y) / 2;
-                                    const radiusX =
-                                      Math.abs(end.x - start.x) / 2;
-                                    const radiusY =
-                                      Math.abs(end.y - start.y) / 2;
-                                    return (
-                                      <>
-                                        <Ellipse
-                                          key={annotation.id}
-                                          x={centerX}
-                                          y={centerY}
-                                          radiusX={radiusX}
-                                          radiusY={radiusY}
-                                          stroke={annotation.color}
-                                          strokeWidth={annotation.strokeWidth}
-                                          cursor={cursorStyle}
-                                          onClick={(e) =>
-                                            handlersB.handleAnnotationClick(
-                                              annotation.id,
-                                              e
-                                            )
-                                          }
-                                          onMouseDown={(e) => {
-                                            if (canDrag) {
-                                              handlersB.handleAnnotationDragStart(
-                                                annotation.id,
-                                                e
-                                              );
-                                            }
-                                          }}
-                                        />
-                                        {/* Render control points if selected */}
-                                        {isSelected &&
-                                          getControlPoints(annotation).map(
-                                            (point, idx) => (
-                                              <Rect
-                                                key={`cp-${annotation.id}-${idx}`}
-                                                x={point.x - 4}
-                                                y={point.y - 4}
-                                                width={8}
-                                                height={8}
-                                                fill="white"
-                                                stroke="black"
-                                                strokeWidth={1}
-                                                cursor="pointer"
-                                                onClick={(e) => {
-                                                  e.cancelBubble = true;
-                                                }}
-                                                onMouseDown={(e) => {
-                                                  handlersB.handleControlPointMouseDown(
-                                                    annotation.id,
-                                                    idx,
-                                                    e
-                                                  );
-                                                }}
-                                              />
-                                            )
-                                          )}
-                                      </>
-                                    );
+                            <canvas
+                              ref={videoB.canvasRef}
+                              data-testid="video-canvas-b"
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                height: "100%",
+                              }}
+                            />
+                          </div>
+                          {/* Annotation overlay canvas - independent of rotation */}
+                          {videoB.metadata && (
+                            <div
+                              data-testid="annotation-container-b"
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                height: "100%",
+                                pointerEvents: "auto", // Enable mouse events
+                                overflow: "hidden",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  transform: `scale(${annotationScaleB})`,
+                                  transformOrigin: "top left",
+                                }}
+                              >
+                                <Stage
+                                  width={baseDisplayWidth}
+                                  height={baseDisplayHeight}
+                                  onMouseDown={handlersB.handleMouseDown}
+                                  onMouseMove={
+                                    isDraggingAnnotationB ||
+                                    isReshapingAnnotationB
+                                      ? handlersB.handleStageMouseMove
+                                      : handlersB.handleMouseMove
                                   }
-                                  case "arrow":
-                                    return (
-                                      <>
-                                        <Arrow
-                                          key={annotation.id}
-                                          points={pointsToKonva(
-                                            annotation.points
-                                          )}
-                                          stroke={annotation.color}
-                                          strokeWidth={annotation.strokeWidth}
-                                          fill={annotation.color}
-                                          pointerLength={10}
-                                          pointerWidth={10}
-                                          hitStrokeWidth={20}
-                                          cursor={cursorStyle}
-                                          onClick={(e) =>
-                                            handlersB.handleAnnotationClick(
-                                              annotation.id,
-                                              e
-                                            )
-                                          }
-                                          onMouseDown={(e) => {
-                                            if (canDrag) {
-                                              handlersB.handleAnnotationDragStart(
-                                                annotation.id,
-                                                e
-                                              );
-                                            }
-                                          }}
-                                        />
-                                        {/* Render control points if selected */}
-                                        {isSelected &&
-                                          getControlPoints(annotation).map(
-                                            (point, idx) => (
-                                              <Rect
-                                                key={`cp-${annotation.id}-${idx}`}
-                                                x={point.x - 4}
-                                                y={point.y - 4}
-                                                width={8}
-                                                height={8}
-                                                fill="white"
-                                                stroke="black"
-                                                strokeWidth={1}
-                                                cursor="pointer"
-                                                onClick={(e) => {
-                                                  e.cancelBubble = true;
-                                                }}
-                                                onMouseDown={(e) => {
-                                                  handlersB.handleControlPointMouseDown(
+                                  onMouseUp={
+                                    isDraggingAnnotationB ||
+                                    isReshapingAnnotationB
+                                      ? handlersB.handleStageMouseUp
+                                      : handlersB.handleMouseUp
+                                  }
+                                  onMouseLeave={
+                                    isDraggingAnnotationB ||
+                                    isReshapingAnnotationB
+                                      ? handlersB.handleStageMouseUp
+                                      : handlersB.handleMouseUp
+                                  } // Finish drawing/drag/reshape if mouse leaves canvas
+                                  onClick={handlersB.handleClick}
+                                  onDblClick={handlersB.handleDoubleClick}
+                                >
+                                  <Layer>
+                                    {/* Render completed annotations */}
+                                    {annotationsB.map((annotation) => {
+                                      const isSelected = selectedIdsB.has(
+                                        annotation.id
+                                      );
+                                      const canDrag =
+                                        isSelected &&
+                                        drawingStateB.mode === "idle";
+                                      const cursorStyle = canDrag
+                                        ? "move"
+                                        : "pointer";
+                                      switch (annotation.type) {
+                                        case "freehand":
+                                        case "polyline":
+                                          return (
+                                            <>
+                                              <Line
+                                                key={annotation.id}
+                                                points={pointsToKonva(
+                                                  annotation.points
+                                                )}
+                                                stroke={annotation.color}
+                                                strokeWidth={
+                                                  annotation.strokeWidth
+                                                }
+                                                lineCap="round"
+                                                lineJoin="round"
+                                                tension={
+                                                  annotation.type === "freehand"
+                                                    ? 0.5
+                                                    : 0
+                                                }
+                                                hitStrokeWidth={20}
+                                                cursor={cursorStyle}
+                                                onClick={(e) =>
+                                                  handlersB.handleAnnotationClick(
                                                     annotation.id,
-                                                    idx,
                                                     e
-                                                  );
+                                                  )
+                                                }
+                                                onMouseDown={(e) => {
+                                                  if (canDrag) {
+                                                    handlersB.handleAnnotationDragStart(
+                                                      annotation.id,
+                                                      e
+                                                    );
+                                                  }
                                                 }}
                                               />
-                                            )
-                                          )}
-                                      </>
-                                    );
-                                  default:
-                                    return null;
-                                }
-                              })}
-
-                              {/* Render live preview during drawing */}
-                              {drawingStateB.mode === "drag-drawing" &&
-                                drawingStateB.points.length >= 2 && (
-                                  <>
-                                    {drawingStateB.tool === "freehand" && (
-                                      <Line
-                                        points={
-                                          annotationManagerB.getPreviewPoints()!
+                                              {/* Render control points if selected */}
+                                              {isSelected &&
+                                                getControlPoints(
+                                                  annotation
+                                                ).map((point, idx) => (
+                                                  <Rect
+                                                    key={`cp-${annotation.id}-${idx}`}
+                                                    x={point.x - CONTROL_POINT_SIZE / 2}
+                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    width={CONTROL_POINT_SIZE}
+                                                    height={CONTROL_POINT_SIZE}
+                                                    fill="white"
+                                                    stroke="black"
+                                                    strokeWidth={1}
+                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    cursor="pointer"
+                                                    onClick={(e) => {
+                                                      e.cancelBubble = true;
+                                                    }}
+                                                    onMouseDown={(e) => {
+                                                      handlersB.handleControlPointMouseDown(
+                                                        annotation.id,
+                                                        idx,
+                                                        e
+                                                      );
+                                                    }}
+                                                  />
+                                                ))}
+                                            </>
+                                          );
+                                        case "oval": {
+                                          // Points format: [start, end] where each is {x, y}
+                                          const start = annotation.points[0];
+                                          const end = annotation.points[1];
+                                          const centerX = (start.x + end.x) / 2;
+                                          const centerY = (start.y + end.y) / 2;
+                                          const radiusX =
+                                            Math.abs(end.x - start.x) / 2;
+                                          const radiusY =
+                                            Math.abs(end.y - start.y) / 2;
+                                          return (
+                                            <>
+                                              <Ellipse
+                                                key={annotation.id}
+                                                x={centerX}
+                                                y={centerY}
+                                                radiusX={radiusX}
+                                                radiusY={radiusY}
+                                                stroke={annotation.color}
+                                                strokeWidth={
+                                                  annotation.strokeWidth
+                                                }
+                                                cursor={cursorStyle}
+                                                onClick={(e) =>
+                                                  handlersB.handleAnnotationClick(
+                                                    annotation.id,
+                                                    e
+                                                  )
+                                                }
+                                                onMouseDown={(e) => {
+                                                  if (canDrag) {
+                                                    handlersB.handleAnnotationDragStart(
+                                                      annotation.id,
+                                                      e
+                                                    );
+                                                  }
+                                                }}
+                                              />
+                                              {/* Render control points if selected */}
+                                              {isSelected &&
+                                                getControlPoints(
+                                                  annotation
+                                                ).map((point, idx) => (
+                                                  <Rect
+                                                    key={`cp-${annotation.id}-${idx}`}
+                                                    x={point.x - CONTROL_POINT_SIZE / 2}
+                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    width={CONTROL_POINT_SIZE}
+                                                    height={CONTROL_POINT_SIZE}
+                                                    fill="white"
+                                                    stroke="black"
+                                                    strokeWidth={1}
+                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    cursor="pointer"
+                                                    onClick={(e) => {
+                                                      e.cancelBubble = true;
+                                                    }}
+                                                    onMouseDown={(e) => {
+                                                      handlersB.handleControlPointMouseDown(
+                                                        annotation.id,
+                                                        idx,
+                                                        e
+                                                      );
+                                                    }}
+                                                  />
+                                                ))}
+                                            </>
+                                          );
                                         }
-                                        stroke="#FF0000"
-                                        strokeWidth={6}
-                                        lineCap="round"
-                                        lineJoin="round"
-                                        tension={0.5}
-                                        listening={false}
-                                      />
-                                    )}
-                                    {drawingStateB.tool === "oval" &&
-                                      drawingStateB.points.length === 2 && (
-                                        <Ellipse
-                                          x={
-                                            (drawingStateB.points[0].x +
-                                              drawingStateB.points[1].x) /
-                                            2
-                                          }
-                                          y={
-                                            (drawingStateB.points[0].y +
-                                              drawingStateB.points[1].y) /
-                                            2
-                                          }
-                                          radiusX={
-                                            Math.abs(
-                                              drawingStateB.points[1].x -
-                                                drawingStateB.points[0].x
-                                            ) / 2
-                                          }
-                                          radiusY={
-                                            Math.abs(
-                                              drawingStateB.points[1].y -
-                                                drawingStateB.points[0].y
-                                            ) / 2
-                                          }
-                                          stroke="#FF0000"
-                                          strokeWidth={6}
-                                          listening={false}
-                                        />
+                                        case "arrow":
+                                          return (
+                                            <>
+                                              <Arrow
+                                                key={annotation.id}
+                                                points={pointsToKonva(
+                                                  annotation.points
+                                                )}
+                                                stroke={annotation.color}
+                                                strokeWidth={
+                                                  annotation.strokeWidth
+                                                }
+                                                fill={annotation.color}
+                                                pointerLength={10}
+                                                pointerWidth={10}
+                                                hitStrokeWidth={20}
+                                                cursor={cursorStyle}
+                                                onClick={(e) =>
+                                                  handlersB.handleAnnotationClick(
+                                                    annotation.id,
+                                                    e
+                                                  )
+                                                }
+                                                onMouseDown={(e) => {
+                                                  if (canDrag) {
+                                                    handlersB.handleAnnotationDragStart(
+                                                      annotation.id,
+                                                      e
+                                                    );
+                                                  }
+                                                }}
+                                              />
+                                              {/* Render control points if selected */}
+                                              {isSelected &&
+                                                getControlPoints(
+                                                  annotation
+                                                ).map((point, idx) => (
+                                                  <Rect
+                                                    key={`cp-${annotation.id}-${idx}`}
+                                                    x={point.x - CONTROL_POINT_SIZE / 2}
+                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    width={CONTROL_POINT_SIZE}
+                                                    height={CONTROL_POINT_SIZE}
+                                                    fill="white"
+                                                    stroke="black"
+                                                    strokeWidth={1}
+                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    cursor="pointer"
+                                                    onClick={(e) => {
+                                                      e.cancelBubble = true;
+                                                    }}
+                                                    onMouseDown={(e) => {
+                                                      handlersB.handleControlPointMouseDown(
+                                                        annotation.id,
+                                                        idx,
+                                                        e
+                                                      );
+                                                    }}
+                                                  />
+                                                ))}
+                                            </>
+                                          );
+                                        default:
+                                          return null;
+                                      }
+                                    })}
+
+                                    {/* Render live preview during drawing */}
+                                    {drawingStateB.mode === "drag-drawing" &&
+                                      drawingStateB.points.length >= 2 && (
+                                        <>
+                                          {drawingStateB.tool ===
+                                            "freehand" && (
+                                            <Line
+                                              points={
+                                                annotationManagerB.getPreviewPoints()!
+                                              }
+                                              stroke="#FF0000"
+                                              strokeWidth={6}
+                                              lineCap="round"
+                                              lineJoin="round"
+                                              tension={0.5}
+                                              listening={false}
+                                            />
+                                          )}
+                                          {drawingStateB.tool === "oval" &&
+                                            drawingStateB.points.length ===
+                                              2 && (
+                                              <Ellipse
+                                                x={
+                                                  (drawingStateB.points[0].x +
+                                                    drawingStateB.points[1].x) /
+                                                  2
+                                                }
+                                                y={
+                                                  (drawingStateB.points[0].y +
+                                                    drawingStateB.points[1].y) /
+                                                  2
+                                                }
+                                                radiusX={
+                                                  Math.abs(
+                                                    drawingStateB.points[1].x -
+                                                      drawingStateB.points[0].x
+                                                  ) / 2
+                                                }
+                                                radiusY={
+                                                  Math.abs(
+                                                    drawingStateB.points[1].y -
+                                                      drawingStateB.points[0].y
+                                                  ) / 2
+                                                }
+                                                stroke="#FF0000"
+                                                strokeWidth={6}
+                                                listening={false}
+                                              />
+                                            )}
+                                          {drawingStateB.tool === "arrow" &&
+                                            drawingStateB.points.length ===
+                                              2 && (
+                                              <Arrow
+                                                points={
+                                                  annotationManagerB.getPreviewPoints()!
+                                                }
+                                                stroke="#FF0000"
+                                                strokeWidth={6}
+                                                fill="#FF0000"
+                                                pointerLength={10}
+                                                pointerWidth={10}
+                                                listening={false}
+                                              />
+                                            )}
+                                        </>
                                       )}
-                                    {drawingStateB.tool === "arrow" &&
-                                      drawingStateB.points.length === 2 && (
-                                        <Arrow
+
+                                    {/* Render polyline in progress */}
+                                    {drawingStateB.mode === "polyline-active" &&
+                                      drawingStateB.points.length >= 2 && (
+                                        <Line
                                           points={
                                             annotationManagerB.getPreviewPoints()!
                                           }
                                           stroke="#FF0000"
                                           strokeWidth={6}
-                                          fill="#FF0000"
-                                          pointerLength={10}
-                                          pointerWidth={10}
+                                          lineCap="round"
+                                          lineJoin="round"
                                           listening={false}
                                         />
                                       )}
-                                  </>
-                                )}
 
-                              {/* Render polyline in progress */}
-                              {drawingStateB.mode === "polyline-active" &&
-                                drawingStateB.points.length >= 2 && (
-                                  <Line
-                                    points={
-                                      annotationManagerB.getPreviewPoints()!
-                                    }
-                                    stroke="#FF0000"
-                                    strokeWidth={6}
-                                    lineCap="round"
-                                    lineJoin="round"
-                                    listening={false}
-                                  />
-                                )}
-
-                              {/* Render polyline preview segment (last vertex to mouse cursor) */}
-                              {drawingStateB.mode === "polyline-active" &&
-                                polylineMousePosB &&
-                                drawingStateB.points.length >= 1 && (
-                                  <Line
-                                    points={[
-                                      drawingStateB.points[
-                                        drawingStateB.points.length - 1
-                                      ].x,
-                                      drawingStateB.points[
-                                        drawingStateB.points.length - 1
-                                      ].y,
-                                      polylineMousePosB.x,
-                                      polylineMousePosB.y,
-                                    ]}
-                                    stroke="#FF0000"
-                                    strokeWidth={6}
-                                    lineCap="round"
-                                    lineJoin="round"
-                                    opacity={0.6}
-                                    listening={false}
-                                  />
-                                )}
-                            </Layer>
-                          </Stage>
+                                    {/* Render polyline preview segment (last vertex to mouse cursor) */}
+                                    {drawingStateB.mode === "polyline-active" &&
+                                      polylineMousePosB &&
+                                      drawingStateB.points.length >= 1 && (
+                                        <Line
+                                          points={[
+                                            drawingStateB.points[
+                                              drawingStateB.points.length - 1
+                                            ].x,
+                                            drawingStateB.points[
+                                              drawingStateB.points.length - 1
+                                            ].y,
+                                            polylineMousePosB.x,
+                                            polylineMousePosB.y,
+                                          ]}
+                                          stroke="#FF0000"
+                                          strokeWidth={6}
+                                          lineCap="round"
+                                          lineJoin="round"
+                                          opacity={0.6}
+                                          listening={false}
+                                        />
+                                      )}
+                                  </Layer>
+                                </Stage>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
-                    </div>
-                  </div>
                     );
                   })()}
                   <div
@@ -2465,7 +2526,9 @@ export function DualVideoSyncDemo() {
                 >
                   Arrow
                 </button>
-                <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+                <div
+                  style={{ marginLeft: "auto", display: "flex", gap: "8px" }}
+                >
                   {videoA.isReady && (
                     <button
                       data-testid="clear-all-a"

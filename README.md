@@ -1,18 +1,6 @@
-# Condor: Golf Swing Analyzer
+# The Condor: Golf Swing Analyzer
 
-Frame-accurate golf swing video analysis tool with dual-video synchronization and annotation capabilities.
-
-## Project Status
-
-- **Phase**: Phase 0 - Technical Spikes (In Progress)
-- **Current Session**: Frame-Accurate Video Control Spike
-  - Implementation: ✅ Complete
-  - Testing: ⚠️ Partial (Chrome validated, Firefox/WebKit deferred)
-- **Next Priority**: Complete cross-browser testing and proceed to Dual Video Sync Spike
-
-## Overview
-
-The Golf Swing Analyzer is an open-source platform for frame-accurate video analysis with dual-video synchronization and annotation tools.
+The Condor is an open-source platform for frame-accurate video analysis with dual-video synchronization and annotation tools.
 
 ## Quick Start
 
@@ -23,15 +11,40 @@ The Golf Swing Analyzer is an open-source platform for frame-accurate video anal
 - **FFmpeg**: For generating test videos
 - **Playwright Browsers**: For cross-browser testing
 
-### Backend Spike Environment
+### Run Frontend Demo
 
 ```bash
-# Navigate to backend services tests directory
-cd backend/services/tests
+# Navigate to frontend directory
+cd frontend
 
-# Run the unit tests
-pytest -v .
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev
+# Opens at http://localhost:5173
+# Note: use `npm run dev -- --host` when port forwarding outside of dev container
 ```
+
+Open a browser and navigate to http://localhost:5173
+
+### Instructions for Use
+
+Select and upload two videos. The demo starts in SYNC mode where you can independently control each video. Use the playback controls (play/pause, scrub bar, frame stepping) to synchronize the two videos, e.g. by setting them both to the impact frame:
+
+![alt text](image/impact.png)
+
+Switch from sync mode to playback mode:
+
+![alt text](image/playback-mode.png)
+
+Use the annotation tools to draw illustrate shapes to represent key positions, angles, and checkpoints in the swing. For the polyline tool, each click-and-release creates a vertex; a double click places the final vertex and ends the line. All other tool drawing takes place with a single click and drag.
+
+![alt text](image/annotations.png)
+
+Annotations can be selected (ctrl-click to select multiple). White control points appear when selected. Click on the annotation body (not on a control point) and drag to move selected annotations. Click and drag on a control point to edit (resize/adjust) the annotation itself. Press delete to remove all selected annotations.
+
+## Developer Setup
 
 ### Frontend Spike Environment
 
@@ -49,6 +62,24 @@ npm run dev
 
 # Build for production
 npm run build
+
+# Run unit tests
+npm run test
+
+# Run Playwright integration tests
+npx playwright test
+```
+
+### Backend Spike Environment
+
+Run backend tests:
+
+```bash
+# Navigate to backend services tests directory
+cd backend/services/tests
+
+# Run the unit tests
+pytest -v .
 ```
 
 ### Generate Test Videos
@@ -66,67 +97,30 @@ bash generate_test_videos.sh
 #   - test_30fps_10s_hevc.mp4  (H.265/HEVC, 30fps, 10 seconds)
 ```
 
-## Documentation
-
-### Project Planning
-
-- **[Requirements](project/REQUIREMENTS.md)** - 46 formal MVP requirements with acceptance criteria
-- **[Project Plan](project/PROJECT_PLAN.md)** - Phased task breakdown (Phase 0: Spikes, Phase 1: MVP Implementation)
-- **[MVP Product Requirements Prompt](PRPs/MVP_PRP.md)** - Comprehensive implementation guide with patterns and gotchas
-
-### Technical Spikes
-
-- **[Frame Control Spike Results](docs/spike/FRAME_CONTROL.md)** - Phase 0 Task 0.2 findings and recommendations
-
 ## Repository Structure
 
 ```
 condor/
-├── frontend/              # Vite + React + TypeScript spike environment
+├── backend/              # Backend source & unit tests
+├── docs/                 # Technical documentation
+│   └── spike/            # Detailed spike documentation
+├── frontend/             # Frontend source & unit tests
 │   ├── src/
 │   │   ├── hooks/        # Custom React hooks (useFrameCallback)
 │   │   └── components/   # UI components (FrameStepper)
 │   └── tests/            # Playwright E2E tests
-├── docs/
-│   └── spike/            # Technical spike documentation
-│       └── FRAME_CONTROL.md
-├── project/              # Requirements and planning artifacts
-│   ├── REQUIREMENTS.md   # Formal requirements (46 MVP requirements)
-│   └── PROJECT_PLAN.md   # Phased task breakdown and tracking
+├── image/                # Images for documentation
+├── inputs/               # Design input documentation
+├── project/              # Project documentation (requirements and planning)
 ├── PRPs/                 # Product Requirements Prompts
-│   └── MVP_PRP.md        # Comprehensive MVP implementation guide
-├── tests/
+├── tests/                # Integration tests
 │   └── fixtures/         # Test video generation scripts
 └── validation/           # Validation and review artifacts
 ```
 
-## Phase 0: Technical Spikes Status
-
-**Goal**: Validate HIGH RISK technical challenges before full MVP implementation.
-
-| Task                            | Status         | Confidence | Notes                                                   |
-| ------------------------------- | -------------- | ---------- | ------------------------------------------------------- |
-| **0.1** Setup Spike Environment | ✅ Complete    | 95%        | Vite + React + TypeScript + Playwright configured       |
-| **0.2** Frame-Accurate Seeking  | ⚠️ Partial     | 75%        | Implementation complete, cross-browser testing deferred |
-| **0.3** Dual Video Sync         | 🔲 Not Started | -          | Next priority after 0.2 completion                      |
-| **0.4** Canvas Overlay          | 🔲 Not Started | -          | Annotations performance validation                      |
-| **0.5** CI Setup                | 🔲 Not Started | -          | GitHub Actions cross-browser testing                    |
-| **0.6** Raspberry Pi Validation | 🔲 Not Started | -          | Target hardware performance testing                     |
-
-### Integration Checkpoint 1 (Phase 0 Completion)
-
-Before proceeding to Phase 1, must validate:
-
-- All spike tests pass in Chrome, Firefox, WebKit
-- Frame stepping accuracy within 1 frame
-- Video sync drift <1 frame over 10 seconds
-- Canvas overlay latency ≤16ms
-- Raspberry Pi 4 performance acceptable (dual 1080p/30fps)
-- Confidence level 8+/10 for Phase 1 implementation
-
 ## Technology Stack
 
-### Backend (Phase 1)
+### Backend
 
 - **Python 3.11+**: FastAPI, uvicorn
 - **FFmpeg**: Video metadata extraction
@@ -146,32 +140,6 @@ Before proceeding to Phase 1, must validate:
 - **Vitest**: Frontend unit tests (Phase 1)
 - **pytest**: Backend unit tests (Phase 1)
 
-### Deployment
-
-- **Docker**: Containerization
-- **Raspberry Pi 4**: 8GB RAM, Ubuntu 22.04 LTS (ARM64)
-
-## Development Workflow
-
-This project follows a **requirements-driven development** approach with formal requirements, phased implementation, and comprehensive validation.
-
-### Key Artifacts
-
-- **Requirements** (`REQUIREMENTS.md`) - Source of truth for what to build
-- **PRPs** - Implementation guides with patterns and gotchas
-- **Project Plan** (`PROJECT_PLAN.md`) - Task tracking and coordination
-- **Validation Report** - Ongoing requirement validation status
-
-## Contributing
-
-This project is developed using an AI-assisted workflow. See **[CLAUDE.md](CLAUDE.md)** for:
-
-- Development philosophy (KISS, YAGNI, design principles)
-- Agent coordination workflow
-- Requirements-driven development process
-- Testing standards
-- Git workflow and commit message format
-
 ## License
 
 [License information to be added]
@@ -179,7 +147,3 @@ This project is developed using an AI-assisted workflow. See **[CLAUDE.md](CLAUD
 ## Contact
 
 [Contact information to be added]
-
----
-
-**Last Updated**: 2025-10-29

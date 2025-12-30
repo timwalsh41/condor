@@ -13,6 +13,6 @@ TOTAL_OUTPUT=$(echo "$input" | jq -r '.context_window.total_output_tokens')
 CONTEXT_SIZE=$(echo "$input" | jq -r '.context_window.context_window_size')
 
 TOTAL_TOKENS=$((TOTAL_INPUT + TOTAL_OUTPUT))
-PERCENTAGE=$(echo "scale=1; $TOTAL_TOKENS * 100 / $CONTEXT_SIZE" | bc)
+PERCENTAGE=$(awk "BEGIN {printf \"%.1f\", ($TOTAL_TOKENS * 100 / $CONTEXT_SIZE)}")
 
 echo "(v$VERSION) [$MODEL_DISPLAY] 📁 ${CURRENT_DIR##*/} 🧠 Context: in=${TOTAL_INPUT} out=${TOTAL_OUTPUT} ${PERCENTAGE}% (${TOTAL_TOKENS}/${CONTEXT_SIZE}) [Session $SESSION_ID]"

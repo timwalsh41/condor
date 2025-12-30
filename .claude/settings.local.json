@@ -48,7 +48,8 @@
       "Bash(DISPLAY=:99 timeout 300 npx playwright test:*)",
       "Bash(DISPLAY=:99 timeout 180 npx playwright test:*)",
       "mcp__serena__find_file",
-      "mcp__serena__read_memory"
+      "mcp__serena__read_memory",
+      "Bash(mcp list-tools:*)"
     ],
     "deny": []
   },

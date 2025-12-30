@@ -1,10 +1,13 @@
-# Frame-Accurate Video Control Spike
+# Frame-Accurate Video Control Spike - DEPRECATED
+
+**⚠️ DEPRECATED**: This approach using `requestVideoFrameCallback` + HTML5 video seeking was **abandoned** due to inability to achieve exact frame accuracy (0 tolerance). Replaced by **WebCodecs API** implementation documented in `WEBCODECS_FRAME_CONTROL.md`.
 
 **Phase 0 - Task 0.2: Frame-Accurate Seeking Validation**
 
 **Date**: 2025-11-12 (Updated)
-**Status**: Complete - All Cross-Browser Tests Passing
+**Status**: Complete - Approach Validated then Abandoned
 **Browsers Validated**: Chrome, Firefox, WebKit/Safari (headless mode)
+**Replacement**: See `WEBCODECS_FRAME_CONTROL.md` for production implementation
 
 ---
 

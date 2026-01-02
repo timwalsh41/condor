@@ -106,24 +106,34 @@ def get_video_info(video_path: Path) -> Dict:
         raise ValueError(f"Invalid video metadata: {e}")
 
 
-def needs_optimization(video_info: Dict) -> bool:
+def needs_optimization(video_info: Dict, rotation: int = 0) -> bool:
     """
     Determine if video needs re-encoding for GOP=30 optimization.
 
+    Validates: REQ-F-UPLOAD-004 (Video Rotation During Upload)
+
     Args:
         video_info: Dictionary from get_video_info()
+        rotation: Rotation angle in degrees (0, 90, 180, 270)
 
     Returns:
         True if video needs re-encoding, False if already optimal
 
     Optimization criteria:
+        - Codec is HEVC/H.265 (hvc1, hev1) - convert to H.264 for WebCodecs
         - GOP size > 30
         - Resolution > 1080p
+        - Rotation requested (any non-zero rotation)
     """
+    codec = video_info['codec'].lower()
+    is_hevc = codec in ['hevc', 'hvc1', 'hev1']
+
     return (
+        is_hevc or
         video_info['gop_size'] > 30 or
         video_info['width'] > 1920 or
-        video_info['height'] > 1080
+        video_info['height'] > 1080 or
+        rotation != 0
     )
 
 
@@ -150,16 +160,46 @@ def get_video_duration(video_path: Path) -> float:
     return float(result.stdout.strip())
 
 
-def optimize_video(input_path: Path, output_path: Path) -> Dict:
+def get_transpose_filter(rotation: int) -> Optional[str]:
+    """
+    Get ffmpeg transpose filter for rotation.
+
+    Validates: REQ-F-UPLOAD-004 (Video Rotation During Upload)
+
+    Args:
+        rotation: Rotation angle (0, 90, 180, 270)
+
+    Returns:
+        Transpose filter string or None if no rotation
+
+    Raises:
+        ValueError: If rotation angle is invalid
+    """
+    if rotation == 0:
+        return None
+    elif rotation == 90:
+        return "transpose=1"  # 90° clockwise
+    elif rotation == 180:
+        return "transpose=1,transpose=1"  # 180° = 90° CW twice
+    elif rotation == 270:
+        return "transpose=2"  # 90° counter-clockwise
+    else:
+        raise ValueError(f"Invalid rotation angle: {rotation}. Must be 0, 90, 180, or 270")
+
+
+def optimize_video(input_path: Path, output_path: Path, rotation: int = 0) -> Dict:
     """
     Re-encode video with optimal settings for frame-accurate seeking.
 
     Re-encodes to H.264 with GOP=30 using software encoder (libx264)
     for WebCodecs compatibility and predictable client-side decode performance.
 
+    Validates: REQ-F-UPLOAD-004 (Video Rotation During Upload)
+
     Args:
         input_path: Path to input video
         output_path: Path for output video
+        rotation: Rotation angle in degrees (0, 90, 180, 270)
 
     Returns:
         Dictionary with processing stats:
@@ -171,15 +211,26 @@ def optimize_video(input_path: Path, output_path: Path) -> Dict:
     Raises:
         subprocess.CalledProcessError: If ffmpeg fails
         subprocess.TimeoutExpired: If encoding exceeds 1 minute timeout
+        ValueError: If rotation angle is invalid
     """
     start_time = time.time()
     video_duration = get_video_duration(input_path)
 
-    logger.info("Starting video re-encoding with libx264")
+    logger.info(f"Starting video re-encoding with libx264 (rotation={rotation}°)")
 
-    subprocess.run([
+    # Build ffmpeg command
+    cmd = [
         'ffmpeg', '-y',
         '-i', str(input_path),
+    ]
+
+    # Add video filters (rotation)
+    transpose_filter = get_transpose_filter(rotation)
+    if transpose_filter:
+        cmd.extend(['-vf', transpose_filter])
+
+    # Video encoding settings
+    cmd.extend([
         '-c:v', 'libx264',
         '-g', '30',                  # GOP size = 30 frames
         '-keyint_min', '30',         # Minimum GOP size (enforce consistency)
@@ -189,7 +240,9 @@ def optimize_video(input_path: Path, output_path: Path) -> Dict:
         '-an',                       # Remove audio
         '-movflags', '+faststart',   # Web-optimized
         str(output_path)
-    ], capture_output=True, timeout=60, check=True)
+    ])
+
+    subprocess.run(cmd, capture_output=True, timeout=60, check=True)
 
     elapsed = time.time() - start_time
     logger.info(f"Software encoding successful: {elapsed:.1f}s")
@@ -202,21 +255,24 @@ def optimize_video(input_path: Path, output_path: Path) -> Dict:
     }
 
 
-def process_uploaded_video(video_file: Path) -> Path:
+def process_uploaded_video(video_file: Path, rotation: int = 0) -> Path:
     """
     Main entry point for video processing.
 
-    Analyzes video and re-encodes to GOP=30 if needed (GOP > 30 or resolution > 1080p).
+    Analyzes video and re-encodes if needed (HEVC, GOP > 30, resolution > 1080p, or rotation).
+
+    Validates: REQ-F-UPLOAD-004 (Video Rotation During Upload)
 
     Args:
         video_file: Path to uploaded video file
+        rotation: Rotation angle in degrees (0, 90, 180, 270)
 
     Returns:
         Path to optimized video (may be same as input if no optimization needed)
 
     Raises:
         subprocess.CalledProcessError: If ffprobe/ffmpeg fails
-        ValueError: If video metadata invalid
+        ValueError: If video metadata invalid or rotation invalid
     """
     # Step 1: Analyze video
     logger.info(f"Analyzing video: {video_file.name}")
@@ -226,16 +282,25 @@ def process_uploaded_video(video_file: Path) -> Path:
                 f"framerate={info['framerate']:.2f}")
 
     # Step 2: Check if optimization needed
-    if not needs_optimization(info):
+    if not needs_optimization(info, rotation):
         logger.info("Video already optimized, skipping re-encoding")
         return video_file
 
-    # Step 3: Re-encode to H.264 with GOP=30
-    logger.info(f"Re-encoding video (GOP {info['gop_size']} → 30, "
-                f"codec {info['codec']} → h264)")
+    # Step 3: Re-encode to H.264 with GOP=30 and rotation
+    codec = info['codec'].lower()
+    is_hevc = codec in ['hevc', 'hvc1', 'hev1']
+    reasons = []
+    if is_hevc:
+        reasons.append(f"codec {info['codec']} → h264")
+    if info['gop_size'] > 30:
+        reasons.append(f"GOP {info['gop_size']} → 30")
+    if rotation != 0:
+        reasons.append(f"rotation {rotation}°")
+
+    logger.info(f"Re-encoding video ({', '.join(reasons)})")
     output_file = video_file.with_suffix('.optimized.mp4')
 
-    stats = optimize_video(video_file, output_file)
+    stats = optimize_video(video_file, output_file, rotation)
 
     logger.info(f"Re-encoding complete: encoder={stats['encoder']}, "
                 f"time={stats['processing_time']:.1f}s, "

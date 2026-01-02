@@ -70,16 +70,30 @@ npm run test
 npx playwright test
 ```
 
-### Backend Spike Environment
+### Backend Environment
 
-Run backend tests:
+Install dependencies and run backend:
 
 ```bash
-# Navigate to backend services tests directory
-cd backend/services/tests
+# Install Python dependencies
+pip install -r requirements.txt
 
-# Run the unit tests
-pytest -v .
+# Run backend server
+python3 -m backend.main
+# Server starts at http://localhost:8000
+# API docs at http://localhost:8000/docs
+
+# Run backend unit tests
+python3 -m pytest backend/services/tests/ -v
+
+# Run backend integration tests
+python3 -m pytest tests/test_backend_integration.py -v
+
+# Run all backend tests (unit + integration)
+python3 -m pytest backend/services/tests/ tests/test_backend_integration.py -v
+
+# Check test coverage
+python3 -m pytest backend/services/tests/ --cov=backend --cov-report=term
 ```
 
 ### Generate Test Videos

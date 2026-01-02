@@ -21,7 +21,7 @@
 
 #### Task 1.1: [Task Name]
 
-- **Status**: [Not Started/In Progress/Complete]
+- **Status**: [Not Started/In Progress/Complete/Deprecated]
 - **Date started**: [Fill in date when task started]
 - **Date completed**: [Fill in date when task completed]
 - **Scope**: [Clear description of what needs to be done]
@@ -37,7 +37,7 @@
 
 #### Task 1.2: [Task Name]
 
-- **Status**: [Not Started/In Progress/Complete]
+- **Status**: [Not Started/In Progress/Complete/Deprecated]
 - **Date started**: [Fill in date when task started]
 - **Date completed**: [Fill in date when task completed]
 - **Scope**: [Clear description of what needs to be done]
@@ -55,7 +55,7 @@
 
 #### Task 2.1: [Task Name]
 
-- **Status**: [Not Started/In Progress/Complete]
+- **Status**: [Not Started/In Progress/Complete/Deprecated]
 - **Date started**: [Fill in date when task started]
 - **Date completed**: [Fill in date when task completed]
 - **Scope**: [Clear description of what needs to be done]

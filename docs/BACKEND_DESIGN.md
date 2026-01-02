@@ -95,6 +95,26 @@ The backend implements efficient video streaming with HTTP range request support
 
 **Seeking Support**: Range requests enable browser video seeking by requesting specific byte ranges from MP4 file (moov atom must be at beginning for fast seeking).
 
+### Upload Progress Feedback
+
+The backend provides upload processing status through a polling-based endpoint for MVP simplicity:
+
+**Current Implementation (Polling)**:
+1. Client uploads video via POST `/api/upload`
+2. Server returns immediately with `video_id` and `session_id`
+3. Client polls GET `/api/upload/{video_id}/status` every 500ms
+4. Server returns `UploadStatus` with current state (pending, processing, complete, error)
+5. Progress values: 0.0 (start) → 0.1 (file saved) → 0.3 (metadata extracted) → 0.5 (optimization started) → 0.9 (optimization complete) → 1.0 (done)
+
+**Future Migration Path (WebSocket)**:
+- Replace polling endpoint with WebSocket connection at `/ws/upload/{video_id}`
+- Server pushes progress updates to client in real-time
+- Client API surface unchanged (still receives `UploadStatus` messages)
+- Implementation requires: `websockets` library, connection management, reconnection logic
+- Migration requires only server-side changes; client switches from polling to WebSocket subscription
+
+**Design rationale**: Polling chosen for MVP (KISS principle) with clear migration path to WebSocket for production scalability.
+
 ### Data Lifecycle Management
 
 The backend implements lifecycle policies for different data categories to balance storage costs, performance, and user expectations:

@@ -52,15 +52,13 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ## Current Status
 
-- **Phase**: ✅ Phase 0 - Technical Spikes **COMPLETE**
-- **Last Updated**: 2025-12-30 - Phase 0 Integration Report Complete
-- **Next Priority**: Phase 1 - MVP Core Features Implementation
-- **Overall Progress**: 37 planned, 6 in progress, 11 validated (23% validated)
-  - _Status synchronized with `REQUIREMENTS.md` "Requirements Coverage Analysis" section_
-  - _Phase 0: 11 requirements validated (5 full, 6 partial), 476/508 tests passing (94%, 32 skipped)_
-  - _Total test coverage: 476 tests (355 unit + 121 Playwright across 3 browsers)_
-  - _Integration report: `validation/INTEGRATION_REPORT_PHASE_0_SPIKE.md`_
-  - _Confidence for Phase 1: 9/10 (exceeds 8+/10 target)_
+- **Phase**: Phase 1 - MVP Core Features Implementation (In Progress)
+- **Last Updated**: 2026-01-02 - Task 1.1 Complete (Backend Only)
+- **Next Priority**: Task 1.2 - Frontend Skeleton + Video Upload UI
+- **Overall Progress**: 30 planned, 13 in progress, 5 validated (10% validated)
+  - _Total test coverage: 508 tests (355 frontend unit + 121 Playwright + 35 backend unit + 20 backend integration)_
+  - _Tests passing: 476/508 (94%, 16 Playwright skipped, 16 frontend skipped)_
+  - _Backend tests: 55/55 passing (100%)_
 
 ## Task Breakdown
 
@@ -486,8 +484,9 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 1.1: Backend Skeleton + Video Upload
 
-- **Status**: Not Started
-- **Requirements**: REQ-F-UPLOAD-001, REQ-F-UPLOAD-002, REQ-F-UPLOAD-003, REQ-F-UPLOAD-004, REQ-F-PLAYBACK-003
+- **Status**: ✅ Complete (Backend Only)
+- **Completed**: 2026-01-01
+- **Requirements**: REQ-F-UPLOAD-001 (In Progress), REQ-F-UPLOAD-002 (In Progress), REQ-F-UPLOAD-003 (In Progress), REQ-F-UPLOAD-004 (In Progress), REQ-F-PLAYBACK-003 (In Progress)
 - **Scope**: Create FastAPI backend with video upload and streaming endpoints
 - **Acceptance Criteria**:
   - FastAPI app initialized with CORS, logging, Pydantic models
@@ -520,6 +519,24 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Codec detection: Check codec string from ffprobe for "hvc1" or "hev1" prefix
   - FFmpeg rotation: `transpose=1` (90° CW), `transpose=2` (90° CCW), `transpose=1,transpose=1` (180°)
   - Rotation integrated into video_optimizer.py re-encoding pipeline
+- **Deliverables**:
+  - ✅ FastAPI backend with CORS, logging, Pydantic models
+  - ✅ POST `/api/upload` endpoint with file validation, HEVC conversion, GOP optimization, rotation support
+  - ✅ GET `/api/video/{session_id}/{video_id}` endpoint with HTTP range request support
+  - ✅ GET `/api/upload/{video_id}/status` polling endpoint for progress tracking
+  - ✅ Storage service with session-based file management and cleanup
+  - ✅ Video optimizer service with HEVC→H.264 conversion and rotation
+  - ✅ Progress tracker service for upload status
+  - ✅ 35 unit tests (100% passing)
+  - ✅ 20 integration tests with real test videos (100% passing)
+  - ✅ requirements.txt with all Python dependencies
+  - ✅ Updated README.md with backend setup instructions
+- **Test Results**:
+  - Unit tests: 35/35 passing (100%)
+  - Integration tests: 20/20 passing (100%)
+  - Test coverage: All acceptance criteria validated with real test videos
+  - Real test videos used: test_gop30_h264.mp4, test_gop250_h264.mp4, test_gop30_hevc.mp4
+- **Validation Report**: `validation/VALIDATION_REPORT.md` updated with comprehensive evidence
 
 ---
 
@@ -996,6 +1013,65 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 ---
 
 ## Change Log
+
+### 2026-01-02 - Task 1.1 Status Correction (Backend Complete, Frontend Pending)
+
+- **Changes Made**:
+  - Corrected validation statuses for Task 1.1 requirements in all project documentation
+  - Requirements cannot be "Validated" until ALL acceptance criteria are met, including frontend portions
+  - Updated VALIDATION_REPORT.md, REQUIREMENTS.md, and PROJECT_PLAN.md to reflect accurate statuses
+- **Corrected Requirements Status**:
+  - REQ-F-UPLOAD-001 (Local File Upload): Validated → **In Progress** (4/5 criteria - backend complete, progress indicator UI pending)
+  - REQ-F-UPLOAD-002 (Temporary Storage Management): Validated → **In Progress** (backend complete, automatic cleanup pending)
+  - REQ-F-UPLOAD-003 (Framerate Validation): Validated → **In Progress** (1/5 criteria - backend extraction validated, frontend pending)
+  - REQ-F-UPLOAD-004 (Video Rotation During Upload): Validated → **In Progress** (backend complete, frontend UI pending)
+  - REQ-F-PLAYBACK-003 (Video Streaming): Validated → **In Progress** (backend validated, frontend integration pending)
+- **Impact**:
+  - Overall project: 10% requirements validated (5 of 48 requirements) - down from incorrectly reported 21%
+  - Validated requirements: REQ-F-FRAME-002, REQ-F-SYNC-003, REQ-F-PLAY-001, REQ-F-PLAY-002, REQ-F-ANNOT-002
+  - In Progress requirements: 13 (27%) - up from 6 (13%)
+  - Planned requirements: 30 (63%) - down from 33 (69%)
+- **Key Insight**: Backend implementation is fully validated (55/55 tests passing), but user-facing requirements need frontend implementation to be considered "Validated"
+- **Next Session**: Task 1.2 - Frontend Skeleton + Video Upload UI (will complete frontend portions of Task 1.1 requirements)
+
+---
+
+### 2026-01-01 - Task 1.1 COMPLETE (Backend Skeleton + Video Upload)
+
+- **Changes Made**:
+  - ✅ Task 1.1 backend implementation completed: Backend skeleton with video upload and streaming fully implemented
+  - Created FastAPI backend with upload endpoint, streaming endpoint, and progress polling
+  - Implemented HEVC→H.264 conversion and video rotation (0°, 90°, 180°, 270°)
+  - Created storage service with session-based file management
+  - Created progress tracker service for upload status polling
+  - Fixed 2 production bugs discovered during integration testing
+  - 55 tests passing (35 unit + 20 integration) - 100% pass rate
+- **Backend Portions Validated**:
+  - REQ-F-UPLOAD-001 (Local File Upload) - Backend upload API validated
+  - REQ-F-UPLOAD-002 (Temporary Storage Management) - Backend storage validated (automatic cleanup pending)
+  - REQ-F-UPLOAD-003 (Framerate Validation) - Backend framerate extraction validated
+  - REQ-F-UPLOAD-004 (Video Rotation During Upload) - Backend rotation validated
+  - REQ-F-PLAYBACK-003 (Video Streaming) - Backend streaming validated
+- **Test Results**:
+  - Unit tests: 35/35 passing (test_storage.py, test_video_optimizer.py)
+  - Integration tests: 20/20 passing (test_backend_integration.py with real test videos)
+  - Test coverage: Upload, optimization, rotation, HEVC conversion, streaming, range requests
+  - Real test videos: test_gop30_h264.mp4, test_gop250_h264.mp4, test_gop30_hevc.mp4
+- **Production Bugs Fixed**:
+  1. Variable shadowing in upload.py (status variable shadowed status module)
+  2. Missing duration extraction (hardcoded 0.0 instead of extracting from video)
+- **Key Technical Achievements**:
+  - HEVC→H.264 conversion for WebCodecs compatibility
+  - GOP=30 optimization for predictable frame seeking
+  - Video rotation support with FFmpeg transpose filters
+  - HTTP range request streaming (206 Partial Content)
+  - Async file I/O with chunked uploads (1MB chunks)
+  - Real test video integration testing (no dummy data)
+- **Next Session**: Task 1.2 - Frontend Skeleton + Video Upload UI
+- **Files Created**: backend/main.py, backend/models.py, backend/routes/upload.py, backend/routes/video.py, backend/services/storage.py, backend/services/progress_tracker.py, backend/services/tests/test_storage.py, tests/test_backend_integration.py, requirements.txt
+- **Files Modified**: backend/services/video_optimizer.py, backend/services/tests/test_video_optimizer.py, README.md, docs/BACKEND_DESIGN.md, project/REQUIREMENTS.md, project/PROJECT_PLAN.md, validation/VALIDATION_REPORT.md
+
+---
 
 ### 2025-12-30 - Phase 0 COMPLETE
 

@@ -3,9 +3,11 @@
 ## Document Control
 
 - **Version**: 1.0
-- **Last Updated**: 2025-10-22
+- **Last Updated**: 2026-01-02
 - **Status**: Active
-- **Project Phase**: Phase 0 (Technical Spikes)
+- **Project Phase**: Phase 1 (MVP Core Features)
+
+---
 
 ## Product Vision
 
@@ -32,6 +34,69 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 | Developers             | Maintainers              | Clear architecture, comprehensive tests, good documentation        |
 | Community Contributors | Open Source              | Easy setup, clear contribution guidelines, modular design          |
 
+---
+
+## Requirements Traceability Matrix
+
+| Requirement ID     | Title                          | Priority | Status      | Dependencies                                   | Phase |
+| ------------------ | ------------------------------ | -------- | ----------- | ---------------------------------------------- | ----- |
+| REQ-F-UPLOAD-001   | Local File Upload              | Critical | In Progress | None                                           | 0/1   |
+| REQ-F-UPLOAD-002   | Temporary Storage              | Critical | In Progress | REQ-F-UPLOAD-001                               | 1     |
+| REQ-F-UPLOAD-003   | Framerate Validation           | High     | In Progress | REQ-F-UPLOAD-001                               | 1     |
+| REQ-F-UPLOAD-004   | Video Rotation During Upload   | High     | In Progress | REQ-F-UPLOAD-001, REQ-F-UPLOAD-002             | 1     |
+| REQ-F-PLAYBACK-001 | Single Video Playback          | Critical | Planned     | REQ-F-UPLOAD-001                               | 0/1   |
+| REQ-F-PLAYBACK-002 | Dual Video Display             | Critical | Planned     | REQ-F-PLAYBACK-001                             | 0/1   |
+| REQ-F-PLAYBACK-003 | Video Streaming                | High     | In Progress | REQ-F-UPLOAD-002                               | 1     |
+| REQ-F-SYNC-001     | Independent Controls           | Critical | Planned     | REQ-F-PLAYBACK-002                             | 0/1   |
+| REQ-F-SYNC-002     | Sync Point Selection           | Critical | Planned     | REQ-F-SYNC-001                                 | 0/1   |
+| REQ-F-SYNC-003     | Sync Offset Calc               | Critical | Validated   | REQ-F-SYNC-002                                 | 0/1   |
+| REQ-F-SYNC-004     | Playback Duration Equalization | Critical | Planned | REQ-F-SYNC-002, REQ-F-SYNC-003, REQ-F-TRIM-001 | 0/1   |
+| REQ-F-PLAY-001     | Unified Controls               | Critical | Planned | REQ-F-SYNC-003                                 | 0/1   |
+| REQ-F-PLAY-002     | Speed Control                  | High     | Planned | REQ-F-PLAY-001                                 | 1     |
+| REQ-F-PLAY-003     | Loop Playback                  | Medium   | Planned | REQ-F-PLAY-001                                 | 1     |
+| REQ-F-FRAME-001    | Frame Stepping                 | Critical | Planned | REQ-F-PLAYBACK-001                             | 0     |
+| REQ-F-FRAME-002    | Frame Counter                  | High     | Planned | REQ-F-FRAME-001                                | 0/1   |
+| REQ-F-FRAME-003    | Seeking Precision              | Critical | Planned | REQ-F-FRAME-001                                | 0     |
+| REQ-F-TRIM-001     | Non-Destructive Trim           | High     | Planned | REQ-F-PLAYBACK-001                             | 1     |
+| REQ-F-TRIM-002     | Trim Reset                     | Medium   | Planned | REQ-F-TRIM-001                                 | 1     |
+| REQ-F-ANNOT-001    | Drawing Tools                  | Critical | Planned | REQ-F-PLAYBACK-001                             | 0/1   |
+| REQ-F-ANNOT-002    | Annotation Rendering           | Critical | Planned | REQ-F-ANNOT-001                                | 0/1   |
+| REQ-F-ANNOT-003    | Annotation Management          | High     | Planned | REQ-F-ANNOT-002                                | 1     |
+| REQ-F-ANNOT-004    | Fixed Style (MVP)              | Medium   | Planned | REQ-F-ANNOT-001                                | 1     |
+| REQ-F-ANNOT-005    | Static Annotations             | High     | Planned | REQ-F-ANNOT-002                                | 1     |
+| REQ-F-ERROR-001    | User Error Messages            | Critical | Planned | All                                            | 1     |
+| REQ-F-ERROR-002    | Server Logging                 | High     | Planned | All                                            | 1     |
+| REQ-F-DOC-001      | Installation Docs              | Critical | Planned | All                                            | 1     |
+| REQ-NF-P-001       | Playback Smoothness            | High     | Planned | REQ-F-PLAYBACK-002                             | 0/1   |
+| REQ-NF-P-002       | Annotation Performance         | High     | Planned | REQ-F-ANNOT-002                                | 0/1   |
+| REQ-NF-P-003       | Video Load Time                | Medium   | Planned | REQ-F-UPLOAD-001                               | 1     |
+| REQ-NF-P-004       | Frame Step Response            | High     | Planned | REQ-F-FRAME-001                                | 0     |
+| REQ-NF-P-005       | UI Response                    | Medium   | Planned | All                                            | 1     |
+| REQ-NF-BC-001      | Desktop Browser Support        | Critical | Planned | All                                            | 0     |
+| REQ-NF-BC-002      | Feature Detection              | High     | Planned | REQ-F-ERROR-001                                | 1     |
+| REQ-NF-SC-001      | Single User (MVP)              | Critical | Planned | None                                           | 1     |
+| REQ-NF-SC-002      | Future Scalability             | Low      | Planned | All                                            | 1     |
+| REQ-NF-R-001       | Video Format Handling          | High     | Planned | REQ-F-ERROR-001                                | 1     |
+| REQ-NF-R-002       | File Cleanup                   | High     | Planned | REQ-F-UPLOAD-002                               | 1     |
+| REQ-NF-R-003       | Memory Leak Prevention         | High     | Planned | All                                            | 1     |
+| REQ-NF-U-001       | Intuitive Interface            | High     | Planned | All                                            | 1     |
+| REQ-NF-U-002       | Sync Discoverability           | Critical | Planned | REQ-F-SYNC-001                                 | 1     |
+| REQ-NF-U-003       | Annotation Usability           | High     | Planned | REQ-F-ANNOT-001                                | 1     |
+| REQ-NF-M-001       | Code Quality                   | High     | Planned | All                                            | 0/1   |
+| REQ-NF-M-002       | Documentation                  | High     | Planned | All                                            | 0/1   |
+| REQ-NF-M-003       | Standard Libraries             | Medium   | Planned | All                                            | 0/1   |
+| REQ-NF-PT-001      | Raspberry Pi Deployment        | Critical | Planned | All                                            | 1     |
+| REQ-NF-PT-002      | No Proprietary Deps            | High     | Planned | All                                            | 0/1   |
+| REQ-NF-PT-003      | Cloud Migration Path           | Low      | Planned | REQ-NF-SC-002                                  | 1     |
+
+**Phase Legend:**
+
+- **Phase 0**: Technical spikes to validate feasibility (2-3 sessions)
+- **Phase 1**: MVP core features implementation
+- **0/1**: Requirement spans both Phase 0 (spike) and Phase 1 (full implementation)
+
+---
+
 ## Functional Requirements
 
 ### Video Upload (REQ-F-UPLOAD)
@@ -40,7 +105,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall support local file upload from user's filesystem
 - **Priority**: Critical
-- **Status**: Planned
+- **Status**: In Progress
 - **User Story**: As a golfer, I want to upload swing videos from my device so that I can analyze them
 - **Acceptance Criteria**:
   - [ ] User can select video file from local filesystem
@@ -58,7 +123,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall store uploaded videos temporarily on server disk
 - **Priority**: Critical
-- **Status**: Planned
+- **Status**: In Progress
 - **User Story**: As a user, I want my videos stored temporarily so the system doesn't run out of memory
 - **Acceptance Criteria**:
   - [ ] Videos stored in `/tmp/<session_id>/` directory structure
@@ -75,7 +140,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall validate that both uploaded videos have matching framerates
 - **Priority**: High
-- **Status**: Planned
+- **Status**: In Progress
 - **User Story**: As a user, I want clear error messages if my videos have different framerates
 - **Acceptance Criteria**:
   - [ ] System extracts framerate from each uploaded video
@@ -92,7 +157,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall support video rotation during upload processing
 - **Priority**: High
-- **Status**: Planned
+- **Status**: In Progress
 - **User Story**: As a user, I want to rotate my video during upload so that my swing videos are properly oriented for analysis
 - **Acceptance Criteria**:
   - [ ] Thumbnail preview of first frame displayed after file selection
@@ -149,7 +214,7 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall stream videos efficiently from server
 - **Priority**: High
-- **Status**: Planned
+- **Status**: In Progress
 - **User Story**: As a user, I want videos to stream smoothly without loading entirely into memory
 - **Acceptance Criteria**:
   - [ ] HTTP range requests supported for seeking
@@ -1092,82 +1157,25 @@ None for MVP - all processing local
 
 ---
 
-## Requirements Traceability Matrix
-
-| Requirement ID     | Title                          | Priority | Status  | Dependencies                                   | Phase |
-| ------------------ | ------------------------------ | -------- | ------- | ---------------------------------------------- | ----- |
-| REQ-F-UPLOAD-001   | Local File Upload              | Critical | Planned | None                                           | 0/1   |
-| REQ-F-UPLOAD-002   | Temporary Storage              | Critical | Planned | REQ-F-UPLOAD-001                               | 1     |
-| REQ-F-UPLOAD-003   | Framerate Validation           | High     | Planned | REQ-F-UPLOAD-001                               | 1     |
-| REQ-F-UPLOAD-004   | Video Rotation During Upload   | High     | Planned | REQ-F-UPLOAD-001, REQ-F-UPLOAD-002             | 1     |
-| REQ-F-PLAYBACK-001 | Single Video Playback          | Critical | Planned | REQ-F-UPLOAD-001                               | 0/1   |
-| REQ-F-PLAYBACK-002 | Dual Video Display             | Critical | Planned | REQ-F-PLAYBACK-001                             | 0/1   |
-| REQ-F-PLAYBACK-003 | Video Streaming                | High     | Planned | REQ-F-UPLOAD-002                               | 1     |
-| REQ-F-SYNC-001     | Independent Controls           | Critical | Planned | REQ-F-PLAYBACK-002                             | 0/1   |
-| REQ-F-SYNC-002     | Sync Point Selection           | Critical | Planned | REQ-F-SYNC-001                                 | 0/1   |
-| REQ-F-SYNC-003     | Sync Offset Calc               | Critical | Planned | REQ-F-SYNC-002                                 | 0/1   |
-| REQ-F-SYNC-004     | Playback Duration Equalization | Critical | Planned | REQ-F-SYNC-002, REQ-F-SYNC-003, REQ-F-TRIM-001 | 0/1   |
-| REQ-F-PLAY-001     | Unified Controls               | Critical | Planned | REQ-F-SYNC-003                                 | 0/1   |
-| REQ-F-PLAY-002     | Speed Control                  | High     | Planned | REQ-F-PLAY-001                                 | 1     |
-| REQ-F-PLAY-003     | Loop Playback                  | Medium   | Planned | REQ-F-PLAY-001                                 | 1     |
-| REQ-F-FRAME-001    | Frame Stepping                 | Critical | Planned | REQ-F-PLAYBACK-001                             | 0     |
-| REQ-F-FRAME-002    | Frame Counter                  | High     | Planned | REQ-F-FRAME-001                                | 0/1   |
-| REQ-F-FRAME-003    | Seeking Precision              | Critical | Planned | REQ-F-FRAME-001                                | 0     |
-| REQ-F-TRIM-001     | Non-Destructive Trim           | High     | Planned | REQ-F-PLAYBACK-001                             | 1     |
-| REQ-F-TRIM-002     | Trim Reset                     | Medium   | Planned | REQ-F-TRIM-001                                 | 1     |
-| REQ-F-ANNOT-001    | Drawing Tools                  | Critical | Planned | REQ-F-PLAYBACK-001                             | 0/1   |
-| REQ-F-ANNOT-002    | Annotation Rendering           | Critical | Planned | REQ-F-ANNOT-001                                | 0/1   |
-| REQ-F-ANNOT-003    | Annotation Management          | High     | Planned | REQ-F-ANNOT-002                                | 1     |
-| REQ-F-ANNOT-004    | Fixed Style (MVP)              | Medium   | Planned | REQ-F-ANNOT-001                                | 1     |
-| REQ-F-ANNOT-005    | Static Annotations             | High     | Planned | REQ-F-ANNOT-002                                | 1     |
-| REQ-F-ERROR-001    | User Error Messages            | Critical | Planned | All                                            | 1     |
-| REQ-F-ERROR-002    | Server Logging                 | High     | Planned | All                                            | 1     |
-| REQ-F-DOC-001      | Installation Docs              | Critical | Planned | All                                            | 1     |
-| REQ-NF-P-001       | Playback Smoothness            | High     | Planned | REQ-F-PLAYBACK-002                             | 0/1   |
-| REQ-NF-P-002       | Annotation Performance         | High     | Planned | REQ-F-ANNOT-002                                | 0/1   |
-| REQ-NF-P-003       | Video Load Time                | Medium   | Planned | REQ-F-UPLOAD-001                               | 1     |
-| REQ-NF-P-004       | Frame Step Response            | High     | Planned | REQ-F-FRAME-001                                | 0     |
-| REQ-NF-P-005       | UI Response                    | Medium   | Planned | All                                            | 1     |
-| REQ-NF-BC-001      | Desktop Browser Support        | Critical | Planned | All                                            | 0     |
-| REQ-NF-BC-002      | Feature Detection              | High     | Planned | REQ-F-ERROR-001                                | 1     |
-| REQ-NF-SC-001      | Single User (MVP)              | Critical | Planned | None                                           | 1     |
-| REQ-NF-SC-002      | Future Scalability             | Low      | Planned | All                                            | 1     |
-| REQ-NF-R-001       | Video Format Handling          | High     | Planned | REQ-F-ERROR-001                                | 1     |
-| REQ-NF-R-002       | File Cleanup                   | High     | Planned | REQ-F-UPLOAD-002                               | 1     |
-| REQ-NF-R-003       | Memory Leak Prevention         | High     | Planned | All                                            | 1     |
-| REQ-NF-U-001       | Intuitive Interface            | High     | Planned | All                                            | 1     |
-| REQ-NF-U-002       | Sync Discoverability           | Critical | Planned | REQ-F-SYNC-001                                 | 1     |
-| REQ-NF-U-003       | Annotation Usability           | High     | Planned | REQ-F-ANNOT-001                                | 1     |
-| REQ-NF-M-001       | Code Quality                   | High     | Planned | All                                            | 0/1   |
-| REQ-NF-M-002       | Documentation                  | High     | Planned | All                                            | 0/1   |
-| REQ-NF-M-003       | Standard Libraries             | Medium   | Planned | All                                            | 0/1   |
-| REQ-NF-PT-001      | Raspberry Pi Deployment        | Critical | Planned | All                                            | 1     |
-| REQ-NF-PT-002      | No Proprietary Deps            | High     | Planned | All                                            | 0/1   |
-| REQ-NF-PT-003      | Cloud Migration Path           | Low      | Planned | REQ-NF-SC-002                                  | 1     |
-
-**Phase Legend:**
-
-- **Phase 0**: Technical spikes to validate feasibility (2-3 sessions)
-- **Phase 1**: MVP core features implementation
-- **0/1**: Requirement spans both Phase 0 (spike) and Phase 1 (full implementation)
-
----
-
 ## Requirements Coverage Analysis
 
 ### Implementation Coverage
 
 **Total Requirements**: 48
 
-- **Planned**: 38 (79%)
-- **In Progress**: 6 (13%)
+- **Planned**: 30 (63%)
+- **In Progress**: 13 (27%)
+  - REQ-F-UPLOAD-001: Local File Upload (backend complete, frontend UI pending - Task 1.1)
+  - REQ-F-UPLOAD-002: Temporary Storage Management (backend complete, automatic cleanup pending - Task 1.1)
+  - REQ-F-UPLOAD-003: Framerate Validation (1/5 criteria - backend extraction validated, frontend pending - Task 1.1)
+  - REQ-F-UPLOAD-004: Video Rotation During Upload (backend complete, frontend UI pending - Task 1.1)
+  - REQ-F-PLAYBACK-003: Video Streaming (backend validated, frontend integration pending - Task 1.1)
   - REQ-F-FRAME-001: Frame Stepping (5/7 criteria - Task 0.3)
   - REQ-F-FRAME-003: Seeking Precision (4/5 criteria - Task 0.3)
   - REQ-NF-BC-001: Browser Compatibility (6/7 criteria - Task 0.3)
   - REQ-NF-P-004: Frame Stepping Response Time (3/4 criteria - Task 0.3: cache hit meets requirement, cache miss does not)
   - REQ-NF-P-001: Video Playback Smoothness (implementation complete, performance metrics not measured - optional for Phase 0)
   - REQ-NF-P-002: Annotation Rendering Performance (implementation complete, performance metrics not measured - optional for Phase 0)
-  - REQ-NF-M-001: Code Quality Standards
 - **Implemented (Awaiting Validation)**: 0 (0%)
 - **Validated**: 5 (10%)
   - REQ-F-FRAME-002: Frame Counter Display (Task 0.3)
@@ -1178,90 +1186,22 @@ None for MVP - all processing local
 
 ### Priority Breakdown
 
-- **Critical**: 19 (16% Validated - REQ-F-SYNC-003, REQ-F-PLAY-001, REQ-F-ANNOT-002; 2 In Progress)
-- **High**: 23 (9% Validated - REQ-F-FRAME-002, REQ-F-PLAY-002; 4 In Progress)
-- **Medium**: 6 (0% Validated)
+- **Critical**: 19 (16% Validated - REQ-F-SYNC-003, REQ-F-PLAY-001, REQ-F-ANNOT-002; 2 In Progress - REQ-F-UPLOAD-001, REQ-F-UPLOAD-002)
+- **High**: 23 (13% Validated - REQ-F-FRAME-002, REQ-F-PLAY-002; 7 In Progress - REQ-F-UPLOAD-003, REQ-F-UPLOAD-004, REQ-F-PLAYBACK-003, REQ-F-FRAME-001, REQ-F-FRAME-003, REQ-NF-P-001, REQ-NF-P-002)
+- **Medium**: 6 (0% Validated; 2 In Progress - REQ-NF-P-004, REQ-NF-BC-001)
 - **Low**: 2 (0% Validated)
 
 ### Requirements by Area
 
-- **Video Upload**: 4 requirements (0% Validated)
-- **Video Playback**: 3 requirements (0% Validated)
-- **Synchronization**: 4 requirements (25% Validated - REQ-F-SYNC-003; 0 In Progress)
-- **Playback Mode**: 3 requirements (67% Validated - REQ-F-PLAY-001, REQ-F-PLAY-002; 0 In Progress)
-- **Frame Control**: 3 requirements (33% Validated - REQ-F-FRAME-002; 2 In Progress - Task 0.3)
+- **Video Upload**: 4 requirements (0% Validated; 3 In Progress - REQ-F-UPLOAD-001, REQ-F-UPLOAD-002, REQ-F-UPLOAD-003)
+- **Video Playback**: 3 requirements (0% Validated; 1 In Progress - REQ-F-PLAYBACK-003)
+- **Synchronization**: 4 requirements (25% Validated - REQ-F-SYNC-003)
+- **Playback Mode**: 3 requirements (67% Validated - REQ-F-PLAY-001, REQ-F-PLAY-002)
+- **Frame Control**: 3 requirements (33% Validated - REQ-F-FRAME-002; 2 In Progress - REQ-F-FRAME-001, REQ-F-FRAME-003)
 - **Trimming**: 2 requirements (0% Validated)
-- **Annotations**: 5 requirements (20% Validated - REQ-F-ANNOT-002; 0 In Progress)
+- **Annotations**: 5 requirements (20% Validated - REQ-F-ANNOT-002)
 - **Error Handling**: 2 requirements (0% Validated)
 - **Documentation**: 1 requirement (0% Validated)
-- **Non-Functional**: 21 requirements (0% Validated, 6 In Progress)
-
----
-
-## Change History
-
-### Version 1.0 - 2025-10-22
-
-**Initial Release - MVP Scope Definition**
-
-**Functional Requirements (26 total):**
-
-- REQ-F-UPLOAD-001 through REQ-F-UPLOAD-003: Video Upload (3)
-- REQ-F-PLAYBACK-001 through REQ-F-PLAYBACK-003: Video Playback (3)
-- REQ-F-SYNC-001 through REQ-F-SYNC-004: Synchronization Mode (4)
-- REQ-F-PLAY-001 through REQ-F-PLAY-003: Playback Mode (3)
-- REQ-F-FRAME-001 through REQ-F-FRAME-003: Frame-Accurate Seeking (3)
-- REQ-F-TRIM-001 through REQ-F-TRIM-002: Video Trimming (2)
-- REQ-F-ANNOT-001 through REQ-F-ANNOT-005: Annotation Tools (5)
-- REQ-F-ERROR-001 through REQ-F-ERROR-002: Error Handling (2)
-- REQ-F-DOC-001: Deployment Documentation (1)
-
-**Non-Functional Requirements (20 total):**
-
-- REQ-NF-P-001 through REQ-NF-P-005: Performance (5)
-- REQ-NF-BC-001 through REQ-NF-BC-002: Browser Compatibility (2)
-- REQ-NF-SC-001 through REQ-NF-SC-002: Scalability (2)
-- REQ-NF-R-001 through REQ-NF-R-003: Reliability (3)
-- REQ-NF-U-001 through REQ-NF-U-003: Usability (3)
-- REQ-NF-M-001 through REQ-NF-M-003: Maintainability (3)
-- REQ-NF-PT-001 through REQ-NF-PT-003: Portability (3)
-
-**Requirements Quality Standards:**
-
-- All non-functional requirements enhanced with quantitative, testable acceptance criteria
-- Automated measurement methods specified for performance, usability, and quality requirements
-- Technology prescriptions removed from requirements (moved to implementation notes and PRP)
-- Technology Stack section removed from Technical Constraints (documented in MVP_PRP.md)
-- Requirements describe "what" must be achieved, not "how" to implement
-
-**Priority Breakdown:**
-
-- Critical: 19 requirements
-- High: 21 requirements
-- Medium: 6 requirements
-- Low: 2 requirements
-
-**Implementation Status:**
-
-- All requirements in "Planned" status
-- Project in Phase 0 (Technical Spikes)
-
-**Design Inputs Source:**
-
-- inputs/INITIAL.md (comprehensive design document)
-- V1 Golf App reference product
-
-**Technical Risks Identified:**
-
-- Frame-accurate seeking across browsers (HIGH RISK - Phase 0 spike required)
-- Synchronized video playback (HIGH RISK - Phase 0 spike required)
-- Canvas overlay performance (MEDIUM RISK - Phase 0 spike required)
-
-**Success Metrics (MVP):**
-
-- Frame-accurate synchronization working across all target browsers
-- Smooth dual-video playback on Raspberry Pi 4 8GB
-- Intuitive sync workflow discoverable without documentation
-- All core analysis workflows functional (upload → sync/trim → annotate → playback)
+- **Non-Functional**: 21 requirements (0% Validated; 6 In Progress - REQ-NF-P-001, REQ-NF-P-002, REQ-NF-P-004, REQ-NF-BC-001)
 
 ---

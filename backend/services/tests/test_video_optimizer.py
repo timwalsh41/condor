@@ -53,25 +53,33 @@ def test_needs_optimization_small_gop():
 
 
 def test_needs_optimization_hevc_codec():
-    """HEVC videos with optimal GOP don't need re-encoding."""
+    """
+    HEVC videos need re-encoding for WebCodecs compatibility.
+
+    Validates: REQ-F-UPLOAD-004 (HEVC→H.264 conversion)
+    """
     video_info = {
         'gop_size': 30,
         'codec': 'hevc',
         'width': 1920,
         'height': 1080
     }
-    assert needs_optimization(video_info) is False
+    assert needs_optimization(video_info) is True
 
 
 def test_needs_optimization_hevc_small_gop():
-    """HEVC videos with GOP <30 don't need re-encoding."""
+    """
+    HEVC videos need re-encoding regardless of GOP (for WebCodecs compatibility).
+
+    Validates: REQ-F-UPLOAD-004 (HEVC→H.264 conversion)
+    """
     video_info = {
         'gop_size': 15,
         'codec': 'hevc',
         'width': 1920,
         'height': 1080
     }
-    assert needs_optimization(video_info) is False
+    assert needs_optimization(video_info) is True
 
 
 def test_needs_optimization_other_codec():
@@ -105,36 +113,6 @@ def test_needs_optimization_all_optimal():
         'height': 720
     }
     assert needs_optimization(video_info) is False
-
-
-# ============================================
-# INTEGRATION TESTS (Require ffmpeg/ffprobe)
-# ============================================
-
-@pytest.mark.skipif(not Path('/usr/bin/ffprobe').exists(),
-                   reason="ffprobe not available")
-def test_get_video_info_with_test_video():
-    """
-    Test GOP size extraction from actual video file.
-
-    Note: Requires test video to exist. This test validates the
-    max(gop_sizes) logic vs mean(gop_sizes).
-    """
-    # This will be tested with generated test videos in next step
-    pytest.skip("Requires test video generation - see test_video_generation.sh")
-
-
-@pytest.mark.skipif(not Path('/usr/bin/ffmpeg').exists(),
-                   reason="ffmpeg not available")
-def test_optimize_video_produces_gop30():
-    """
-    Validate that re-encoded video has GOP=30.
-
-    Note: Requires test video and ffmpeg. This is an integration test
-    that verifies the entire re-encoding pipeline.
-    """
-    # This will be tested with generated test videos in next step
-    pytest.skip("Requires test video generation - see test_video_generation.sh")
 
 
 # ============================================
@@ -183,3 +161,142 @@ def test_needs_optimization_edge_resolution_1921x1080():
         'height': 1080
     }
     assert needs_optimization(video_info) is True
+
+
+def test_needs_optimization_edge_resolution_1920x1081():
+    """Width >1920 needs downscaling (boundary condition)."""
+    video_info = {
+        'gop_size': 30,
+        'codec': 'h264',
+        'width': 1920,
+        'height': 1081
+    }
+    assert needs_optimization(video_info) is True
+
+
+# ============================================
+# ROTATION TESTS (REQ-F-UPLOAD-004)
+# ============================================
+
+def test_needs_optimization_with_rotation_90():
+    """
+    Videos with rotation need re-encoding.
+
+    Validates: REQ-F-UPLOAD-004 (Video Rotation During Upload)
+    """
+    video_info = {
+        'gop_size': 30,
+        'codec': 'h264',
+        'width': 1920,
+        'height': 1080
+    }
+    assert needs_optimization(video_info, rotation=90) is True
+
+
+def test_needs_optimization_with_rotation_180():
+    """Videos with 180° rotation need re-encoding."""
+    video_info = {
+        'gop_size': 30,
+        'codec': 'h264',
+        'width': 1920,
+        'height': 1080
+    }
+    assert needs_optimization(video_info, rotation=180) is True
+
+
+def test_needs_optimization_with_rotation_270():
+    """Videos with 270° rotation need re-encoding."""
+    video_info = {
+        'gop_size': 30,
+        'codec': 'h264',
+        'width': 1920,
+        'height': 1080
+    }
+    assert needs_optimization(video_info, rotation=270) is True
+
+
+def test_needs_optimization_with_rotation_0():
+    """Videos with 0° rotation (no rotation) don't need re-encoding if already optimal."""
+    video_info = {
+        'gop_size': 30,
+        'codec': 'h264',
+        'width': 1920,
+        'height': 1080
+    }
+    assert needs_optimization(video_info, rotation=0) is False
+
+
+# ============================================
+# HEVC CODEC TESTS (REQ-F-UPLOAD-004)
+# ============================================
+
+def test_needs_optimization_hevc_hvc1():
+    """
+    HEVC videos (hvc1 codec tag) need re-encoding to H.264.
+
+    Validates: REQ-F-UPLOAD-004 (HEVC→H.264 conversion)
+    """
+    video_info = {
+        'gop_size': 30,
+        'codec': 'hvc1',
+        'width': 1920,
+        'height': 1080
+    }
+    assert needs_optimization(video_info) is True
+
+
+def test_needs_optimization_hevc_hev1():
+    """HEVC videos (hev1 codec tag) need re-encoding to H.264."""
+    video_info = {
+        'gop_size': 30,
+        'codec': 'hev1',
+        'width': 1920,
+        'height': 1080
+    }
+    assert needs_optimization(video_info) is True
+
+
+def test_needs_optimization_hevc_uppercase():
+    """HEVC videos (uppercase codec) need re-encoding to H.264."""
+    video_info = {
+        'gop_size': 30,
+        'codec': 'HEVC',
+        'width': 1920,
+        'height': 1080
+    }
+    assert needs_optimization(video_info) is True
+
+
+# ============================================
+# TRANSPOSE FILTER TESTS
+# ============================================
+
+def test_get_transpose_filter_0_degrees():
+    """0° rotation returns None (no filter)."""
+    from backend.services.video_optimizer import get_transpose_filter
+    assert get_transpose_filter(0) is None
+
+
+def test_get_transpose_filter_90_degrees():
+    """90° rotation returns transpose=1 filter."""
+    from backend.services.video_optimizer import get_transpose_filter
+    assert get_transpose_filter(90) == "transpose=1"
+
+
+def test_get_transpose_filter_180_degrees():
+    """180° rotation returns double transpose filter."""
+    from backend.services.video_optimizer import get_transpose_filter
+    assert get_transpose_filter(180) == "transpose=1,transpose=1"
+
+
+def test_get_transpose_filter_270_degrees():
+    """270° rotation returns transpose=2 filter."""
+    from backend.services.video_optimizer import get_transpose_filter
+    assert get_transpose_filter(270) == "transpose=2"
+
+
+def test_get_transpose_filter_invalid_angle():
+    """Invalid rotation angles raise ValueError."""
+    from backend.services.video_optimizer import get_transpose_filter
+    with pytest.raises(ValueError, match="Invalid rotation angle"):
+        get_transpose_filter(45)

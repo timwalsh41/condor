@@ -53,9 +53,10 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 ## Current Status
 
 - **Phase**: Phase 1 - MVP Core Features Implementation (In Progress)
-- **Last Updated**: 2026-01-02 - Task 1.1 Complete (Backend Only)
-- **Next Priority**: Task 1.2 - Frontend Skeleton + Video Upload UI
+- **Last Updated**: 2026-01-02 - Task 1.1 Complete (Backend Only), Project Plan Revised
+- **Next Priority**: Task 1.2 - Backend Integration + Upload Workflow
 - **Overall Progress**: 30 planned, 13 in progress, 5 validated (10% validated)
+  - _Phase 1 Tasks: 8 total (1 complete, 7 remaining) - Streamlined from 11 tasks by integrating Phase 0 components_
   - _Total test coverage: 508 tests (355 frontend unit + 121 Playwright + 35 backend unit + 20 backend integration)_
   - _Tests passing: 476/508 (94%, 16 Playwright skipped, 16 frontend skipped)_
   - _Backend tests: 55/55 passing (100%)_
@@ -540,134 +541,80 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
-#### Task 1.2: Frontend Skeleton + Video Upload UI
+#### Task 1.2: Backend Integration + Upload Workflow
 
 - **Status**: Not Started
-- **Requirements**: REQ-F-UPLOAD-001, REQ-F-UPLOAD-004, REQ-F-PLAYBACK-001
-- **Scope**: Create React frontend with video upload component and basic player
+- **Requirements**: REQ-F-UPLOAD-001, REQ-F-UPLOAD-004, REQ-F-PLAYBACK-003
+- **Scope**: Integrate Phase 0 frontend spike with backend API for video upload and streaming
 - **Acceptance Criteria**:
-  - Vite + React 18 + TypeScript project structure
-  - Zustand store for state management, Axios for API calls
-  - VideoUpload component with file input and drag-and-drop
-  - VideoRotationControls component with thumbnail preview and rotation buttons (REQ-F-UPLOAD-004)
-  - First frame extraction via canvas for thumbnail display
-  - Live preview rotation via CSS transform (0°, 90°, 180°, 270°)
+  - Zustand store for state management (video metadata, upload progress, session state)
+  - Axios API client service with typed interfaces matching backend Pydantic models
+  - VideoUploadWorkflow component replacing demo file input
+  - File selection with validation (size <200MB, format MP4)
+  - VideoRotationControls component with canvas thumbnail preview (REQ-F-UPLOAD-004)
+  - First frame extraction to canvas for rotation preview
+  - Live rotation preview via CSS `transform: rotate(Ndeg)` (0°, 90°, 180°, 270°)
   - Accept/Cancel workflow for rotation confirmation
-  - Upload progress indicator
-  - VideoPlayer component with HTML5 video element loading from backend
-  - Error notifications for upload failures
-  - Frontend unit tests pass (Vitest + React Testing Library)
-- **Dependencies**: Task 1.1
-- **Risk Level**: Low
+  - Upload to backend via POST `/api/upload` with FormData
+  - UploadProgressIndicator with polling via GET `/api/upload/{video_id}/status`
+  - ErrorNotification component for upload failures and validation errors
+  - useWebCodecsDecoder modified to accept video stream URL from backend
+  - Video fetched from GET `/api/video/{session_id}/{video_id}` for WebCodecs decode
+  - Frontend unit tests pass for new components (Vitest + React Testing Library)
+- **Dependencies**: Task 1.1, Phase 0 Tasks 0.3, 0.4, 0.5
+- **Risk Level**: Low (building on validated spike components)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 2 (all tasks)
 - **Technical Notes**:
-  - CSS: Tailwind recommended for speed
-  - Video source: `/api/video/{video_id}`
-  - Store video metadata (framerate, duration, video_id) in Zustand
-  - Rotation preview: Extract first frame to canvas, apply CSS `transform: rotate(Ndeg)` for live preview
-  - Store rotation angle (0, 90, 180, 270) in upload request payload
+  - Build on Phase 0 WebCodecsDemo and DualVideoSyncDemo - don't reinvent
+  - API client: TypeScript interfaces for VideoMetadata, UploadStatus, ErrorResponse
+  - Zustand slices: videoSlice (metadata, session_id), uploadSlice (progress, status, errors)
+  - useWebCodecsDecoder enhancement: Accept `File | string` (file object or video URL)
+  - Video URL → Fetch → Blob → File object → Existing MP4Parser logic
+  - Rotation preview: `<video>` element → `drawImage()` to canvas → CSS transform for preview
+  - Upload FormData: `{file: File, session_id?: string, rotation: number}`
+  - Progress polling: 500ms interval, states: pending → processing → complete | error
+  - No Tailwind CSS needed - use existing demo styling, polish in Task 1.9
 
 ---
 
-#### Task 1.3: Frame Control Integration
+#### Task 1.3: DualVideoSyncDemo Backend Integration
 
 - **Status**: Not Started
-- **Requirements**: REQ-F-FRAME-001, REQ-F-FRAME-002, REQ-F-PLAYBACK-001, REQ-F-PLAY-002
-- **Scope**: Integrate Phase 0 WebCodecs frame control spike into main application
+- **Requirements**: REQ-F-UPLOAD-001, REQ-F-UPLOAD-004, REQ-F-FRAME-001, REQ-F-FRAME-002, REQ-F-PLAYBACK-001, REQ-F-PLAYBACK-002, REQ-F-SYNC-001, REQ-F-SYNC-002, REQ-F-SYNC-003, REQ-F-SYNC-004, REQ-F-PLAY-001, REQ-F-PLAY-002, REQ-F-ANNOT-001, REQ-F-ANNOT-002, REQ-F-ANNOT-003, REQ-F-ANNOT-004, REQ-F-ANNOT-005
+- **Scope**: Integrate Phase 0 DualVideoSyncDemo with backend API for complete dual-video workflow
 - **Acceptance Criteria**:
-  - WebCodecsPlayer component migrated from spike
-  - VideoDecoder integration with React lifecycle
-  - MP4Parser and FrameCache utilities integrated
-  - PlaybackControls component with play/pause, coarse/fine step buttons
-  - Frame counter display: "Frame X of Y" with exact accuracy
-  - SpeedControl component (dropdown: 0.1x, 0.25x, 0.5x, 0.75x, 1x, 2x)
-  - Current frame number stored in Zustand store
-  - E2E tests pass: upload → play → frame step → speed change → frame counter exact
-- **Dependencies**: Task 1.2, Phase 0 Task 0.3 (WebCodecs Frame Control)
-- **Risk Level**: Low (validated in Phase 0)
-- **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 3 (all tasks)
+  - App.tsx orchestrates upload → playback workflow for dual videos
+  - DualVideoSyncDemo enhanced with VideoUploadWorkflow replacing file inputs (×2 for video A & B)
+  - Upload workflow: File select → rotation → upload → poll status → metadata returned (for each video)
+  - State migrated from local useState to Zustand store (video metadata, sync state, playback state, annotations)
+  - useWebCodecsDecoder accepts video URLs from backend (File | string support from Task 1.2)
+  - SYNC mode working with backend videos: independent controls per video
+  - PLAYBACK mode working: unified controls, sync offset maintained (0-frame accuracy)
+  - Sync offset calculation: `offset = sync_frame_B - sync_frame_A`
+  - Playback duration equalization (REQ-F-SYNC-004) working
+  - All playback controls: play/pause, frame step (coarse/fine), speed (0.1x-2x), scrubber
+  - Annotation tools on both videos: freehand, polyline, oval, arrow (all from Phase 0)
+  - Annotation operations: select, delete, drag, reshape (all from Phase 0)
+  - Frame counters display exact frame numbers from Zustand store
+  - Error handling: upload errors, decode errors, validation errors display ErrorNotification
+  - Upload progress tracking with UploadProgressIndicator for both videos
+  - E2E tests pass: upload 2 videos → rotation workflows → SYNC mode → set sync points → PLAYBACK mode → unified controls → annotations
+- **Dependencies**: Task 1.2, Phase 0 Tasks 0.3, 0.4, 0.5
+- **Risk Level**: Low (validated Phase 0 components + backend integration)
+- **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Sessions 3-4 (all tasks)
 - **Technical Notes**:
-  - Reuse WebCodecs patterns from spike exactly - they're validated
-  - VideoDecoder configuration from MP4 codec data
-  - Frame counter updates via decoded frame index (deterministic, not currentTime)
+  - DualVideoSyncDemo already has ALL features - just needs backend integration
+  - Migrate state from local useState to Zustand: videoSlice (metadata A & B), syncSlice (mode, offset, sync frames), playbackSlice (playhead state), annotationSlice (annotations A & B)
+  - Replace `<input type="file">` with VideoUploadWorkflow component (reuse for both videos)
+  - Workflow: Upload A → Upload B → DualVideoSyncDemo with URLs
+  - useWebCodecsDecoder already supports File | string (from Task 1.2)
+  - All Phase 0 features preserved: SYNC mode, PLAYBACK mode, annotations, exact frame accuracy
+  - Playback logic from `src/utils/dualVideoPlayback.ts` unchanged (pure functions, already tested)
+  - 60 Phase 0 tests remain valid, add integration tests for upload workflow
 
 ---
 
-#### Task 1.4: Dual Video + Sync Mode
-
-- **Status**: Not Started
-- **Requirements**: REQ-F-PLAYBACK-002, REQ-F-SYNC-001, REQ-F-SYNC-002, REQ-F-SYNC-003, REQ-F-SYNC-004
-- **Scope**: Implement dual video layout with Sync Mode for alignment
-- **Acceptance Criteria**:
-  - DualVideoPlayer component with two VideoPlayer instances side-by-side
-  - ModeToggle component: "Sync Mode" / "Playback Mode" button
-  - Sync Mode: Independent controls per video (play/pause, step, scrubber)
-  - Sync point selection: Navigate each video independently
-  - Sync offset calculation on mode switch: `offset = sync_frame_B - sync_frame_A`
-  - Playback duration equalization (REQ-F-SYNC-004) implemented
-  - Visual indicators for current mode and sync points
-  - Zustand store manages: mode, sync_frame_A, sync_frame_B, offset, effective playback boundaries
-  - E2E tests pass: upload 2 videos → Sync Mode → set sync points → verify offset
-- **Dependencies**: Task 1.3, Phase 0 Task 0.4 (Dual Video Sync)
-- **Risk Level**: Low (simplified with WebCodecs - was Medium)
-- **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 4 (all tasks), REQ-F-SYNC-004 implementation notes
-- **Technical Notes**:
-  - Sync Mode = independent controls, Playback Mode = unified controls
-  - Perfect deterministic sync: `displayFrame(decoderB, frameA + offset)`
-  - Duration equalization: calculate effective start/end based on pre/post sync durations
-  - No drift correction needed - WebCodecs frame indices are exact
-
----
-
-#### Task 1.5: Playback Mode + Unified Controls
-
-- **Status**: Not Started
-- **Requirements**: REQ-F-PLAY-001, REQ-F-PLAY-002, REQ-F-PLAY-003
-- **Scope**: Implement Playback Mode with unified controls maintaining sync
-- **Acceptance Criteria**:
-  - Playback Mode: Single control set for both videos
-  - Unified play/pause button, frame step buttons, scrubber, speed control
-  - Sync offset maintained during all operations (playback, stepping, seeking, speed changes)
-  - Loop toggle button with visual indicator
-  - Loop playback works with effective playback boundaries
-  - Sync drift correction active during playback
-  - E2E tests pass: Playback Mode → play → step → seek → speed change → sync maintained
-- **Dependencies**: Task 1.4
-- **Risk Level**: Low (validated in Phase 0)
-- **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 4 (Playback Mode tasks)
-- **Technical Notes**:
-  - Apply sync offset to video B based on video A position
-  - Use `requestAnimationFrame` for continuous drift checking
-  - Loop: HTML5 video loop attribute + sync logic reset
-
----
-
-#### Task 1.6: Annotations
-
-- **Status**: Not Started
-- **Requirements**: REQ-F-ANNOT-001, REQ-F-ANNOT-002, REQ-F-ANNOT-003, REQ-F-ANNOT-004, REQ-F-ANNOT-005
-- **Scope**: Integrate Phase 0 canvas overlay spike with full annotation tools
-- **Acceptance Criteria**:
-  - AnnotationCanvas component (react-konva Stage/Layer) over each video
-  - DrawingTools component: Polyline, Oval, Arrow, Freehand tool selection
-  - AnnotationRenderer component: Renders Konva shapes (Line, Ellipse, Arrow)
-  - Fixed style in MVP (single color, thickness) - extensible for future
-  - AnnotationControls: Delete annotation, Toggle visibility
-  - Static annotations (appear on all frames)
-  - Annotations stored per video in Zustand
-  - Konva.Animation active during video playback
-  - E2E tests pass: draw each tool type → delete → toggle → persist across playback
-- **Dependencies**: Task 1.3, Phase 0 Task 0.5 (Canvas Overlay)
-- **Risk Level**: Low (validated in Phase 0)
-- **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 5 (all tasks)
-- **Technical Notes**:
-  - Canvas dimensions match WebCodecs canvas rendering dimensions
-  - Destroy Konva layers on unmount to prevent memory leaks
-  - Design for future style customization (color, thickness) but don't implement
-
----
-
-#### Task 1.7: Trim Functionality + Error Handling
+#### Task 1.4: Trim Functionality + Error Handling
 
 - **Status**: Not Started
 - **Requirements**: REQ-F-TRIM-001, REQ-F-TRIM-002, REQ-F-ERROR-001, REQ-F-ERROR-002, REQ-F-UPLOAD-003
@@ -683,7 +630,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Server-side logging configured (Python logging to file)
   - E2E tests pass: set trim → playback constrained → reset trim → full range restored
   - E2E tests pass: upload errors → error messages displayed
-- **Dependencies**: Task 1.5
+- **Dependencies**: Task 1.3
 - **Risk Level**: Medium (trim + sync interaction complexity)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 6 (all tasks)
 - **Technical Notes**:
@@ -694,7 +641,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
-#### Task 1.8: Session Cleanup + Loop Playback
+#### Task 1.5: Session Cleanup + Loop Playback
 
 - **Status**: Not Started
 - **Requirements**: REQ-F-PLAY-003, REQ-NF-R-002, REQ-NF-R-003
@@ -708,7 +655,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - React cleanup: `useEffect` return functions cancel callbacks, destroy Konva resources
   - Memory leak test: <0.5% growth over 1-hour session
   - Backend unit tests pass for cleanup logic
-- **Dependencies**: Task 1.7
+- **Dependencies**: Task 1.4
 - **Risk Level**: Low
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 7 (all tasks)
 - **Technical Notes**:
@@ -718,7 +665,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
-#### Task 1.9: UI Polish + Onboarding
+#### Task 1.6: UI Polish + Onboarding
 
 - **Status**: Not Started
 - **Requirements**: REQ-NF-U-001, REQ-NF-U-002, REQ-NF-U-003
@@ -733,7 +680,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Sync workflow help text visible in Sync Mode
   - All UI interactions respond ≤100ms
   - Usability testing with 5+ non-technical users (recommended, not blocking)
-- **Dependencies**: Task 1.8
+- **Dependencies**: Task 1.5
 - **Risk Level**: Low
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 8 (UI Polish tasks)
 - **Technical Notes**:
@@ -743,7 +690,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
-#### Task 1.10: Documentation + Deployment
+#### Task 1.7: Documentation + Deployment
 
 - **Status**: Not Started
 - **Requirements**: REQ-F-DOC-001, REQ-NF-PT-001, REQ-NF-M-002
@@ -757,7 +704,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - All MVP workflows validated on target hardware
   - Installation instructions verified by following from scratch
   - Documentation concise with no redundancy
-- **Dependencies**: Task 1.9
+- **Dependencies**: Task 1.6
 - **Risk Level**: Medium (target hardware validation)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 1 Session 8 (Documentation tasks)
 - **Technical Notes**:
@@ -768,7 +715,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
-#### Task 1.11: Raspberry Pi 4 Backend Performance Validation
+#### Task 1.8: Raspberry Pi 4 Backend Performance Validation
 
 - **Status**: Not Started
 - **Requirements**: REQ-NF-P-001 (Playback Smoothness), REQ-NF-PT-001 (Raspberry Pi Deployment)
@@ -782,7 +729,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Storage and cleanup working correctly
   - Backend performance acceptable (CPU, memory, disk I/O)
   - Performance metrics documented in deployment guide
-- **Dependencies**: Task 1.10 (requires backend implementation and initial deployment)
+- **Dependencies**: Task 1.7 (requires backend implementation and initial deployment)
 - **Risk Level**: Low (Pi 4 only runs backend, not client-side WebCodecs)
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Phase 0 Spike 2 (Task 2.6), REQ-NF-P-001 acceptance criteria
 - **Technical Notes**:
@@ -917,7 +864,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Error handling validation: All error scenarios display user-friendly messages
   - Cleanup validation: Temporary files deleted on session end and background cleanup
 - **Requirements Validated**: All 46 MVP requirements (see Phase 1 Completion Criteria)
-- **Dependencies**: Tasks 1.1-1.10 complete
+- **Dependencies**: Tasks 1.1-1.7 complete
 - **PRP Reference**: `PRPs/MVP_PRP.md` - Final Validation Checklist (Phase 1 Completion)
 - **Success Criteria**:
   - All 46 MVP requirements validated by validation-gates agent
@@ -1012,7 +959,40 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 ---
 
+## Post-MVP Improvements
+
+- **Automated Type Generation**: Replace manual TypeScript types with `datamodel-code-generator`
+  - Install: `npm install --save-dev @datamodel-code-generator/core`
+  - Script: `datamodel-code-gen --input http://localhost:8000/openapi.json --output frontend/src/types/generated.ts --target typescript`
+  - Benefit: Single source of truth from FastAPI OpenAPI schema, eliminates manual sync
+  - Requirement: Backend running during codegen, CI pipeline integration
+
+---
+
 ## Change Log
+
+### 2026-01-02 - Phase 1 Project Plan Revised (Streamlined Integration Approach)
+
+- **Changes Made**:
+  - Revised Phase 1 task breakdown to leverage validated Phase 0 components
+  - Eliminated redundant tasks by integrating DualVideoSyncDemo directly with backend
+  - Streamlined 11 tasks → 8 tasks (Tasks 1.4, 1.5, 1.6 removed as redundant)
+  - Updated Task 1.2: "Backend Integration + Upload Workflow" - foundation layer (API, Zustand, upload components)
+  - Updated Task 1.3: "DualVideoSyncDemo Backend Integration" - complete dual-video workflow (SYNC mode, PLAYBACK mode, annotations)
+  - Renumbered tasks: 1.7→1.4, 1.8→1.5, 1.9→1.6, 1.10→1.7, 1.11→1.8
+- **Rationale**:
+  - DualVideoSyncDemo already has all MVP features validated (SYNC mode, PLAYBACK mode, annotations)
+  - Single video workflow is subset of dual video - building single first creates throwaway work
+  - Tasks 1.5 (Playback Mode) and 1.6 (Annotations) were redundant - features already exist in Phase 0
+  - Lower risk to enhance validated components than build from scratch
+- **Impact**:
+  - Phase 1: 8 tasks total (down from 11) - 1 complete, 7 remaining
+  - Faster path to MVP with less throwaway code
+  - All Phase 0 validation (60 tests, 355 unit tests) preserved intact
+- **Next Session**: Task 1.2 - Backend Integration + Upload Workflow
+- **Files Modified**: `PROJECT_PLAN.md` (Tasks 1.2-1.8, Current Status, completion criteria dependencies)
+
+---
 
 ### 2026-01-02 - Task 1.1 Status Correction (Backend Complete, Frontend Pending)
 

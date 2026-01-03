@@ -112,12 +112,18 @@ export interface UseWebCodecsDecoderResult {
  * - Cache miss: <300ms (max 30 frames from keyframe with GOP=30)
  * - Memory: 60-120MB (bounded by cache size)
  *
- * @param videoFile - MP4 video file to decode
+ * **File vs Blob Input**:
+ * - `File`: For local file uploads from `<input type="file">`
+ * - `Blob`: For videos fetched from backend streaming endpoints
+ * - Blob inputs are internally wrapped as File objects for MP4Parser compatibility
+ * - Default filename for Blob: 'video.mp4'
+ *
+ * @param videoFile - MP4 video file or blob to decode
  * @param cacheSize - Maximum frames to cache (default: 120)
  * @returns Hook interface with decoder controls and state
  */
 export function useWebCodecsDecoder(
-  videoFile: File | null,
+  videoFile: File | Blob | null,
   cacheSize: number = 120
 ): UseWebCodecsDecoderResult {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -953,6 +959,12 @@ export function useWebCodecsDecoder(
       return;
     }
 
+    // Normalize Blob to File for MP4Parser compatibility
+    // File extends Blob, so File inputs pass through unchanged
+    const file = videoFile instanceof File
+      ? videoFile
+      : new File([videoFile], 'video.mp4', { type: 'video/mp4' });
+
     let cancelled = false;
 
     // Capture refs for cleanup
@@ -966,9 +978,9 @@ export function useWebCodecsDecoder(
 
         // File size validation - 500MB hard limit
         const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-        const fileSizeMB = videoFile.size / 1024 / 1024;
+        const fileSizeMB = file.size / 1024 / 1024;
 
-        if (videoFile.size > MAX_FILE_SIZE) {
+        if (file.size > MAX_FILE_SIZE) {
           throw new Error(
             `File size (${fileSizeMB.toFixed(0)}MB) exceeds maximum allowed size (500MB). ` +
             `Please use a smaller video file or reduce quality/duration.`
@@ -981,7 +993,7 @@ export function useWebCodecsDecoder(
         let metadata: Awaited<ReturnType<typeof MP4Parser.readPartialMetadata>> = null;
 
         try {
-          metadata = await MP4Parser.readPartialMetadata(videoFile);
+          metadata = await MP4Parser.readPartialMetadata(file);
         } catch (err) {
           debugWarn("[INIT] Early codec detection failed, will check after full parse:", err);
         }
@@ -1039,7 +1051,7 @@ export function useWebCodecsDecoder(
 
         // Parse MP4 container
         const parser = new MP4Parser();
-        await parser.initialize(videoFile);
+        await parser.initialize(file);
 
         if (cancelled) return;
 

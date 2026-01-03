@@ -1,0 +1,589 @@
+/**
+ * Unit tests for VideoUploadWorkflow component.
+ *
+ * Tests business logic:
+ * - File validation (size, type)
+ * - Polling state machine (timeout, error handling, state transitions)
+ * - Upload orchestration
+ * - Error handling
+ *
+ * Phase: Phase 1 Task 1.2 (Backend Integration + Upload Workflow)
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { VideoUploadWorkflow } from '../VideoUploadWorkflow';
+import * as apiModule from '../../services/api';
+import type { VideoMetadata, UploadStatus } from '../../types/api';
+
+// Mock the API module
+vi.mock('../../services/api');
+const mockUploadVideo = vi.mocked(apiModule.uploadVideo);
+const mockGetUploadStatus = vi.mocked(apiModule.getUploadStatus);
+const mockFetchVideoBlob = vi.mocked(apiModule.fetchVideoBlob);
+
+// Mock child components
+vi.mock('../VideoRotationControls', () => ({
+  VideoRotationControls: ({ rotation, onRotationChange }: any) => (
+    <div data-testid="rotation-controls">
+      <button onClick={() => onRotationChange(90)}>Rotate 90°</button>
+      <span data-testid="current-rotation">{rotation}°</span>
+    </div>
+  ),
+}));
+
+vi.mock('../UploadProgressIndicator', () => ({
+  UploadProgressIndicator: ({ progress, state }: any) => (
+    <div data-testid="progress-indicator">
+      <span data-testid="progress">{Math.round(progress * 100)}%</span>
+      <span data-testid="state">{state}</span>
+    </div>
+  ),
+}));
+
+vi.mock('../ErrorNotification', () => ({
+  ErrorNotification: ({ error, onRetry, onDismiss }: any) => (
+    <div data-testid="error-notification">
+      <span data-testid="error-message">{error}</span>
+      <button onClick={onRetry}>Retry</button>
+      <button onClick={onDismiss}>Dismiss</button>
+    </div>
+  ),
+}));
+
+describe('VideoUploadWorkflow', () => {
+  const mockOnUploadComplete = vi.fn();
+  const mockOnCancel = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('File Selection', () => {
+    it('should render file input in idle state', () => {
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      expect(input).toBeTruthy();
+      expect(input.getAttribute('type')).toBe('file');
+    });
+
+    it('should accept valid file and show rotation controls', () => {
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+
+      fireEvent.change(input, { target: { files: [file] } });
+
+      expect(screen.getByTestId('rotation-controls')).toBeTruthy();
+      expect(screen.getByText('Upload')).toBeTruthy();
+      expect(screen.getByText('Cancel')).toBeTruthy();
+    });
+  });
+
+  describe('File Validation - Size Limit', () => {
+    it('should reject files larger than 200MB', () => {
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const largeFile = new File(
+        [new ArrayBuffer(201 * 1024 * 1024)], // 201MB
+        'large.mp4',
+        { type: 'video/mp4' }
+      );
+
+      // Mock size property since File constructor doesn't set it accurately
+      Object.defineProperty(largeFile, 'size', { value: 201 * 1024 * 1024 });
+
+      fireEvent.change(input, { target: { files: [largeFile] } });
+
+      expect(screen.getByTestId('error-notification')).toBeTruthy();
+      expect(screen.getByTestId('error-message').textContent).toMatch(
+        /File size exceeds maximum allowed size of 200MB/
+      );
+    });
+
+    it('should accept files at exactly 200MB', () => {
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const validFile = new File(
+        [new ArrayBuffer(200 * 1024 * 1024)], // Exactly 200MB
+        'valid.mp4',
+        { type: 'video/mp4' }
+      );
+
+      Object.defineProperty(validFile, 'size', { value: 200 * 1024 * 1024 });
+
+      fireEvent.change(input, { target: { files: [validFile] } });
+
+      // Should show rotation controls, not error
+      expect(screen.getByTestId('rotation-controls')).toBeTruthy();
+      expect(screen.queryByTestId('error-notification')).toBeNull();
+    });
+  });
+
+  describe('File Validation - Type', () => {
+    it('should reject non-video files', () => {
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const invalidFile = new File(['content'], 'doc.pdf', { type: 'application/pdf' });
+
+      fireEvent.change(input, { target: { files: [invalidFile] } });
+
+      expect(screen.getByTestId('error-notification')).toBeTruthy();
+      expect(screen.getByTestId('error-message').textContent).toMatch(
+        /Invalid file type: application\/pdf/
+      );
+    });
+
+    it('should accept video/mp4 files', () => {
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const validFile = new File(['video content'], 'video.mp4', { type: 'video/mp4' });
+
+      fireEvent.change(input, { target: { files: [validFile] } });
+
+      expect(screen.getByTestId('rotation-controls')).toBeTruthy();
+      expect(screen.queryByTestId('error-notification')).toBeNull();
+    });
+
+    it('should accept video/* MIME types', () => {
+      const videoTypes = ['video/webm', 'video/quicktime', 'video/x-matroska'];
+
+      videoTypes.forEach((type) => {
+        const { unmount } = render(
+          <VideoUploadWorkflow
+            videoSlot="A"
+            onUploadComplete={mockOnUploadComplete}
+          />
+        );
+
+        const input = screen.getByLabelText(/select video file for slot A/i);
+        const validFile = new File(['video content'], `video.${type.split('/')[1]}`, { type });
+
+        fireEvent.change(input, { target: { files: [validFile] } });
+
+        expect(screen.getByTestId('rotation-controls')).toBeTruthy();
+        expect(screen.queryByTestId('error-notification')).toBeNull();
+
+        unmount();
+      });
+    });
+  });
+
+  describe('Rotation Workflow', () => {
+    it('should update rotation when rotation controls change', () => {
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      const rotateButton = screen.getByText('Rotate 90°');
+      fireEvent.click(rotateButton);
+
+      expect(screen.getByTestId('current-rotation').textContent).toBe('90°');
+    });
+
+    it('should pass rotation to uploadVideo API', async () => {
+      const mockMetadata: VideoMetadata = {
+        video_id: 'video-123',
+        session_id: 'session-456',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 10.0,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      mockUploadVideo.mockResolvedValue(mockMetadata);
+      mockGetUploadStatus.mockResolvedValue({
+        video_id: 'video-123',
+        status: 'complete',
+        progress: 1.0,
+        metadata: mockMetadata,
+      });
+      mockFetchVideoBlob.mockResolvedValue(new Blob());
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      // Set rotation to 90
+      fireEvent.click(screen.getByText('Rotate 90°'));
+
+      // Upload
+      fireEvent.click(screen.getByText('Upload'));
+
+      await waitFor(() => {
+        expect(mockUploadVideo).toHaveBeenCalledWith(file, undefined, 90);
+      }, { timeout: 10000 });
+    });
+  });
+
+  describe('Upload Orchestration', () => {
+    it('should call uploadVideo on upload confirmation', async () => {
+      const mockMetadata: VideoMetadata = {
+        video_id: 'video-123',
+        session_id: 'session-456',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 10.0,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      mockUploadVideo.mockResolvedValue(mockMetadata);
+      mockGetUploadStatus.mockResolvedValue({
+        video_id: 'video-123',
+        status: 'complete',
+        progress: 1.0,
+        metadata: mockMetadata,
+      });
+      mockFetchVideoBlob.mockResolvedValue(new Blob());
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          sessionId="session-456"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      fireEvent.click(screen.getByText('Upload'));
+
+      await waitFor(() => {
+        expect(mockUploadVideo).toHaveBeenCalledWith(file, 'session-456', 0);
+      }, { timeout: 10000 });
+    });
+
+    it('should show uploading state during upload', async () => {
+      const mockMetadata: VideoMetadata = {
+        video_id: 'video-123',
+        session_id: 'session-456',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 10.0,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      mockUploadVideo.mockResolvedValue(mockMetadata);
+      mockGetUploadStatus.mockResolvedValue({
+        video_id: 'video-123',
+        status: 'complete',
+        progress: 1.0,
+        metadata: mockMetadata,
+      });
+      mockFetchVideoBlob.mockResolvedValue(new Blob());
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      fireEvent.click(screen.getByText('Upload'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('state').textContent).toBe('uploading');
+      }, { timeout: 10000 });
+    });
+  });
+
+  describe('Polling State Machine', () => {
+    it('should poll status after upload succeeds', async () => {
+      const mockMetadata: VideoMetadata = {
+        video_id: 'video-123',
+        session_id: 'session-456',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 10.0,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      mockUploadVideo.mockResolvedValue(mockMetadata);
+      mockGetUploadStatus.mockResolvedValue({
+        video_id: 'video-123',
+        status: 'complete',
+        progress: 1.0,
+        metadata: mockMetadata,
+      });
+      mockFetchVideoBlob.mockResolvedValue(new Blob());
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      fireEvent.click(screen.getByText('Upload'));
+
+      await waitFor(() => {
+        expect(mockGetUploadStatus).toHaveBeenCalledWith('video-123');
+      }, { timeout: 10000 });
+    });
+
+    it('should fetch video blob when upload completes', async () => {
+      const mockMetadata: VideoMetadata = {
+        video_id: 'video-123',
+        session_id: 'session-456',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 10.0,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      const mockBlob = new Blob(['video data'], { type: 'video/mp4' });
+
+      mockUploadVideo.mockResolvedValue(mockMetadata);
+      mockGetUploadStatus.mockResolvedValue({
+        video_id: 'video-123',
+        status: 'complete',
+        progress: 1.0,
+        metadata: mockMetadata,
+      });
+      mockFetchVideoBlob.mockResolvedValue(mockBlob);
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      fireEvent.click(screen.getByText('Upload'));
+
+      await waitFor(() => {
+        expect(mockFetchVideoBlob).toHaveBeenCalledWith('session-456', 'video-123');
+        expect(mockOnUploadComplete).toHaveBeenCalledWith(mockMetadata, mockBlob);
+      }, { timeout: 10000 });
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should show error when upload fails', async () => {
+      mockUploadVideo.mockRejectedValue(new Error('Network error'));
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      fireEvent.click(screen.getByText('Upload'));
+
+      await waitFor(() => {
+        const errorMessage = screen.getByTestId('error-message');
+        expect(errorMessage.textContent).toMatch(/Network error/);
+      }, { timeout: 10000 });
+    });
+
+    it('should show error when polling returns error status', async () => {
+      const mockMetadata: VideoMetadata = {
+        video_id: 'video-123',
+        session_id: 'session-456',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 10.0,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      mockUploadVideo.mockResolvedValue(mockMetadata);
+      mockGetUploadStatus.mockResolvedValue({
+        video_id: 'video-123',
+        status: 'error',
+        progress: 0,
+        error_message: 'Processing failed: invalid codec',
+      });
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      fireEvent.click(screen.getByText('Upload'));
+
+      await waitFor(() => {
+        const errorMessage = screen.getByTestId('error-message');
+        expect(errorMessage.textContent).toMatch(/Processing failed: invalid codec/);
+      }, { timeout: 10000 });
+    });
+
+    it('should handle retry after error', async () => {
+      // First attempt fails
+      mockUploadVideo.mockRejectedValueOnce(new Error('Network error'));
+
+      // Second attempt succeeds
+      const mockMetadata: VideoMetadata = {
+        video_id: 'video-123',
+        session_id: 'session-456',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 10.0,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      mockUploadVideo.mockResolvedValueOnce(mockMetadata);
+      mockGetUploadStatus.mockResolvedValue({
+        video_id: 'video-123',
+        status: 'complete',
+        progress: 1.0,
+        metadata: mockMetadata,
+      });
+      mockFetchVideoBlob.mockResolvedValue(new Blob());
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      fireEvent.click(screen.getByText('Upload'));
+
+      // Wait for error
+      await waitFor(() => {
+        expect(screen.getByTestId('error-notification')).toBeTruthy();
+      }, { timeout: 10000 });
+
+      // Click retry
+      fireEvent.click(screen.getByText('Retry'));
+
+      // Select file again after retry
+      const input2 = screen.getByLabelText(/select video file for slot A/i);
+      const file2 = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input2, { target: { files: [file2] } });
+
+      fireEvent.click(screen.getByText('Upload'));
+
+      await waitFor(() => {
+        expect(mockUploadVideo).toHaveBeenCalledTimes(2);
+        expect(mockOnUploadComplete).toHaveBeenCalled();
+      }, { timeout: 10000 });
+    });
+  });
+
+  describe('Cancel Workflow', () => {
+    it('should call onCancel and reset state', () => {
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      expect(screen.getByTestId('rotation-controls')).toBeTruthy();
+
+      fireEvent.click(screen.getByText('Cancel'));
+
+      expect(mockOnCancel).toHaveBeenCalled();
+    });
+  });
+});

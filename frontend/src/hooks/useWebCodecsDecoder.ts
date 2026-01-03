@@ -261,6 +261,9 @@ export function useWebCodecsDecoder(
    */
   const createEncodedChunk = useCallback(
     (sample: Sample): EncodedVideoChunk => {
+      if (!sample.data) {
+        throw new Error('Sample data is missing');
+      }
       return new EncodedVideoChunk({
         type: sample.is_sync ? "key" : "delta",
         timestamp: sample.cts,

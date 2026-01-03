@@ -241,3 +241,19 @@ declare module 'mp4box' {
   }
 
 }
+
+/**
+ * Namespace export to support file-based imports.
+ * Allows: import type { MP4BoxSDK } from '../types/mp4box';
+ */
+export namespace MP4BoxSDK {
+  export type {
+    MP4File,
+    MP4Info,
+    MP4Track,
+    MP4VideoTrack,
+    MP4AudioTrack,
+    Sample,
+    DataStream,
+  };
+}

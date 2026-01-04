@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { VideoUploadWorkflow } from '../VideoUploadWorkflow';
 import * as apiModule from '../../services/api';
-import type { VideoMetadata, UploadStatus } from '../../types/api';
+import type { VideoMetadata } from '../../types/api';
 
 // Mock the API module
 vi.mock('../../services/api');
@@ -24,7 +24,7 @@ const mockFetchVideoBlob = vi.mocked(apiModule.fetchVideoBlob);
 
 // Mock child components
 vi.mock('../VideoRotationControls', () => ({
-  VideoRotationControls: ({ rotation, onRotationChange }: any) => (
+  VideoRotationControls: ({ rotation, onRotationChange }: { rotation: number; onRotationChange: (rotation: number) => void }) => (
     <div data-testid="rotation-controls">
       <button onClick={() => onRotationChange(90)}>Rotate 90°</button>
       <span data-testid="current-rotation">{rotation}°</span>
@@ -33,7 +33,7 @@ vi.mock('../VideoRotationControls', () => ({
 }));
 
 vi.mock('../UploadProgressIndicator', () => ({
-  UploadProgressIndicator: ({ progress, state }: any) => (
+  UploadProgressIndicator: ({ progress, state }: { progress: number; state: string }) => (
     <div data-testid="progress-indicator">
       <span data-testid="progress">{Math.round(progress * 100)}%</span>
       <span data-testid="state">{state}</span>
@@ -42,7 +42,7 @@ vi.mock('../UploadProgressIndicator', () => ({
 }));
 
 vi.mock('../ErrorNotification', () => ({
-  ErrorNotification: ({ error, onRetry, onDismiss }: any) => (
+  ErrorNotification: ({ error, onRetry, onDismiss }: { error: string; onRetry: () => void; onDismiss: () => void }) => (
     <div data-testid="error-notification">
       <span data-testid="error-message">{error}</span>
       <button onClick={onRetry}>Retry</button>

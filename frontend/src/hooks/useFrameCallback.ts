@@ -33,13 +33,11 @@ export type FrameCallback = (
  *
  * @param videoRef - Reference to the HTML video element
  * @param callback - Function to call on each video frame
- * @param framerate - Video framerate (fps) for frame number calculation
  * @returns Object with requestFrame function to manually trigger frame callback
  */
 export function useFrameCallback(
   videoRef: React.RefObject<HTMLVideoElement | null>,
-  callback: FrameCallback,
-  _framerate: number = 30
+  callback: FrameCallback
 ) {
   const callbackIdRef = useRef<number | null>(null);
   const callbackRef = useRef<FrameCallback>(callback);
@@ -117,8 +115,8 @@ export function useFrameCallback(
 
   // Cleanup on unmount - CRITICAL to prevent memory leaks
   useEffect(() => {
+    const video = videoRef.current;
     return () => {
-      const video = videoRef.current;
       if (video && callbackIdRef.current !== null) {
         video.cancelVideoFrameCallback(callbackIdRef.current);
       }

@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { AnnotationManager } from "../AnnotationManager";
 import { DEFAULT_ANNOTATION_STYLE } from "../../types/annotations";
-import type { AnnotationType, Point } from "../../types/annotations";
+import type { AnnotationType, Point, Annotation } from "../../types/annotations";
 
 describe("AnnotationManager", () => {
   let manager: AnnotationManager;
@@ -952,9 +952,9 @@ describe("AnnotationManager", () => {
   });
 
   describe("Selection Management", () => {
-    let annotation1: any;
-    let annotation2: any;
-    let annotation3: any;
+    let annotation1: Annotation;
+    let annotation2: Annotation;
+    let annotation3: Annotation;
 
     beforeEach(() => {
       // Create test annotations
@@ -1141,9 +1141,9 @@ describe("AnnotationManager", () => {
   // ========================================
 
   describe("Drag Operations", () => {
-    let annotation1: any;
-    let annotation2: any;
-    let annotation3: any;
+    let annotation1: Annotation;
+    let annotation2: Annotation;
+    let annotation3: Annotation;
 
     beforeEach(() => {
       // Create test annotations with known positions
@@ -1423,9 +1423,9 @@ describe("AnnotationManager", () => {
   // Reshape Methods Tests (Subtask 0.5.11)
   // ========================================
   describe("Reshape Methods", () => {
-    let arrowAnnotation: any;
-    let polylineAnnotation: any;
-    let ovalAnnotation: any;
+    let arrowAnnotation: Annotation;
+    let polylineAnnotation: Annotation;
+    let ovalAnnotation: Annotation;
 
     beforeEach(() => {
       // Create test annotations

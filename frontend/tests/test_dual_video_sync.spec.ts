@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 /**
  * Dual Video Synchronized Playback Tests
@@ -27,7 +27,7 @@ import { test, expect } from "@playwright/test";
 /**
  * Helper: Navigate to dual video demo and wait for it to be ready
  */
-async function navigateToDualVideoDemo(page: any) {
+async function navigateToDualVideoDemo(page: Page) {
   await page.goto("/");
 
   // Wait for component to be visible (app directly renders DualVideoSyncDemo)
@@ -41,7 +41,7 @@ async function navigateToDualVideoDemo(page: any) {
 /**
  * Helper: Upload videos to both slots
  */
-async function uploadVideos(page: any, videoPathA: string, videoPathB: string) {
+async function uploadVideos(page: Page, videoPathA: string, videoPathB: string) {
   const fileInputA = page.locator('[data-testid="file-input-a"]');
   const fileInputB = page.locator('[data-testid="file-input-b"]');
 
@@ -75,7 +75,7 @@ async function uploadVideos(page: any, videoPathA: string, videoPathB: string) {
 /**
  * Helper: Get current frame number from counter
  */
-async function getFrameNumber(page: any, testId: string): Promise<number> {
+async function getFrameNumber(page: Page, testId: string): Promise<number> {
   const counter = page.locator(`[data-testid="${testId}"]`);
   const text = await counter.textContent();
   const match = text?.match(/Frame (\d+)/);
@@ -86,7 +86,7 @@ async function getFrameNumber(page: any, testId: string): Promise<number> {
  * Helper: Wait for specific frame number
  */
 async function waitForFrame(
-  page: any,
+  page: Page,
   testId: string,
   expectedFrame: number,
   timeout: number = 3000
@@ -107,7 +107,7 @@ async function waitForFrame(
  * Helper: Step to specific frame using fine/coarse stepping
  */
 async function stepToFrame(
-  page: any,
+  page: Page,
   testId: string,
   targetFrame: number,
   fineButtonId: string,

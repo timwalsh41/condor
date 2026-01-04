@@ -53,16 +53,15 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 ## Current Status
 
 - **Phase**: Phase 1 - MVP Core Features Implementation (In Progress)
-- **Last Updated**: 2026-01-03 - Task 1.2.1 Complete (TypeScript Compilation Errors Fixed)
+- **Last Updated**: 2026-01-03 - Task 1.2.2 Complete (ESLint Violations Fixed)
 - **Next Priority**: Task 1.3 - DualVideoSyncDemo Backend Integration
 - **Overall Progress**: 30 planned, 13 in progress, 5 validated (10% validated)
-  - _Phase 1 Tasks: 10 total (3 complete, 1 blocking subtask remaining, 6 remaining)_
-  - _Total test coverage: 576 tests (423 frontend unit + 121 Playwright + 35 backend unit + 20 backend integration)_
-  - _Tests passing: 576/576 (100%, 0 skipped)_
-  - _Backend tests: 55/55 passing (100%)_
-  - _Frontend tests: 423/423 passing (100%)_
-  - _TypeScript build: 0 errors ✅_
-  - _Known issues: 38 ESLint violations (Task 1.2.2, non-blocking for Task 1.3)_
+  - _Phase 1 Tasks: 10 total (4 complete, 6 remaining)_
+  - _Total test coverage: 610 tests (423 frontend unit + 153 Playwright + 34 backend)_
+  - _Tests passing: 578/610 (95%, 32 skipped)_
+  - _Backend tests: 34/34 passing (100%)_
+  - _Frontend unit tests: 423/423 passing (100%)_
+  - _Playwright tests: 121/153 passing (79%, 32 skipped)_
 
 ## Task Breakdown
 
@@ -649,24 +648,40 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 1.2.2: Fix ESLint Violations
 
-- **Status**: Not Started
+- **Status**: ✅ Complete
+- **Completed**: 2026-01-03
 - **Requirements**: REQ-NF-M-001 (Code Quality)
-- **Scope**: Fix 38 pre-existing ESLint violations in test files
+- **Scope**: Fix 70 ESLint violations across test and production files (expanded from 38)
 - **Acceptance Criteria**:
-  - Replace 37 uses of `any` type with proper Konva types (e.g., `KonvaEventObject<MouseEvent>`)
-  - Remove 1 unused `beforeEach` import from decodePlanning.test.ts
-  - `npm run lint` succeeds with 0 ESLint errors
-- **Dependencies**: Task 1.2
+  - ✅ Replace all uses of `any` type with proper TypeScript types
+  - ✅ Remove unused imports and variables
+  - ✅ Fix React hooks exhaustive-deps warnings
+  - ✅ Remove `@ts-nocheck` directive
+  - ✅ `npm run lint` succeeds with 0 ESLint errors
+  - ✅ `npm run build` succeeds with 0 TypeScript errors
+  - ✅ All 423 unit tests passing
+- **Dependencies**: Task 1.2.1
 - **Risk Level**: Low
-- **Effort**: ~1-2 hours
-- **Priority**: BLOCKING for code quality - Should complete before Task 1.3
-- **Issues to Fix**:
-  - `useVideoAnnotations.test.ts` - 35 `@typescript-eslint/no-explicit-any` violations
-  - `useWebCodecsDecoder.test.ts` - 2 `@typescript-eslint/no-explicit-any` violations
-  - `decodePlanning.test.ts` - 1 unused import
+- **Deliverables**:
+  - ✅ Fixed 6 unused imports/variables across 4 files
+  - ✅ Replaced 59 `any` types with proper types (Konva, Playwright, Vitest, Axios)
+  - ✅ Created comprehensive MP4Parser type interfaces (AVCCBox, HVCCBox, MP4TrackInternal)
+  - ✅ Fixed 2 React hooks warnings (useFrameCallback.ts, useWebCodecsDecoder.ts)
+  - ✅ Removed 1 `@ts-nocheck` directive (MP4Parser.test.ts)
+  - ✅ Removed 2 unused eslint-disable directives
+  - ✅ 16 files modified (10 test files, 6 production files)
+- **Test Results**:
+  - Unit tests: 423/423 passing (100%)
+  - TypeScript build: 0 errors ✅
+  - ESLint: 0 violations ✅ (down from 70)
 - **Technical Notes**:
-  - Issues are pre-existing (not introduced by Task 1.2)
-  - Konva type imports: `import type { KonvaEventObject } from 'konva/lib/Node'`
+  - Expanded scope to fix ALL 70 violations (not just original 38)
+  - Production code improvements: MP4Parser.ts received proper type definitions for MP4Box.js internal structures
+  - Konva types: `Konva.KonvaEventObject<MouseEvent>` for event handlers
+  - Playwright types: `Page` type for test helper functions
+  - MP4Box types: Created AVCCBox/HVCCBox interfaces with proper serialization support
+  - React hooks: Captured ref values in effect cleanup to satisfy exhaustive-deps
+  - Boolean conversion: Fixed bitwise operations on boolean values (HEVC completeness flag)
 
 ---
 

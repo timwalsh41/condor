@@ -913,7 +913,7 @@ export function useWebCodecsDecoder(
     }
 
     playbackLoopRef.current = requestAnimationFrame(playbackLoop);
-  }, [framerate, renderFrameToCanvas, createEncodedChunk]);
+  }, [framerate, renderFrameToCanvas, createEncodedChunk, seekToFrame]);
 
   /**
    * Stop continuous playback.

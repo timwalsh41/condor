@@ -41,8 +41,7 @@ export function FrameStepper({ videoSrc, framerate = 30 }: FrameStepperProps) {
 
   const { startFrameCallback, stopFrameCallback, requestFrame } = useFrameCallback(
     videoRef,
-    handleFrameUpdate,
-    framerate
+    handleFrameUpdate
   );
 
   /**

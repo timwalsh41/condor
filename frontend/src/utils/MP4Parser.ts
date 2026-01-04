@@ -21,6 +21,78 @@ export class MP4ParseError extends Error {
 }
 
 /**
+ * Internal MP4Box codec configuration box types
+ * These represent the internal structure of mp4box.js track data
+ * not exposed in the public type definitions
+ */
+interface MP4BoxConfigBox {
+  box_name?: string;
+}
+
+interface AVCCBox extends MP4BoxConfigBox {
+  box_name: "AVCConfigurationBox";
+  configurationVersion: number;
+  AVCProfileIndication: number;
+  profile_compatibility: number;
+  AVCLevelIndication: number;
+  lengthSizeMinusOne: number;
+  nb_SPS_nalus?: number;
+  SPS: Array<{ length: number; nalu?: Uint8Array; data?: Uint8Array }>;
+  nb_PPS_nalus?: number;
+  PPS: Array<{ length: number; nalu?: Uint8Array; data?: Uint8Array }>;
+}
+
+interface HVCCBox extends MP4BoxConfigBox {
+  box_name: "HEVCConfigurationBox";
+  configurationVersion: number;
+  general_profile_space: number;
+  general_tier_flag: number;
+  general_profile_idc: number;
+  general_profile_compatibility: number;
+  general_constraint_indicator: Uint8Array;
+  general_level_idc: number;
+  min_spatial_segmentation_idc?: number;
+  parallelismType?: number;
+  chroma_format_idc?: number;
+  bit_depth_luma_minus8?: number;
+  bit_depth_chroma_minus8?: number;
+  avgFrameRate?: number;
+  constantFrameRate?: number;
+  numTemporalLayers?: number;
+  temporalIdNested?: number;
+  lengthSizeMinusOne?: number;
+  nalu_arrays: Array<{
+    completeness: boolean;
+    type: number;
+    nalu_type?: number;
+    length?: number;
+    nalus: Array<{ length: number; data: Uint8Array }>;
+  }>;
+}
+
+interface MP4SampleEntry {
+  box_name?: string;
+  avcC?: AVCCBox;
+  hvcC?: HVCCBox;
+}
+
+interface MP4TrackInternal {
+  mdia?: {
+    minf?: {
+      stbl?: {
+        stsd?: {
+          entries?: MP4SampleEntry[];
+        };
+      };
+    };
+  };
+  matrix?: number[];
+  tkhd?: {
+    matrix?: number[];
+  };
+}
+
+/**
  * Video metadata extracted from MP4 headers
  */
 export interface VideoMetadata {
@@ -337,7 +409,7 @@ export class MP4Parser {
     }
 
     // Get the full track structure from mp4file to access the sample description
-    const fullTrack = this.mp4File.getTrackById(this.videoTrack.id) as any;
+    const fullTrack = this.mp4File.getTrackById(this.videoTrack.id) as MP4TrackInternal | undefined;
 
     if (!fullTrack?.mdia?.minf?.stbl?.stsd?.entries?.[0]) {
       throw new MP4ParseError(
@@ -372,25 +444,27 @@ export class MP4Parser {
    * @param configBox - avcC or hvcC box from mp4box.js
    * @returns Serialized configuration data
    */
-  private serializeConfigBox(configBox: any): Uint8Array {
+  private serializeConfigBox(configBox: AVCCBox | HVCCBox): Uint8Array {
     // For avcC boxes, we need to serialize: version, profile, compatibility, level, and SPS/PPS NALUs
     // For hvcC boxes, similar but with HEVC-specific structure
 
     if (configBox.box_name === "AVCConfigurationBox") {
-      return this.serializeAVCC(configBox);
+      return this.serializeAVCC(configBox as AVCCBox);
     } else if (configBox.box_name === "HEVCConfigurationBox") {
-      return this.serializeHVCC(configBox);
+      return this.serializeHVCC(configBox as HVCCBox);
     }
 
+    // TypeScript exhaustiveness check - should never reach here
+    const boxName = (configBox as MP4BoxConfigBox).box_name || "unknown";
     throw new MP4ParseError(
-      `Unsupported configuration box type: ${configBox.box_name || "unknown"}`
+      `Unsupported configuration box type: ${boxName}`
     );
   }
 
   /**
    * Serialize avcC box to binary format for VideoDecoderConfig
    */
-  private serializeAVCC(avcC: any): Uint8Array {
+  private serializeAVCC(avcC: AVCCBox): Uint8Array {
     // Calculate total size
     let size = 7; // Fixed header: version(1) + profile(1) + compat(1) + level(1) + lengthSize(1) + numSPS(1) + reserve(1)
 
@@ -415,24 +489,30 @@ export class MP4Parser {
     data[offset++] = avcC.profile_compatibility;
     data[offset++] = avcC.AVCLevelIndication;
     data[offset++] = 0xff | (avcC.lengthSizeMinusOne & 0x03); // 6 bits reserved (111111) + 2 bits length
-    data[offset++] = 0xe0 | (avcC.nb_SPS_nalus & 0x1f); // 3 bits reserved (111) + 5 bits numSPS
+    data[offset++] = 0xe0 | ((avcC.nb_SPS_nalus || avcC.SPS.length) & 0x1f); // 3 bits reserved (111) + 5 bits numSPS
 
     // Write SPS NAL units
     for (const sps of avcC.SPS) {
       data[offset++] = (sps.length >> 8) & 0xff;
       data[offset++] = sps.length & 0xff;
-      data.set(sps.data, offset);
-      offset += sps.length;
+      const spsData = sps.data || sps.nalu;
+      if (spsData) {
+        data.set(spsData, offset);
+        offset += sps.length;
+      }
     }
 
     // Write PPS count and NAL units
-    data[offset++] = avcC.nb_PPS_nalus;
+    data[offset++] = avcC.nb_PPS_nalus || avcC.PPS.length;
 
     for (const pps of avcC.PPS) {
       data[offset++] = (pps.length >> 8) & 0xff;
       data[offset++] = pps.length & 0xff;
-      data.set(pps.data, offset);
-      offset += pps.length;
+      const ppsData = pps.data || pps.nalu;
+      if (ppsData) {
+        data.set(ppsData, offset);
+        offset += pps.length;
+      }
     }
 
     return data;
@@ -443,14 +523,15 @@ export class MP4Parser {
    *
    * HEVC configuration structure is defined in ISO/IEC 14496-15
    */
-  private serializeHVCC(hvcC: any): Uint8Array {
+  private serializeHVCC(hvcC: HVCCBox): Uint8Array {
     // Calculate total size
     let size = 23; // Fixed header size for hvcC
 
     // Add size for all NAL unit arrays
     for (const naluArray of hvcC.nalu_arrays) {
       size += 3; // array_completeness + NAL_unit_type (1 byte) + numNalus (2 bytes)
-      for (const nalu of naluArray) {
+      const nalus = naluArray.nalus || [];
+      for (const nalu of nalus) {
         if (nalu.data) {
           size += 2 + nalu.data.length; // nalUnitLength (2 bytes) + data
         }
@@ -465,9 +546,9 @@ export class MP4Parser {
 
     // Profile, tier, level (byte 1-12)
     data[offset++] =
-      ((hvcC.general_profile_space & 0x03) << 6) |
-      ((hvcC.general_tier_flag & 0x01) << 5) |
-      (hvcC.general_profile_idc & 0x1f);
+      ((((hvcC.general_profile_space || 0) & 0x03) << 6) |
+      (((hvcC.general_tier_flag || 0) & 0x01) << 5) |
+      ((hvcC.general_profile_idc || 0) & 0x1f));
 
     // general_profile_compatibility_flags (4 bytes)
     const profileCompat = hvcC.general_profile_compatibility || 0;
@@ -485,31 +566,31 @@ export class MP4Parser {
     data[offset++] = hvcC.general_level_idc;
 
     // min_spatial_segmentation_idc (2 bytes, 4 bits reserved)
-    data[offset++] = 0xf0 | ((hvcC.min_spatial_segmentation_idc >> 8) & 0x0f);
-    data[offset++] = hvcC.min_spatial_segmentation_idc & 0xff;
+    data[offset++] = 0xf0 | ((((hvcC.min_spatial_segmentation_idc || 0) >> 8) & 0x0f));
+    data[offset++] = ((hvcC.min_spatial_segmentation_idc || 0) & 0xff);
 
     // parallelismType (1 byte, 6 bits reserved)
-    data[offset++] = 0xfc | (hvcC.parallelismType & 0x03);
+    data[offset++] = 0xfc | (((hvcC.parallelismType || 0) & 0x03));
 
     // chroma_format_idc (1 byte, 6 bits reserved)
-    data[offset++] = 0xfc | (hvcC.chroma_format_idc & 0x03);
+    data[offset++] = 0xfc | (((hvcC.chroma_format_idc || 0) & 0x03));
 
     // bit_depth_luma_minus8 (1 byte, 5 bits reserved)
-    data[offset++] = 0xf8 | (hvcC.bit_depth_luma_minus8 & 0x07);
+    data[offset++] = 0xf8 | ((hvcC.bit_depth_luma_minus8 || 0) & 0x07);
 
     // bit_depth_chroma_minus8 (1 byte, 5 bits reserved)
-    data[offset++] = 0xf8 | (hvcC.bit_depth_chroma_minus8 & 0x07);
+    data[offset++] = 0xf8 | ((hvcC.bit_depth_chroma_minus8 || 0) & 0x07);
 
     // avgFrameRate (2 bytes)
-    data[offset++] = (hvcC.avgFrameRate >> 8) & 0xff;
-    data[offset++] = hvcC.avgFrameRate & 0xff;
+    data[offset++] = (((hvcC.avgFrameRate || 0) >> 8) & 0xff);
+    data[offset++] = ((hvcC.avgFrameRate || 0) & 0xff);
 
     // constantFrameRate, numTemporalLayers, temporalIdNested, lengthSizeMinusOne (1 byte)
     data[offset++] =
-      ((hvcC.constantFrameRate & 0x03) << 6) |
-      ((hvcC.numTemporalLayers & 0x07) << 3) |
-      ((hvcC.temporalIdNested & 0x01) << 2) |
-      (hvcC.lengthSizeMinusOne & 0x03);
+      (((hvcC.constantFrameRate || 0) & 0x03) << 6) |
+      (((hvcC.numTemporalLayers || 0) & 0x07) << 3) |
+      (((hvcC.temporalIdNested || 0) & 0x01) << 2) |
+      ((hvcC.lengthSizeMinusOne || 0) & 0x03);
 
     // numOfArrays (1 byte)
     data[offset++] = hvcC.nalu_arrays.length;
@@ -518,15 +599,16 @@ export class MP4Parser {
     for (const naluArray of hvcC.nalu_arrays) {
       // array_completeness (1 bit) + reserved (1 bit) + NAL_unit_type (6 bits)
       data[offset++] =
-        ((naluArray.completeness & 0x01) << 7) | (naluArray.nalu_type & 0x3f);
+        (((naluArray.completeness ? 1 : 0) << 7) | ((naluArray.nalu_type || 0) & 0x3f));
 
       // numNalus (2 bytes)
-      const numNalus = naluArray.length;
-      data[offset++] = (numNalus >> 8) & 0xff;
-      data[offset++] = numNalus & 0xff;
+      const nalus = naluArray.nalus || [];
+      const numNalus = naluArray.length || nalus.length;
+      data[offset++] = ((numNalus || 0) >> 8) & 0xff;
+      data[offset++] = (numNalus || 0) & 0xff;
 
       // Write each NAL unit
-      for (const nalu of naluArray) {
+      for (const nalu of nalus) {
         if (nalu.data) {
           const naluLength = nalu.data.length;
           data[offset++] = (naluLength >> 8) & 0xff;
@@ -691,7 +773,7 @@ export class MP4Parser {
     }
 
     // Get full track structure to access transformation matrix
-    const fullTrack = this.mp4File.getTrackById(this.videoTrack.id) as any;
+    const fullTrack = this.mp4File.getTrackById(this.videoTrack.id) as MP4TrackInternal | undefined;
 
     // Matrix may be on the track or in the tkhd (Track Header) box
     const matrix = fullTrack?.matrix || fullTrack?.tkhd?.matrix;

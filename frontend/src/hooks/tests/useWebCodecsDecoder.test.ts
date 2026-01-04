@@ -14,14 +14,14 @@ import { useWebCodecsDecoder } from '../useWebCodecsDecoder';
 beforeEach(() => {
   // Mock VideoDecoder if not available
   if (typeof global.VideoDecoder === 'undefined') {
-    global.VideoDecoder = vi.fn() as any;
+    global.VideoDecoder = vi.fn() as unknown as typeof VideoDecoder;
   }
 
   // Mock requestAnimationFrame
   global.requestAnimationFrame = vi.fn((cb) => {
     setTimeout(() => cb(performance.now()), 16);
     return 1;
-  }) as any;
+  }) as unknown as typeof requestAnimationFrame;
 
   global.cancelAnimationFrame = vi.fn();
 });

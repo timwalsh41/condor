@@ -14,7 +14,7 @@
  * Validates: REQ-F-DECODE-001 (Frame-accurate seeking with B-frame support)
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { CoordinateMapping } from '../../utils/CoordinateMapping';
 import { calculateLookaheadRange } from '../../utils/decodePlanning';
 import type { MP4BoxSDK } from '../../types/mp4box';

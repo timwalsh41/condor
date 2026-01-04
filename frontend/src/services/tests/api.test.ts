@@ -89,7 +89,7 @@ describe('API Client', () => {
         isAxiosError: true,
       });
 
-      (axios.default.isAxiosError as any).mockReturnValue(true);
+      (axios.default.isAxiosError as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
 
       await expect(uploadVideo(mockFile)).rejects.toThrow(ApiError);
       await expect(uploadVideo(mockFile)).rejects.toThrow('Invalid file type');
@@ -132,7 +132,7 @@ describe('API Client', () => {
         isAxiosError: true,
       });
 
-      (axios.default.isAxiosError as any).mockReturnValue(true);
+      (axios.default.isAxiosError as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
 
       await expect(getUploadStatus('invalid-id')).rejects.toThrow(ApiError);
       await expect(getUploadStatus('invalid-id')).rejects.toThrow('Video not found');
@@ -163,7 +163,7 @@ describe('API Client', () => {
         blob: vi.fn().mockResolvedValue(mockBlob),
       };
 
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      (global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
 
       const result = await fetchVideoBlob('session-123', 'video-456');
 
@@ -178,14 +178,14 @@ describe('API Client', () => {
         statusText: 'Not Found',
       };
 
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      (global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
 
       await expect(fetchVideoBlob('session-123', 'invalid-id')).rejects.toThrow(ApiError);
       await expect(fetchVideoBlob('session-123', 'invalid-id')).rejects.toThrow('Failed to fetch video: Not Found');
     });
 
     it('should throw ApiError on network error', async () => {
-      (global.fetch as any).mockRejectedValue(new Error('Network error'));
+      (global.fetch as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
       await expect(fetchVideoBlob('session-123', 'video-456')).rejects.toThrow(ApiError);
       await expect(fetchVideoBlob('session-123', 'video-456')).rejects.toThrow('Failed to fetch video blob');

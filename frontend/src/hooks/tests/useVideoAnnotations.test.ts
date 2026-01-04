@@ -9,6 +9,7 @@ import { renderHook, act } from "@testing-library/react";
 import { useVideoAnnotations } from "../useVideoAnnotations";
 import type { UseWebCodecsDecoderResult } from "../useWebCodecsDecoder";
 import type { AnnotationType } from "../../types/annotations";
+import type Konva from "konva";
 import { useState } from "react";
 
 // Mock video decoder result
@@ -157,7 +158,7 @@ describe("useVideoAnnotations", () => {
       };
       const mockEvent = {
         target: mockStage,
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
       mockStage.getStage = () => mockStage;
 
       // Try to start drawing with handleMouseDown
@@ -181,7 +182,7 @@ describe("useVideoAnnotations", () => {
       };
       const mockEvent = {
         target: mockStage,
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
       mockStage.getStage = () => mockStage;
 
       // Try to start polyline with handleClick
@@ -221,7 +222,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 10, y: 20 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       // Click annotation to select it
       act(() => {
@@ -258,7 +259,7 @@ describe("useVideoAnnotations", () => {
       };
       const mockEvent = {
         target: mockStage,
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
       mockStage.getStage = () => mockStage;
 
       act(() => {
@@ -451,21 +452,21 @@ describe("useVideoAnnotations", () => {
 
       // Start polyline with click
       mockStage.getPointerPosition.mockReturnValue({ x: 10, y: 20 });
-      const clickEvent1 = { target: mockStage } as any;
+      const clickEvent1 = { target: mockStage } as unknown as Konva.KonvaEventObject<MouseEvent>;
       act(() => {
         result.current.handlers.handleClick(clickEvent1);
       });
 
       // Add second vertex
       mockStage.getPointerPosition.mockReturnValue({ x: 30, y: 40 });
-      const clickEvent2 = { target: mockStage } as any;
+      const clickEvent2 = { target: mockStage } as unknown as Konva.KonvaEventObject<MouseEvent>;
       act(() => {
         result.current.handlers.handleClick(clickEvent2);
       });
 
       // Add third vertex
       mockStage.getPointerPosition.mockReturnValue({ x: 50, y: 60 });
-      const clickEvent3 = { target: mockStage } as any;
+      const clickEvent3 = { target: mockStage } as unknown as Konva.KonvaEventObject<MouseEvent>;
       act(() => {
         result.current.handlers.handleClick(clickEvent3);
       });
@@ -473,7 +474,7 @@ describe("useVideoAnnotations", () => {
       // Simulate double-click to finalize
       // First click of double-click adds a point
       mockStage.getPointerPosition.mockReturnValue({ x: 50, y: 60 });
-      const doubleClickFirstClick = { target: mockStage } as any;
+      const doubleClickFirstClick = { target: mockStage } as unknown as Konva.KonvaEventObject<MouseEvent>;
       act(() => {
         result.current.handlers.handleClick(doubleClickFirstClick);
       });
@@ -534,7 +535,7 @@ describe("useVideoAnnotations", () => {
       act(() => {
         const mockEvent = {
           evt: { ctrlKey: false, metaKey: false },
-        } as any;
+        } as unknown as Konva.KonvaEventObject<MouseEvent>;
         result.current.handlers.handleAnnotationClick(annotationId, mockEvent);
       });
 
@@ -567,7 +568,7 @@ describe("useVideoAnnotations", () => {
       act(() => {
         const mockEvent = {
           evt: { ctrlKey: true, metaKey: false },
-        } as any;
+        } as unknown as Konva.KonvaEventObject<MouseEvent>;
         result.current.handlers.handleAnnotationClick(annotationId1, mockEvent);
       });
 
@@ -575,7 +576,7 @@ describe("useVideoAnnotations", () => {
       act(() => {
         const mockEvent = {
           evt: { ctrlKey: true, metaKey: false },
-        } as any;
+        } as unknown as Konva.KonvaEventObject<MouseEvent>;
         result.current.handlers.handleAnnotationClick(annotationId2, mockEvent);
       });
 
@@ -614,7 +615,7 @@ describe("useVideoAnnotations", () => {
       act(() => {
         const mockEvent = {
           evt: { ctrlKey: false, metaKey: false },
-        } as any;
+        } as unknown as Konva.KonvaEventObject<MouseEvent>;
         result.current.handlers.handleAnnotationClick(annotationId, mockEvent);
       });
 
@@ -806,7 +807,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 10, y: 20 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleAnnotationDragStart(
@@ -843,7 +844,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 10, y: 20 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleAnnotationDragStart(
@@ -859,7 +860,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 20, y: 30 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleStageMouseMove(moveEvent);
@@ -899,7 +900,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 10, y: 20 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleAnnotationDragStart(
@@ -948,7 +949,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 10, y: 20 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleAnnotationDragStart(
@@ -984,7 +985,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 100, y: 100 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleStageMouseMove(moveEvent);
@@ -1038,7 +1039,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 100, y: 100 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       // Click control point 0
       act(() => {
@@ -1081,7 +1082,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 100, y: 100 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleControlPointMouseDown(
@@ -1098,7 +1099,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 150, y: 150 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleStageMouseMove(moveEvent);
@@ -1136,7 +1137,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 100, y: 100 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleControlPointMouseDown(
@@ -1155,7 +1156,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 150, y: 150 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleStageMouseMove(moveEvent);
@@ -1201,7 +1202,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 300, y: 100 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleControlPointMouseDown(
@@ -1218,7 +1219,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 320, y: 80 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleStageMouseMove(moveEvent);
@@ -1257,7 +1258,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 100, y: 150 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleControlPointMouseDown(
@@ -1274,7 +1275,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 110, y: 160 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleStageMouseMove(moveEvent);
@@ -1311,7 +1312,7 @@ describe("useVideoAnnotations", () => {
       };
       const drawEvent = {
         target: stage,
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
       drawEvent.target.getStage = () => stage;
 
       act(() => {
@@ -1328,7 +1329,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 100, y: 100 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleControlPointMouseDown(
@@ -1378,7 +1379,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 100, y: 100 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleAnnotationDragStart(arrowId!, dragEvent);
@@ -1394,7 +1395,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 300, y: 300 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleControlPointMouseDown(
@@ -1433,7 +1434,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 150, y: 150 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleStageMouseMove(moveEvent);
@@ -1470,7 +1471,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 100, y: 100 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleControlPointMouseDown(
@@ -1493,7 +1494,7 @@ describe("useVideoAnnotations", () => {
             getPointerPosition: () => ({ x: 120, y: 130 }),
           }),
         },
-      } as any;
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
 
       act(() => {
         result.current.handlers.handleStageMouseMove(moveEvent);

@@ -1,4 +1,13 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+/**
+ * Extend Window interface for Konva global
+ */
+interface WindowWithKonva extends Window {
+  Konva?: {
+    stages?: unknown[];
+  };
+}
 
 /**
  * Canvas Overlay Spike Tests
@@ -33,7 +42,7 @@ import { test, expect } from "@playwright/test";
 /**
  * Helper: Navigate to dual video demo and wait for it to be ready
  */
-async function navigateToDualVideoDemo(page: any) {
+async function navigateToDualVideoDemo(page: Page) {
   await page.goto("/");
 
   // Wait for component to be visible (app renders DualVideoSyncDemo directly)
@@ -47,7 +56,7 @@ async function navigateToDualVideoDemo(page: any) {
 /**
  * Helper: Upload video to Video A slot
  */
-async function uploadVideoA(page: any, videoPath: string) {
+async function uploadVideoA(page: Page, videoPath: string) {
   const fileInputA = page.locator('[data-testid="file-input-a"]');
   await fileInputA.setInputFiles(videoPath);
 
@@ -70,25 +79,26 @@ async function uploadVideoA(page: any, videoPath: string) {
 
 /**
  * Helper: Get bounding box for an element
+ * Currently unused - can be restored if needed
  */
-async function getBoundingBox(page: any, selector: string) {
-  return await page.evaluate((sel: string) => {
-    const element = document.querySelector(sel);
-    if (!element) return null;
-    const box = element.getBoundingClientRect();
-    return {
-      top: box.top,
-      left: box.left,
-      width: box.width,
-      height: box.height,
-    };
-  }, selector);
-}
+// async function getBoundingBox(page: Page, selector: string) {
+//   return await page.evaluate((sel: string) => {
+//     const element = document.querySelector(sel);
+//     if (!element) return null;
+//     const box = element.getBoundingClientRect();
+//     return {
+//       top: box.top,
+//       left: box.left,
+//       width: box.width,
+//       height: box.height,
+//     };
+//   }, selector);
+// }
 
 /**
  * Helper: Upload video to Video B slot
  */
-async function uploadVideoB(page: any, videoPath: string) {
+async function uploadVideoB(page: Page, videoPath: string) {
   const fileInputB = page.locator('[data-testid="file-input-b"]');
   await fileInputB.setInputFiles(videoPath);
 
@@ -112,7 +122,7 @@ async function uploadVideoB(page: any, videoPath: string) {
 /**
  * Helper: Select annotation tool
  */
-async function selectTool(page: any, tool: "select" | "freehand" | "polyline" | "oval" | "arrow") {
+async function selectTool(page: Page, tool: "select" | "freehand" | "polyline" | "oval" | "arrow") {
   await page.click(`[data-testid="tool-${tool}"]`);
   await page.waitForTimeout(100); // Allow state update
   console.log(`Selected tool: ${tool}`);
@@ -120,25 +130,26 @@ async function selectTool(page: any, tool: "select" | "freehand" | "polyline" | 
 
 /**
  * Helper: Get canvas bounding box for mouse event calculations
+ * Currently unused - can be restored if needed
  */
-async function getCanvasBounds(page: any, videoId: "a" | "b") {
-  return await page.evaluate((vid: string) => {
-    const videoCanvas = document.querySelector(`[data-testid="video-canvas-${vid}"]`) as HTMLCanvasElement;
-    if (!videoCanvas) return null;
-    const box = videoCanvas.getBoundingClientRect();
-    return {
-      x: box.left,
-      y: box.top,
-      width: box.width,
-      height: box.height,
-    };
-  }, videoId);
-}
+// async function getCanvasBounds(page: Page, videoId: "a" | "b") {
+//   return await page.evaluate((vid: string) => {
+//     const videoCanvas = document.querySelector(`[data-testid="video-canvas-${vid}"]`) as HTMLCanvasElement;
+//     if (!videoCanvas) return null;
+//     const box = videoCanvas.getBoundingClientRect();
+//     return {
+//       x: box.left,
+//       y: box.top,
+//       width: box.width,
+//       height: box.height,
+//     };
+//   }, videoId);
+// }
 
 /**
  * Helper: Draw freehand line by simulating drag
  */
-async function drawFreehand(page: any, videoId: "a" | "b", points: Array<{x: number, y: number}>) {
+async function drawFreehand(page: Page, videoId: "a" | "b", points: Array<{x: number, y: number}>) {
   // Draw by dispatching mouse events directly to the Konva canvas
   await page.evaluate((data: { vid: string, points: Array<{x: number, y: number}> }) => {
     const container = document.querySelector(`[data-testid="annotation-container-${data.vid}"]`);
@@ -196,7 +207,7 @@ async function drawFreehand(page: any, videoId: "a" | "b", points: Array<{x: num
  * Helper: Draw polyline by simulating clicks
  */
 async function drawPolyline(
-  page: any,
+  page: Page,
   videoId: "a" | "b",
   points: Array<{x: number, y: number}>,
   finalize: "enter" | "escape" | "doubleclick" = "enter"
@@ -272,7 +283,7 @@ async function drawPolyline(
 /**
  * Helper: Draw oval by simulating drag
  */
-async function drawOval(page: any, videoId: "a" | "b", start: {x: number, y: number}, end: {x: number, y: number}) {
+async function drawOval(page: Page, videoId: "a" | "b", start: {x: number, y: number}, end: {x: number, y: number}) {
   await page.evaluate((data: { vid: string, start: {x: number, y: number}, end: {x: number, y: number} }) => {
     const container = document.querySelector(`[data-testid="annotation-container-${data.vid}"]`);
     if (!container) throw new Error(`Container not found for ${data.vid}`);
@@ -323,7 +334,7 @@ async function drawOval(page: any, videoId: "a" | "b", start: {x: number, y: num
 /**
  * Helper: Draw arrow by simulating drag
  */
-async function drawArrow(page: any, videoId: "a" | "b", start: {x: number, y: number}, end: {x: number, y: number}) {
+async function drawArrow(page: Page, videoId: "a" | "b", start: {x: number, y: number}, end: {x: number, y: number}) {
   await page.evaluate((data: { vid: string, start: {x: number, y: number}, end: {x: number, y: number} }) => {
     const container = document.querySelector(`[data-testid="annotation-container-${data.vid}"]`);
     if (!container) throw new Error(`Container not found for ${data.vid}`);
@@ -375,7 +386,7 @@ async function drawArrow(page: any, videoId: "a" | "b", start: {x: number, y: nu
  * Helper: Get annotation count for a video
  * Returns count of Konva shapes (Line, Ellipse, Arrow) in the annotation layer
  */
-async function getAnnotationCount(page: any, videoId: "a" | "b"): Promise<number> {
+async function getAnnotationCount(page: Page, videoId: "a" | "b"): Promise<number> {
   // Wait a bit for annotations to be created and rendered
   await page.waitForTimeout(500);
 
@@ -392,8 +403,8 @@ async function getAnnotationCount(page: any, videoId: "a" | "b"): Promise<number
     }
 
     const canvasProps = Object.keys(canvas).filter(k => k.includes('stage') || k.includes('konva') || k.includes('_'));
-    const hasKonva = typeof (window as any).Konva !== 'undefined';
-    const konvaStagesLength = hasKonva ? (window as any).Konva.stages?.length : 0;
+    const hasKonva = typeof (window as unknown as WindowWithKonva).Konva !== 'undefined';
+    const konvaStagesLength = hasKonva ? (window as unknown as WindowWithKonva).Konva.stages?.length : 0;
 
     return {
       vid,
@@ -411,21 +422,21 @@ async function getAnnotationCount(page: any, videoId: "a" | "b"): Promise<number
     const container = document.querySelector(`[data-testid="annotation-container-${vid}"]`);
     if (!container) return { count: 0, debug: "No container" };
 
-    const konvaCanvas = container.querySelector('canvas') as any;
+    const konvaCanvas = container.querySelector('canvas') as HTMLCanvasElement;
     if (!konvaCanvas) return { count: 0, debug: "No canvas" };
 
     // Try accessing Konva global and its stages
-    if (!(window as any).Konva) {
+    if (!(window as unknown as WindowWithKonva).Konva) {
       return { count: 0, debug: "No Konva global" };
     }
 
-    const stages = (window as any).Konva.stages;
+    const stages = (window as unknown as WindowWithKonva).Konva.stages;
     if (!stages || stages.length === 0) {
       return { count: 0, debug: `No stages (length: ${stages?.length})` };
     }
 
     // Debug: check all stages
-    const stageDebug: any[] = [];
+    const stageDebug: Array<Record<string, unknown>> = [];
     for (let i = 0; i < stages.length; i++) {
       const s = stages[i];
       try {
@@ -442,8 +453,8 @@ async function getAnnotationCount(page: any, videoId: "a" | "b"): Promise<number
           layerCount,
           containerTestId: stageContainer?.getAttribute?.('data-testid'),
         });
-      } catch (e: any) {
-        stageDebug.push({ index: i, error: e.message });
+      } catch (e: unknown) {
+        stageDebug.push({ index: i, error: e instanceof Error ? e.message : String(e) });
       }
     }
 
@@ -456,7 +467,7 @@ async function getAnnotationCount(page: any, videoId: "a" | "b"): Promise<number
           stage = s;
           break;
         }
-      } catch (e) {
+      } catch {
         // Skip this stage if we can't access its container
       }
     }
@@ -476,7 +487,7 @@ async function getAnnotationCount(page: any, videoId: "a" | "b"): Promise<number
         return { count: 0, debug: "No shapes", stageDebug };
       }
 
-      const shapeDebug: any[] = [];
+      const shapeDebug: Array<Record<string, unknown>> = [];
       let count = 0;
       for (const shape of shapes) {
         const className = shape.getClassName();
@@ -497,8 +508,8 @@ async function getAnnotationCount(page: any, videoId: "a" | "b"): Promise<number
       }
 
       return { count, debug: "Success", stageDebug, shapeDebug };
-    } catch (e: any) {
-      return { count: 0, debug: `Exception: ${e.message}`, stageDebug };
+    } catch (e: unknown) {
+      return { count: 0, debug: `Exception: ${e instanceof Error ? e.message : String(e)}`, stageDebug };
     }
   }, videoId);
 
@@ -509,7 +520,7 @@ async function getAnnotationCount(page: any, videoId: "a" | "b"): Promise<number
 /**
  * Helper: Get error message from UI
  */
-async function getErrorMessage(page: any): Promise<string | null> {
+async function getErrorMessage(page: Page): Promise<string | null> {
   return await page.evaluate(() => {
     // Error messages are displayed in the error display area
     const errorDisplay = document.querySelector('[data-testid^="error-display"]');
@@ -1103,7 +1114,7 @@ test.describe("Interactive Features", () => {
       const konvaCanvas = canvases[1];
       if (!konvaCanvas) return false;
 
-      const stage = (konvaCanvas as any)._konva_stage;
+      const stage = (konvaCanvas as HTMLCanvasElement & { _konva_stage?: unknown })._konva_stage;
       if (!stage) return false;
 
       const layer = stage.children[0];

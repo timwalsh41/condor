@@ -4,8 +4,8 @@
  * Validates HEVC detection, file size limits, and error messages.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MP4Parser, MP4ParseError, type VideoMetadata } from "../MP4Parser";
+import { describe, it, expect } from "vitest";
+import { MP4Parser, MP4ParseError } from "../MP4Parser";
 import { isCodecSupported } from "../featureDetection";
 
 describe("Codec Detection", () => {

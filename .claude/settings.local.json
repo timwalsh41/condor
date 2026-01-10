@@ -49,7 +49,11 @@
       "Bash(DISPLAY=:99 timeout 180 npx playwright test:*)",
       "mcp__serena__find_file",
       "mcp__serena__read_memory",
-      "Bash(mcp list-tools:*)"
+      "Bash(mcp list-tools:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npm run test:*)",
+      "Bash(mcp-client serena activate_project:*)"
     ],
     "deny": []
   },

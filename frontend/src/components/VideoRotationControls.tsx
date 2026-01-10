@@ -127,17 +127,20 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
       <div className="preview-container">
         {isLoadingFrame && <p>Loading preview...</p>}
         {frameError && <p className="error">Error: {frameError}</p>}
-        {!isLoadingFrame && !frameError && (
-          <canvas
-            ref={canvasRef}
-            className="rotation-preview"
-            style={{
-              transform: `rotate(${rotation}deg)`,
-              transition: 'transform 0.3s ease',
-            }}
-            aria-label="Video rotation preview"
-          />
-        )}
+        <canvas
+          ref={canvasRef}
+          className="rotation-preview"
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            transition: 'transform 0.3s ease',
+            display: isLoadingFrame || frameError ? 'none' : 'block',
+            maxWidth: '640px',
+            maxHeight: '480px',
+            width: 'auto',
+            height: 'auto',
+          }}
+          aria-label="Video rotation preview"
+        />
       </div>
 
       {/* Rotation buttons */}

@@ -20,7 +20,7 @@ from uuid import UUID
 logger = logging.getLogger(__name__)
 
 # Base directory for temporary storage
-TMP_STORAGE_BASE = Path("/tmp/golf-swing-analyzer")
+TMP_STORAGE_BASE = Path("/tmp/condor")
 
 
 def get_session_dir(session_id: UUID) -> Path:

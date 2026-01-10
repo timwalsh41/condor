@@ -74,9 +74,9 @@ def test_video_hevc():
 def cleanup_sessions():
     """Clean up test session directories after each test."""
     yield
-    # Cleanup any test sessions in /tmp/golf-swing-analyzer/
+    # Cleanup any test sessions in /tmp/condor/
     import shutil
-    base_dir = Path("/tmp/golf-swing-analyzer")
+    base_dir = Path("/tmp/condor")
     if base_dir.exists():
         for session_dir in base_dir.iterdir():
             if session_dir.is_dir():

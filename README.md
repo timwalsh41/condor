@@ -7,30 +7,51 @@ The Condor is an open-source platform for frame-accurate video analysis with dua
 ### Prerequisites
 
 - **Node.js**: 18+ (for frontend development)
+- **Python 3.11+**: For backend API
 - **npm** or **yarn**: Package management
-- **FFmpeg**: For generating test videos
+- **FFmpeg**: For video processing and test video generation
 - **Playwright Browsers**: For cross-browser testing
 
-### Run Frontend Demo
+### Run Full Application (Frontend + Backend)
 
 ```bash
-# Navigate to frontend directory
+# Terminal 1: Start backend
+python3 -m backend.main
+# Server starts at http://localhost:8000
+
+# Terminal 2: Start frontend
 cd frontend
-
-# Install dependencies
-npm install
-
-# Start dev server
+npm install  # First time only
 npm run dev
 # Opens at http://localhost:5173
-# Note: use `npm run dev -- --host` when port forwarding outside of dev container
 ```
 
-Open a browser and navigate to http://localhost:5173
+Open browser to http://localhost:5173 - you'll see the upload workflow for dual-video analysis.
+
+### Run Legacy Demo (Frontend Only, No Backend)
+
+To use the original Phase 0 demo with local file selection (no upload required):
+
+```bash
+# Edit frontend/src/App.tsx - change line 1:
+# FROM: import { DualVideoWorkflow } from "./components/DualVideoWorkflow";
+# TO:   import { DualVideoSyncDemo } from "./components/DualVideoSyncDemo";
+
+# And change line 21:
+# FROM: <DualVideoWorkflow />
+# TO:   <DualVideoSyncDemo />
+
+cd frontend
+npm run dev
+# Open demo at http://localhost:5173
+# Use `npm run dev -- --host` when port forwarding outside of dev container
+```
 
 ### Instructions for Use
 
-Select and upload two videos. The demo starts in SYNC mode where you can independently control each video. Use the playback controls (play/pause, scrub bar, frame stepping) to synchronize the two videos, e.g. by setting them both to the impact frame:
+**Upload Workflow**: Select and upload two videos with optional rotation. After upload, the app enters synchronized playback mode.
+
+**Playback**: The demo starts in SYNC mode where you can independently control each video. Use the playback controls (play/pause, scrub bar, frame stepping) to synchronize the two videos, e.g. by setting them both to the impact frame:
 
 ![alt text](image/impact.png)
 

@@ -2,5 +2,8 @@ TODO.md
 LEARNINGS.md
 tests/fixtures/videos/
 
+# Logs
+logs/
+
 # Ignore all __pycache__ directories
 **/__pycache__/

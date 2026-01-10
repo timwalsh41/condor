@@ -10,17 +10,28 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Configure logging
+# Configure logging (console + file)
+log_dir = Path("logs")
+log_dir.mkdir(exist_ok=True)
+
+handlers = [
+    logging.StreamHandler(sys.stdout),
+    RotatingFileHandler(
+        log_dir / "backend.log",
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=5
+    )
+]
+
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-    ]
+    handlers=handlers
 )
 
 logger = logging.getLogger(__name__)

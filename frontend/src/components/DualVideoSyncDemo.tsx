@@ -24,6 +24,7 @@ import {
  * - PLAYBACK: Unified controls maintaining frame offset
  *
  * Phase 0, Task 0.4 deliverable.
+ * Updated Phase 1, Task 1.3: Supports initial files from upload workflow.
  */
 
 // Control point sizing configuration
@@ -31,10 +32,20 @@ const CONTROL_POINT_SIZE = 12; // Visual size of control point square in pixels
 const CONTROL_POINT_HIT_SCALE = 1.5; // Hit detection area scale factor (1.5x = 18px)
 const CONTROL_POINT_HIT_SIZE = CONTROL_POINT_SIZE * CONTROL_POINT_HIT_SCALE;
 
-export function DualVideoSyncDemo() {
-  // File state
-  const [fileA, setFileA] = useState<File | null>(null);
-  const [fileB, setFileB] = useState<File | null>(null);
+interface DualVideoSyncDemoProps {
+  /** Optional initial file for video A (from upload workflow) */
+  initialFileA?: File | null;
+  /** Optional initial file for video B (from upload workflow) */
+  initialFileB?: File | null;
+}
+
+export function DualVideoSyncDemo({
+  initialFileA = null,
+  initialFileB = null,
+}: DualVideoSyncDemoProps = {}) {
+  // File state - initialize with provided files if available
+  const [fileA, setFileA] = useState<File | null>(initialFileA);
+  const [fileB, setFileB] = useState<File | null>(initialFileB);
 
   // Mode state
   const [mode, setMode] = useState<"SYNC" | "PLAYBACK">("SYNC");
@@ -651,7 +662,7 @@ export function DualVideoSyncDemo() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
-      <h1>The Condor: Dual Video Synchronization Demo</h1>
+      <h1>The Condor</h1>
       <p>
         Synchronized dual-video playback with WebCodecs. Set sync points in SYNC
         mode, then analyze with unified controls in PLAYBACK mode.
@@ -1092,14 +1103,22 @@ export function DualVideoSyncDemo() {
                                                 ).map((point, idx) => (
                                                   <Rect
                                                     key={`cp-${annotation.id}-${idx}`}
-                                                    x={point.x - CONTROL_POINT_SIZE / 2}
-                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    x={
+                                                      point.x -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
+                                                    y={
+                                                      point.y -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
                                                     width={CONTROL_POINT_SIZE}
                                                     height={CONTROL_POINT_SIZE}
                                                     fill="white"
                                                     stroke="black"
                                                     strokeWidth={1}
-                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    hitStrokeWidth={
+                                                      CONTROL_POINT_HIT_SIZE
+                                                    }
                                                     cursor="pointer"
                                                     onClick={(e) => {
                                                       e.cancelBubble = true;
@@ -1160,14 +1179,22 @@ export function DualVideoSyncDemo() {
                                                 ).map((point, idx) => (
                                                   <Rect
                                                     key={`cp-${annotation.id}-${idx}`}
-                                                    x={point.x - CONTROL_POINT_SIZE / 2}
-                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    x={
+                                                      point.x -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
+                                                    y={
+                                                      point.y -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
                                                     width={CONTROL_POINT_SIZE}
                                                     height={CONTROL_POINT_SIZE}
                                                     fill="white"
                                                     stroke="black"
                                                     strokeWidth={1}
-                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    hitStrokeWidth={
+                                                      CONTROL_POINT_HIT_SIZE
+                                                    }
                                                     cursor="pointer"
                                                     onClick={(e) => {
                                                       e.cancelBubble = true;
@@ -1223,14 +1250,22 @@ export function DualVideoSyncDemo() {
                                                 ).map((point, idx) => (
                                                   <Rect
                                                     key={`cp-${annotation.id}-${idx}`}
-                                                    x={point.x - CONTROL_POINT_SIZE / 2}
-                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    x={
+                                                      point.x -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
+                                                    y={
+                                                      point.y -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
                                                     width={CONTROL_POINT_SIZE}
                                                     height={CONTROL_POINT_SIZE}
                                                     fill="white"
                                                     stroke="black"
                                                     strokeWidth={1}
-                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    hitStrokeWidth={
+                                                      CONTROL_POINT_HIT_SIZE
+                                                    }
                                                     cursor="pointer"
                                                     onClick={(e) => {
                                                       e.cancelBubble = true;
@@ -1566,14 +1601,22 @@ export function DualVideoSyncDemo() {
                                                 ).map((point, idx) => (
                                                   <Rect
                                                     key={`cp-${annotation.id}-${idx}`}
-                                                    x={point.x - CONTROL_POINT_SIZE / 2}
-                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    x={
+                                                      point.x -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
+                                                    y={
+                                                      point.y -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
                                                     width={CONTROL_POINT_SIZE}
                                                     height={CONTROL_POINT_SIZE}
                                                     fill="white"
                                                     stroke="black"
                                                     strokeWidth={1}
-                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    hitStrokeWidth={
+                                                      CONTROL_POINT_HIT_SIZE
+                                                    }
                                                     cursor="pointer"
                                                     onClick={(e) => {
                                                       e.cancelBubble = true;
@@ -1634,14 +1677,22 @@ export function DualVideoSyncDemo() {
                                                 ).map((point, idx) => (
                                                   <Rect
                                                     key={`cp-${annotation.id}-${idx}`}
-                                                    x={point.x - CONTROL_POINT_SIZE / 2}
-                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    x={
+                                                      point.x -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
+                                                    y={
+                                                      point.y -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
                                                     width={CONTROL_POINT_SIZE}
                                                     height={CONTROL_POINT_SIZE}
                                                     fill="white"
                                                     stroke="black"
                                                     strokeWidth={1}
-                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    hitStrokeWidth={
+                                                      CONTROL_POINT_HIT_SIZE
+                                                    }
                                                     cursor="pointer"
                                                     onClick={(e) => {
                                                       e.cancelBubble = true;
@@ -1697,14 +1748,22 @@ export function DualVideoSyncDemo() {
                                                 ).map((point, idx) => (
                                                   <Rect
                                                     key={`cp-${annotation.id}-${idx}`}
-                                                    x={point.x - CONTROL_POINT_SIZE / 2}
-                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    x={
+                                                      point.x -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
+                                                    y={
+                                                      point.y -
+                                                      CONTROL_POINT_SIZE / 2
+                                                    }
                                                     width={CONTROL_POINT_SIZE}
                                                     height={CONTROL_POINT_SIZE}
                                                     fill="white"
                                                     stroke="black"
                                                     strokeWidth={1}
-                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    hitStrokeWidth={
+                                                      CONTROL_POINT_HIT_SIZE
+                                                    }
                                                     cursor="pointer"
                                                     onClick={(e) => {
                                                       e.cancelBubble = true;

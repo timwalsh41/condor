@@ -1,12 +1,12 @@
 /**
  * Unit tests for annotationStore (Zustand store for video annotations state).
  *
- * Phase: Phase 1 Task 1.2 (Backend Integration + Upload Workflow)
+ * Phase: Phase 1 Task 1.3 (DualVideoSyncDemo Backend Integration)
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useAnnotationStore } from '../annotationStore';
-import type { Annotation } from '../../utils/types';
+import type { Annotation } from '../../types/annotations';
 
 describe('annotationStore', () => {
   beforeEach(() => {
@@ -17,17 +17,19 @@ describe('annotationStore', () => {
   describe('Initial State', () => {
     it('should have empty annotations for video A initially', () => {
       const { annotationsA } = useAnnotationStore.getState();
-      expect(annotationsA.size).toBe(0);
+      expect(annotationsA).toEqual([]);
+      expect(annotationsA.length).toBe(0);
     });
 
     it('should have empty annotations for video B initially', () => {
       const { annotationsB } = useAnnotationStore.getState();
-      expect(annotationsB.size).toBe(0);
+      expect(annotationsB).toEqual([]);
+      expect(annotationsB.length).toBe(0);
     });
 
-    it('should have null selected annotation ID initially', () => {
-      const { selectedAnnotationId } = useAnnotationStore.getState();
-      expect(selectedAnnotationId).toBeNull();
+    it('should have empty selected annotation IDs initially', () => {
+      const { selectedAnnotationIds } = useAnnotationStore.getState();
+      expect(selectedAnnotationIds.size).toBe(0);
     });
 
     it('should have null active video slot initially', () => {
@@ -43,81 +45,145 @@ describe('annotationStore', () => {
 
   describe('Annotations A Management', () => {
     it('should set annotations for video A', () => {
-      const mockAnnotations = new Map<number, Annotation[]>();
       const annotation: Annotation = {
         id: 'annotation-1',
-        type: 'rectangle',
-        x: 100,
-        y: 100,
-        width: 200,
-        height: 150,
+        type: 'freehand',
+        points: [
+          { x: 100, y: 100 },
+          { x: 150, y: 150 },
+        ],
         color: '#ff0000',
+        strokeWidth: 6,
       };
-      mockAnnotations.set(10, [annotation]);
 
-      useAnnotationStore.getState().setAnnotationsA(mockAnnotations);
+      useAnnotationStore.getState().setAnnotationsA([annotation]);
 
       const { annotationsA } = useAnnotationStore.getState();
-      expect(annotationsA.size).toBe(1);
-      expect(annotationsA.get(10)).toEqual([annotation]);
+      expect(annotationsA.length).toBe(1);
+      expect(annotationsA[0]).toEqual(annotation);
     });
 
     it('should update annotations for video A', () => {
-      const mockAnnotations1 = new Map<number, Annotation[]>();
-      mockAnnotations1.set(10, [
-        { id: 'a1', type: 'rectangle', x: 0, y: 0, width: 100, height: 100, color: '#ff0000' },
-      ]);
+      const annotation1: Annotation = {
+        id: 'a1',
+        type: 'polyline',
+        points: [{ x: 0, y: 0 }, { x: 100, y: 100 }],
+        color: '#ff0000',
+        strokeWidth: 6,
+      };
 
-      const mockAnnotations2 = new Map<number, Annotation[]>();
-      mockAnnotations2.set(20, [
-        { id: 'a2', type: 'circle', x: 50, y: 50, radius: 25, color: '#00ff00' },
-      ]);
+      const annotation2: Annotation = {
+        id: 'a2',
+        type: 'oval',
+        points: [{ x: 50, y: 50 }, { x: 100, y: 100 }],
+        color: '#00ff00',
+        strokeWidth: 6,
+      };
 
-      useAnnotationStore.getState().setAnnotationsA(mockAnnotations1);
-      useAnnotationStore.getState().setAnnotationsA(mockAnnotations2);
+      useAnnotationStore.getState().setAnnotationsA([annotation1]);
+      useAnnotationStore.getState().setAnnotationsA([annotation2]);
 
       const { annotationsA } = useAnnotationStore.getState();
-      expect(annotationsA.size).toBe(1);
-      expect(annotationsA.get(20)).toBeDefined();
-      expect(annotationsA.get(10)).toBeUndefined();
+      expect(annotationsA.length).toBe(1);
+      expect(annotationsA[0]).toEqual(annotation2);
+    });
+
+    it('should support multiple annotations for video A', () => {
+      const annotations: Annotation[] = [
+        {
+          id: 'a1',
+          type: 'freehand',
+          points: [{ x: 0, y: 0 }, { x: 50, y: 50 }],
+          color: '#ff0000',
+          strokeWidth: 6,
+        },
+        {
+          id: 'a2',
+          type: 'arrow',
+          points: [{ x: 100, y: 100 }, { x: 200, y: 200 }],
+          color: '#ff0000',
+          strokeWidth: 6,
+        },
+      ];
+
+      useAnnotationStore.getState().setAnnotationsA(annotations);
+
+      const { annotationsA } = useAnnotationStore.getState();
+      expect(annotationsA.length).toBe(2);
+      expect(annotationsA).toEqual(annotations);
     });
   });
 
   describe('Annotations B Management', () => {
     it('should set annotations for video B', () => {
-      const mockAnnotations = new Map<number, Annotation[]>();
       const annotation: Annotation = {
         id: 'annotation-2',
-        type: 'circle',
-        x: 150,
-        y: 150,
-        radius: 50,
+        type: 'oval',
+        points: [{ x: 150, y: 150 }, { x: 200, y: 200 }],
         color: '#00ff00',
+        strokeWidth: 6,
       };
-      mockAnnotations.set(20, [annotation]);
 
-      useAnnotationStore.getState().setAnnotationsB(mockAnnotations);
+      useAnnotationStore.getState().setAnnotationsB([annotation]);
 
       const { annotationsB } = useAnnotationStore.getState();
-      expect(annotationsB.size).toBe(1);
-      expect(annotationsB.get(20)).toEqual([annotation]);
+      expect(annotationsB.length).toBe(1);
+      expect(annotationsB[0]).toEqual(annotation);
+    });
+
+    it('should keep annotations A and B independent', () => {
+      const annotationA: Annotation = {
+        id: 'a1',
+        type: 'freehand',
+        points: [{ x: 0, y: 0 }],
+        color: '#ff0000',
+        strokeWidth: 6,
+      };
+
+      const annotationB: Annotation = {
+        id: 'b1',
+        type: 'polyline',
+        points: [{ x: 100, y: 100 }],
+        color: '#00ff00',
+        strokeWidth: 6,
+      };
+
+      useAnnotationStore.getState().setAnnotationsA([annotationA]);
+      useAnnotationStore.getState().setAnnotationsB([annotationB]);
+
+      const { annotationsA, annotationsB } = useAnnotationStore.getState();
+      expect(annotationsA.length).toBe(1);
+      expect(annotationsB.length).toBe(1);
+      expect(annotationsA[0]).toEqual(annotationA);
+      expect(annotationsB[0]).toEqual(annotationB);
     });
   });
 
-  describe('Selected Annotation Management', () => {
-    it('should set selected annotation ID', () => {
-      useAnnotationStore.getState().setSelectedAnnotationId('annotation-123');
+  describe('Selected Annotation IDs Management', () => {
+    it('should set selected annotation IDs', () => {
+      const selectedIds = new Set(['annotation-1', 'annotation-2']);
+      useAnnotationStore.getState().setSelectedAnnotationIds(selectedIds);
 
-      const { selectedAnnotationId } = useAnnotationStore.getState();
-      expect(selectedAnnotationId).toBe('annotation-123');
+      const { selectedAnnotationIds } = useAnnotationStore.getState();
+      expect(selectedAnnotationIds.size).toBe(2);
+      expect(selectedAnnotationIds.has('annotation-1')).toBe(true);
+      expect(selectedAnnotationIds.has('annotation-2')).toBe(true);
     });
 
-    it('should clear selected annotation ID', () => {
-      useAnnotationStore.getState().setSelectedAnnotationId('annotation-123');
-      useAnnotationStore.getState().setSelectedAnnotationId(null);
+    it('should clear selected annotation IDs', () => {
+      useAnnotationStore.getState().setSelectedAnnotationIds(new Set(['annotation-1']));
+      useAnnotationStore.getState().setSelectedAnnotationIds(new Set());
 
-      const { selectedAnnotationId } = useAnnotationStore.getState();
-      expect(selectedAnnotationId).toBeNull();
+      const { selectedAnnotationIds } = useAnnotationStore.getState();
+      expect(selectedAnnotationIds.size).toBe(0);
+    });
+
+    it('should support multi-select', () => {
+      const selectedIds = new Set(['a1', 'a2', 'a3']);
+      useAnnotationStore.getState().setSelectedAnnotationIds(selectedIds);
+
+      const { selectedAnnotationIds } = useAnnotationStore.getState();
+      expect(selectedAnnotationIds.size).toBe(3);
     });
   });
 
@@ -178,13 +244,16 @@ describe('annotationStore', () => {
   describe('Reset', () => {
     it('should reset store to initial state', () => {
       // Set some state
-      const mockAnnotations = new Map<number, Annotation[]>();
-      mockAnnotations.set(10, [
-        { id: 'a1', type: 'rectangle', x: 0, y: 0, width: 100, height: 100, color: '#ff0000' },
-      ]);
+      const annotation: Annotation = {
+        id: 'a1',
+        type: 'freehand',
+        points: [{ x: 0, y: 0 }],
+        color: '#ff0000',
+        strokeWidth: 6,
+      };
 
-      useAnnotationStore.getState().setAnnotationsA(mockAnnotations);
-      useAnnotationStore.getState().setSelectedAnnotationId('annotation-123');
+      useAnnotationStore.getState().setAnnotationsA([annotation]);
+      useAnnotationStore.getState().setSelectedAnnotationIds(new Set(['annotation-1']));
       useAnnotationStore.getState().setActiveVideoSlot('A');
       useAnnotationStore.getState().setActiveTool('freehand');
 
@@ -193,9 +262,9 @@ describe('annotationStore', () => {
 
       // Verify reset
       const state = useAnnotationStore.getState();
-      expect(state.annotationsA.size).toBe(0);
-      expect(state.annotationsB.size).toBe(0);
-      expect(state.selectedAnnotationId).toBeNull();
+      expect(state.annotationsA).toEqual([]);
+      expect(state.annotationsB).toEqual([]);
+      expect(state.selectedAnnotationIds.size).toBe(0);
       expect(state.activeVideoSlot).toBeNull();
       expect(state.activeTool).toBe('select');
     });

@@ -284,7 +284,10 @@ def process_uploaded_video(video_file: Path, rotation: int = 0) -> Path:
     # Step 2: Check if optimization needed
     if not needs_optimization(info, rotation):
         logger.info("Video already optimized, skipping re-encoding")
-        return video_file
+        # Rename _original.mp4 to .mp4 for streaming endpoint
+        final_path = video_file.parent / video_file.name.replace('_original.mp4', '.mp4')
+        video_file.rename(final_path)
+        return final_path
 
     # Step 3: Re-encode to H.264 with GOP=30 and rotation
     codec = info['codec'].lower()

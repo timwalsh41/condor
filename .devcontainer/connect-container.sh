@@ -73,7 +73,7 @@ start_container() {
     docker start "$CONTAINER_NAME"
 }
 
-# Function to create and run new container, forward port 5173 for Vite dev server
+# Function to create and run new container, forward ports for Vite dev server and FastAPI backend
 create_container() {
     echo "Creating new container..."
     docker run -d \
@@ -82,6 +82,7 @@ create_container() {
         --cap-add=NET_ADMIN \
         --cap-add=SYS_ADMIN \
         -p 5173:5173 \
+        -p 8000:8000 \
         -v "$HOST_CODE_DIR:$CONTAINER_CODE_DIR:z" \
         -v claude-dev-history:/commandhistory \
         -v claude-dev-config:/home/node/.claude \
@@ -97,6 +98,7 @@ connect_container() {
     echo "🔧 Claude config is persisted in a named volume"
     echo "📝 Command history is persisted across sessions"
     echo "🌐 Port 5173 forwarded (Vite dev server: http://localhost:5173)"
+    echo "🌐 Port 8000 forwarded (FastAPI backend: http://localhost:8000)"
     echo ""
     
     # Execute the container with zsh and proper terminal settings

@@ -4,7 +4,9 @@
  * Manages annotations per video, selected annotation, and active tool
  * for dual-video annotation workflow.
  *
- * Phase: Phase 1 Task 1.2 (Backend Integration + Upload Workflow)
+ * REQ-F-ANNOT-005: Static annotations (not time-based) - annotations appear on all frames
+ *
+ * Phase: Phase 1 Task 1.3 (DualVideoSyncDemo Backend Integration)
  */
 
 import { create } from 'zustand';
@@ -14,14 +16,14 @@ import type { Annotation, AnnotationType } from '../types/annotations';
  * Annotation store state and actions.
  */
 interface AnnotationStoreState {
-  // Annotations for video A (indexed by frame number)
-  annotationsA: Map<number, Annotation[]>;
+  // Annotations for video A (static - appear on all frames per REQ-F-ANNOT-005)
+  annotationsA: Annotation[];
 
-  // Annotations for video B (indexed by frame number)
-  annotationsB: Map<number, Annotation[]>;
+  // Annotations for video B (static - appear on all frames per REQ-F-ANNOT-005)
+  annotationsB: Annotation[];
 
-  // Currently selected annotation ID (for editing)
-  selectedAnnotationId: string | null;
+  // Currently selected annotation IDs (for editing - supports multi-select)
+  selectedAnnotationIds: Set<string>;
 
   // Active video slot for annotation ('A' | 'B')
   activeVideoSlot: 'A' | 'B' | null;
@@ -30,9 +32,9 @@ interface AnnotationStoreState {
   activeTool: AnnotationType;
 
   // Actions
-  setAnnotationsA: (annotations: Map<number, Annotation[]>) => void;
-  setAnnotationsB: (annotations: Map<number, Annotation[]>) => void;
-  setSelectedAnnotationId: (id: string | null) => void;
+  setAnnotationsA: (annotations: Annotation[]) => void;
+  setAnnotationsB: (annotations: Annotation[]) => void;
+  setSelectedAnnotationIds: (ids: Set<string>) => void;
   setActiveVideoSlot: (slot: 'A' | 'B' | null) => void;
   setActiveTool: (tool: AnnotationType) => void;
   reset: () => void;
@@ -42,9 +44,9 @@ interface AnnotationStoreState {
  * Initial store state.
  */
 const initialState = {
-  annotationsA: new Map<number, Annotation[]>(),
-  annotationsB: new Map<number, Annotation[]>(),
-  selectedAnnotationId: null,
+  annotationsA: [],
+  annotationsB: [],
+  selectedAnnotationIds: new Set<string>(),
   activeVideoSlot: null,
   activeTool: 'select' as AnnotationType,
 };
@@ -59,7 +61,7 @@ export const useAnnotationStore = create<AnnotationStoreState>((set) => ({
 
   setAnnotationsB: (annotations) => set({ annotationsB: annotations }),
 
-  setSelectedAnnotationId: (id) => set({ selectedAnnotationId: id }),
+  setSelectedAnnotationIds: (ids) => set({ selectedAnnotationIds: ids }),
 
   setActiveVideoSlot: (slot) => set({ activeVideoSlot: slot }),
 
@@ -72,7 +74,7 @@ export const useAnnotationStore = create<AnnotationStoreState>((set) => ({
    *
    * **Side Effects**:
    * - Clears all annotations for both videos
-   * - Resets selected annotation and active video slot
+   * - Resets selected annotations and active video slot
    * - Resets active tool to 'select'
    *
    * **Integration**: Should be called when loading new videos or clearing annotation state.

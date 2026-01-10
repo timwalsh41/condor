@@ -1,14 +1,16 @@
-import { DualVideoSyncDemo } from "./components/DualVideoSyncDemo";
+import { DualVideoWorkflow } from "./components/DualVideoWorkflow";
 import "./App.css";
 
 /**
  * Golf swing analysis app with dual-video synchronized playback
  *
- * Phase 0 Features:
- * - Frame-accurate video control using WebCodecs API
- * - Synchronized dual video playback
- * - Canvas overlay annotations (freehand, polyline, oval, arrow)
- * - Annotation selection, deletion, and dragging
+ * Phase 1 Task 1.3 Features:
+ * - Video upload workflow with rotation controls (REQ-F-UPLOAD-001, REQ-F-UPLOAD-004)
+ * - Backend integration for video processing and streaming (REQ-F-PLAYBACK-003)
+ * - Frame-accurate video control using WebCodecs API (REQ-F-FRAME-001)
+ * - Synchronized dual video playback (REQ-F-SYNC-001, REQ-F-PLAY-001)
+ * - Canvas overlay annotations (REQ-F-ANNOT-001, REQ-F-ANNOT-002)
+ * - Annotation selection, deletion, dragging, and reshaping
  *
  * Demonstrates exact frame positioning (0 frame error) with LRU frame cache
  * and GOP=30 optimization.
@@ -16,7 +18,7 @@ import "./App.css";
 function App() {
   return (
     <div className="app">
-      <DualVideoSyncDemo />
+      <DualVideoWorkflow />
     </div>
   );
 }

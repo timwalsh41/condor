@@ -53,7 +53,8 @@
       "Bash(npm run typecheck:*)",
       "Bash(npx vitest:*)",
       "Bash(npm run test:*)",
-      "Bash(mcp-client serena activate_project:*)"
+      "Bash(mcp-client serena activate_project:*)",
+      "Bash(npm run type-check:*)"
     ],
     "deny": []
   },

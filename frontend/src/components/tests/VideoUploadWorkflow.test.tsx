@@ -268,7 +268,12 @@ describe('VideoUploadWorkflow', () => {
       fireEvent.click(screen.getByText('Upload'));
 
       await waitFor(() => {
-        expect(mockUploadVideo).toHaveBeenCalledWith(file, undefined, 90);
+        expect(mockUploadVideo).toHaveBeenCalledWith(
+          file,
+          undefined,
+          90,
+          expect.any(Function) // onUploadProgress callback
+        );
       }, { timeout: 10000 });
     });
   });
@@ -311,7 +316,12 @@ describe('VideoUploadWorkflow', () => {
       fireEvent.click(screen.getByText('Upload'));
 
       await waitFor(() => {
-        expect(mockUploadVideo).toHaveBeenCalledWith(file, 'session-456', 0);
+        expect(mockUploadVideo).toHaveBeenCalledWith(
+          file,
+          'session-456',
+          0,
+          expect.any(Function) // onUploadProgress callback
+        );
       }, { timeout: 10000 });
     });
 
@@ -328,7 +338,12 @@ describe('VideoUploadWorkflow', () => {
         gop_size: 30,
       };
 
-      mockUploadVideo.mockResolvedValue(mockMetadata);
+      // Delay the upload response to give time to observe the uploading state
+      mockUploadVideo.mockImplementation(() => {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve(mockMetadata), 100);
+        });
+      });
       mockGetUploadStatus.mockResolvedValue({
         video_id: 'video-123',
         status: 'complete',
@@ -350,8 +365,9 @@ describe('VideoUploadWorkflow', () => {
 
       fireEvent.click(screen.getByText('Upload'));
 
+      // Check for uploading state UI
       await waitFor(() => {
-        expect(screen.getByTestId('state').textContent).toBe('uploading');
+        expect(screen.getByText(/Uploading file:|Analyzing video metadata/i)).toBeTruthy();
       }, { timeout: 10000 });
     });
   });

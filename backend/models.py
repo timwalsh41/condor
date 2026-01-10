@@ -37,6 +37,7 @@ class UploadStatus(BaseModel):
     progress: Optional[float] = Field(None, description="Processing progress (0.0-1.0)")
     error_message: Optional[str] = Field(None, description="Error message if status=error")
     metadata: Optional[VideoMetadata] = Field(None, description="Video metadata if status=complete")
+    estimated_duration_seconds: Optional[float] = Field(None, description="Estimated processing time in seconds (if status=processing)")
 
 
 class ErrorResponse(BaseModel):

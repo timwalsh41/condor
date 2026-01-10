@@ -64,13 +64,15 @@ function handleApiError(error: unknown): never {
  * @param file Video file to upload
  * @param sessionId Optional session UUID (auto-generated if not provided)
  * @param rotation Rotation angle (0°, 90°, 180°, or 270°)
+ * @param onUploadProgress Optional callback for upload progress (0.0-1.0)
  * @returns VideoMetadata with video information
  * @throws ApiError if upload fails
  */
 export async function uploadVideo(
   file: File,
   sessionId?: string,
-  rotation: RotationAngle = 0
+  rotation: RotationAngle = 0,
+  onUploadProgress?: (progress: number) => void
 ): Promise<VideoMetadata> {
   try {
     const formData = new FormData();
@@ -83,6 +85,12 @@ export async function uploadVideo(
     const response = await apiClient.post<VideoMetadata>('/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onUploadProgress) {
+          const progress = progressEvent.loaded / progressEvent.total;
+          onUploadProgress(progress);
+        }
       },
     });
 

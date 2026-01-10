@@ -187,7 +187,7 @@ def get_transpose_filter(rotation: int) -> Optional[str]:
         raise ValueError(f"Invalid rotation angle: {rotation}. Must be 0, 90, 180, or 270")
 
 
-def optimize_video(input_path: Path, output_path: Path, rotation: int = 0) -> Dict:
+def optimize_video(input_path: Path, output_path: Path, rotation: int = 0, timeout: Optional[float] = None) -> Dict:
     """
     Re-encode video with optimal settings for frame-accurate seeking.
 
@@ -200,6 +200,7 @@ def optimize_video(input_path: Path, output_path: Path, rotation: int = 0) -> Di
         input_path: Path to input video
         output_path: Path for output video
         rotation: Rotation angle in degrees (0, 90, 180, 270)
+        timeout: Optional timeout in seconds (default: 2x expected processing time)
 
     Returns:
         Dictionary with processing stats:
@@ -210,11 +211,17 @@ def optimize_video(input_path: Path, output_path: Path, rotation: int = 0) -> Di
 
     Raises:
         subprocess.CalledProcessError: If ffmpeg fails
-        subprocess.TimeoutExpired: If encoding exceeds 1 minute timeout
+        subprocess.TimeoutExpired: If encoding exceeds timeout
         ValueError: If rotation angle is invalid
     """
     start_time = time.time()
     video_duration = get_video_duration(input_path)
+
+    # Calculate timeout if not provided: 2x expected processing time
+    if timeout is None:
+        expected_time = video_duration * 0.42
+        timeout = expected_time * 2.0
+        logger.info(f"Calculated timeout: {timeout:.1f}s (2x expected time)")
 
     logger.info(f"Starting video re-encoding with libx264 (rotation={rotation}°)")
 
@@ -242,7 +249,7 @@ def optimize_video(input_path: Path, output_path: Path, rotation: int = 0) -> Di
         str(output_path)
     ])
 
-    subprocess.run(cmd, capture_output=True, timeout=60, check=True)
+    subprocess.run(cmd, capture_output=True, timeout=timeout, check=True)
 
     elapsed = time.time() - start_time
     logger.info(f"Software encoding successful: {elapsed:.1f}s")
@@ -255,7 +262,7 @@ def optimize_video(input_path: Path, output_path: Path, rotation: int = 0) -> Di
     }
 
 
-def process_uploaded_video(video_file: Path, rotation: int = 0) -> Path:
+def process_uploaded_video(video_file: Path, rotation: int = 0, timeout: Optional[float] = None) -> Path:
     """
     Main entry point for video processing.
 
@@ -266,12 +273,14 @@ def process_uploaded_video(video_file: Path, rotation: int = 0) -> Path:
     Args:
         video_file: Path to uploaded video file
         rotation: Rotation angle in degrees (0, 90, 180, 270)
+        timeout: Optional timeout in seconds for ffmpeg (default: 2x expected time)
 
     Returns:
         Path to optimized video (may be same as input if no optimization needed)
 
     Raises:
         subprocess.CalledProcessError: If ffprobe/ffmpeg fails
+        subprocess.TimeoutExpired: If encoding exceeds timeout
         ValueError: If video metadata invalid or rotation invalid
     """
     # Step 1: Analyze video
@@ -303,7 +312,7 @@ def process_uploaded_video(video_file: Path, rotation: int = 0) -> Path:
     logger.info(f"Re-encoding video ({', '.join(reasons)})")
     output_file = video_file.with_suffix('.optimized.mp4')
 
-    stats = optimize_video(video_file, output_file, rotation)
+    stats = optimize_video(video_file, output_file, rotation, timeout)
 
     logger.info(f"Re-encoding complete: encoder={stats['encoder']}, "
                 f"time={stats['processing_time']:.1f}s, "

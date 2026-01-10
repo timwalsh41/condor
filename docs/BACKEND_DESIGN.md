@@ -97,23 +97,31 @@ The backend implements efficient video streaming with HTTP range request support
 
 ### Upload Progress Feedback
 
-The backend provides upload processing status through a polling-based endpoint for MVP simplicity:
+**Two-Phase Progress Tracking**:
+1. **Upload Phase** (client-side): File transfer progress tracked via axios `onUploadProgress` (0-100%)
+2. **Processing Phase** (server-side): Background optimization polled via `/api/upload/{video_id}/status`
 
-**Current Implementation (Polling)**:
-1. Client uploads video via POST `/api/upload`
-2. Server returns immediately with `video_id` and `session_id`
-3. Client polls GET `/api/upload/{video_id}/status` every 500ms
-4. Server returns `UploadStatus` with current state (pending, processing, complete, error)
-5. Progress values: 0.0 (start) → 0.1 (file saved) → 0.3 (metadata extracted) → 0.5 (optimization started) → 0.9 (optimization complete) → 1.0 (done)
+**Async Processing Flow** (Task 1.3.1):
+1. Client uploads video via POST `/api/upload` with file chunks
+2. Server saves file and runs quick ffprobe (~1s) to extract metadata
+3. Server returns `VideoMetadata` immediately with `estimated_duration_seconds`
+4. If optimization needed: FastAPI BackgroundTask launched (timeout = 2× expected duration)
+5. Client polls `/api/upload/{video_id}/status` every 500ms for processing status
+6. Progress: 0.0 (start) → 1.0 (complete) with estimated time displayed to user
+
+**Thread Safety**: `progress_tracker` uses locks for concurrent access from main thread and background tasks
+
+**Timeout Handling**: ffmpeg subprocess timeout = `video_duration × 0.42 × 2.0` (2× expected processing time based on 0.42 realtime factor)
+
+**Design Decisions**:
+- No intermediate progress during optimization (KISS - avoids threading complexity)
+- Frontend displays estimated time instead (`~25s remaining`)
+- Future: Parse ffmpeg output for granular progress (requires stdout parsing)
 
 **Future Migration Path (WebSocket)**:
-- Replace polling endpoint with WebSocket connection at `/ws/upload/{video_id}`
-- Server pushes progress updates to client in real-time
+- Replace polling with WebSocket at `/ws/upload/{video_id}`
+- Server pushes progress updates in real-time
 - Client API surface unchanged (still receives `UploadStatus` messages)
-- Implementation requires: `websockets` library, connection management, reconnection logic
-- Migration requires only server-side changes; client switches from polling to WebSocket subscription
-
-**Design rationale**: Polling chosen for MVP (KISS principle) with clear migration path to WebSocket for production scalability.
 
 ### Data Lifecycle Management
 

@@ -322,6 +322,8 @@ def test_upload_video_with_large_gop_optimization(client, test_video_h264_large_
 
     Validates: REQ-F-UPLOAD-001 (Video optimization)
     """
+    import time
+
     filename, file_obj, content_type = test_video_h264_large_gop
 
     response = client.post(
@@ -332,10 +334,25 @@ def test_upload_video_with_large_gop_optimization(client, test_video_h264_large_
 
     assert response.status_code == 200
     data = response.json()
+    video_id = data["video_id"]
 
-    # Verify optimization occurred
-    assert data["codec"] == "h264"
-    assert data["gop_size"] == 30  # Optimized from 250 to 30
+    # Poll for processing completion (async processing)
+    max_attempts = 100
+    for _ in range(max_attempts):
+        status_response = client.get(f"/api/upload/{video_id}/status")
+        assert status_response.status_code == 200
+        status_data = status_response.json()
+
+        if status_data["status"] == "complete":
+            # Verify optimization occurred
+            assert status_data["metadata"]["codec"] == "h264"
+            assert status_data["metadata"]["gop_size"] == 30  # Optimized from 250 to 30
+            return
+
+        assert status_data["status"] == "processing", f"Unexpected status: {status_data['status']}"
+        time.sleep(0.1)
+
+    pytest.fail("Processing did not complete within expected time")
 
 
 # ============================================
@@ -348,6 +365,8 @@ def test_upload_hevc_video_converts_to_h264(client, test_video_hevc):
 
     Validates: REQ-F-UPLOAD-004 (HEVC→H.264 conversion for WebCodecs)
     """
+    import time
+
     filename, file_obj, content_type = test_video_hevc
 
     response = client.post(
@@ -358,10 +377,25 @@ def test_upload_hevc_video_converts_to_h264(client, test_video_hevc):
 
     assert response.status_code == 200
     data = response.json()
+    video_id = data["video_id"]
 
-    # Verify HEVC was converted to H.264
-    assert data["codec"] == "h264"  # Not hevc/hvc1/hev1
-    assert data["gop_size"] == 30  # Optimized during conversion
+    # Poll for processing completion (async processing)
+    max_attempts = 100
+    for _ in range(max_attempts):
+        status_response = client.get(f"/api/upload/{video_id}/status")
+        assert status_response.status_code == 200
+        status_data = status_response.json()
+
+        if status_data["status"] == "complete":
+            # Verify HEVC was converted to H.264
+            assert status_data["metadata"]["codec"] == "h264"  # Not hevc/hvc1/hev1
+            assert status_data["metadata"]["gop_size"] == 30  # Optimized during conversion
+            return
+
+        assert status_data["status"] == "processing", f"Unexpected status: {status_data['status']}"
+        time.sleep(0.1)
+
+    pytest.fail("Processing did not complete within expected time")
 
 
 # ============================================

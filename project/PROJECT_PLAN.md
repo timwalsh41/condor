@@ -10,15 +10,16 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 ## Current Status
 
 - **Phase**: Phase 1 - MVP Core Features Implementation (In Progress)
-- **Last Updated**: 2026-01-10 - Task 1.3 Complete (DualVideoSyncDemo Backend Integration)
-- **Next Priority**: Task 1.3.1 - Async Upload Processing
-- **Overall Progress**: 30 planned, 13 in progress, 5 validated (10% validated)
-  - _Phase 1 Tasks: 13 total (5 complete, 8 remaining)_
-  - _Total test coverage: 610 tests (423 frontend unit + 153 Playwright + 34 backend)_
-  - _Tests passing: 578/610 (95%, 32 skipped)_
-  - _Backend tests: 34/34 passing (100%)_
-  - _Frontend unit tests: 423/423 passing (100%)_
-  - _Playwright tests: 121/153 passing (79%, 32 skipped)_
+- **Last Updated**: 2026-01-11 - Task 1.3.1 Complete (Async Upload Processing)
+- **Next Priority**: Task 1.4 - Trim Functionality + Error Handling
+- **Overall Progress**: 31 planned, 14 in progress, 6 validated (12% validated)
+  - _Phase 1 Tasks: 14 total (6 complete, 8 remaining)_
+  - _Total test coverage: 627 tests (444 frontend unit + 153 Playwright + 41 backend unit + 21 backend integration) - excludes Playwright_
+  - _Tests passing: 506/506 (100%) - backend + frontend unit + integration only_
+  - _Backend unit tests: 41/41 passing (100%)_
+  - _Backend integration tests: 21/21 passing (100%)_
+  - _Frontend unit tests: 444/444 passing (100%)_
+  - _Playwright tests: 121/153 passing (79%, 32 skipped) - not run in current session_
 
 ## MVP Scope (Phase 0-1)
 
@@ -722,7 +723,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - **Architecture Decision**: Created separate playbackStore (not part of syncStore) for cleaner separation of concerns
   - **Architecture Decision**: DualVideoSyncDemo kept mostly unchanged - accepts blobs via props, converts to File objects internally
   - **Bug Fixes**: annotationStore structure corrected (Map→Array for static annotations per REQ-F-ANNOT-005)
-  - **Bug Fixes**: video_optimizer.py - rename _original.mp4 to .mp4 when skipping re-encoding
+  - **Bug Fixes**: video_optimizer.py - rename \_original.mp4 to .mp4 when skipping re-encoding
   - **Bug Fixes**: VideoRotationControls.tsx - canvas always rendered (display:none) to prevent ref race condition
   - DualVideoWorkflow: Sequential state machine (upload-a → upload-b → playback) with React key props to reset component state
   - Backend videos fetched as blobs via fetchVideoBlob(), wrapped in File objects for backward compatibility
@@ -734,23 +735,33 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 1.3.1: Async Upload Processing
 
-- **Status**: Not Started
+- **Status**: Complete
+- **Completed**: 2026-01-11
 - **Requirements**: REQ-NF-U-002 (User Experience)
 - **Scope**: Make video upload processing asynchronous for real-time progress updates
 - **Acceptance Criteria**:
-  - Upload endpoint returns immediately with video_id after saving file
-  - Video processing (ffprobe, optimization) runs in background task
-  - Frontend polls upload status from start of request (not after completion)
-  - Progress indicator updates in real-time (10%, 30%, 50%, 90%, 100%)
-  - Upload status endpoint continues working with polling pattern
-  - All existing upload tests remain passing
+  - ✅ Upload endpoint saves file and extracts metadata, returns immediately after metadata extraction
+  - ✅ Video optimization (if needed) runs in FastAPI BackgroundTasks
+  - ✅ Frontend polls upload status from start of processing phase
+  - ✅ Progress indicator shows two-phase progress: upload (client-side via axios) + processing (server-side via polling)
+  - ✅ Upload status endpoint returns processing progress, estimated duration, and completion status
+  - ✅ All existing upload tests remain passing (444 frontend + 41 backend + 21 integration = 506 tests)
 - **Dependencies**: Task 1.3
 - **Risk Level**: Low (isolated to upload processing flow)
+- **Implementation Summary**:
+  - Created `optimize_video_background()` function with timeout handling (2× expected duration)
+  - Added thread-safe `progress_tracker` with locks for concurrent access
+  - Updated upload endpoint to use `BackgroundTasks` for optimization
+  - Frontend: Two-phase progress with `onUploadProgress` callback + status polling
+  - Added spinner animation during metadata extraction (~5s for GOP detection)
+  - Timeout protection: 120s metadata extraction, dynamic optimization timeout
+  - Independent code review: APPROVED (all critical threading/safety issues resolved)
+  - Test coverage: 7 async tests, integration tests updated for polling pattern
 - **Technical Notes**:
-  - Use FastAPI BackgroundTasks for async processing
-  - Upload endpoint: save file → start background task → return video_id immediately
-  - Progress tracker already implemented, just needs architectural adjustment
-  - Frontend already has polling logic, just needs to start polling earlier
+  - GOP detection takes ~5s (analyzes all frames) - addressed in Task 1.3.4
+  - Progress updates: 0% (start) → 100% (complete) - simplified KISS approach
+  - Estimated time display: `duration × 0.42` realtime factor from empirical testing
+  - Documentation: Updated `BACKEND_DESIGN.md` with async processing flow
 
 ---
 
@@ -773,6 +784,83 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Remove WorkflowState state machine (upload-a, upload-b, playback)
   - Render DualVideoSyncDemo when both videoA and videoB are populated
   - Keep Phase 0 UX pattern: all controls on single page, no multi-step wizard
+
+---
+
+#### Task 1.3.3: Video Size Slider Control
+
+- **Status**: Not Started
+- **Requirements**: REQ-F-PLAYBACK-002 (Playback Speed Control - UI pattern reuse)
+- **Scope**: Add slider control to adjust dual video display size while maintaining equal height scaling
+- **Acceptance Criteria**:
+  - Slider control positioned immediately above videos (below metadata info boxes)
+  - Height range: 128px minimum to min(videoA.height, videoB.height) maximum
+  - Default height: 640px
+  - Both videos scale proportionally maintaining equal height
+  - Existing aspect ratio preservation and rotation handling unaffected
+  - Annotations remain at original video dimensions (do not scale with slider)
+  - Slider updates display in real-time as user drags
+  - Unit tests verify scaling calculations and bounds checking
+- **Dependencies**: Task 1.3
+- **Risk Level**: Low
+- **Technical Notes**:
+  - Replace hardcoded `maxHeight = 1280` in DualVideoSyncDemo (lines 947, 1445)
+  - Add `videoHeight` prop to DualVideoSyncDemo, default to the minimum of 640px and the maximum height of the two videos
+  - Slider component in DualVideoWorkflow playback view (before DualVideoSyncDemo)
+  - Calculate max value dynamically: `Math.min(videoA.metadata.height, videoB.metadata.height)`
+  - Annotation canvas dimensions remain fixed at original video size (future enhancement: scale annotations)
+  - No state persistence needed (resets on page reload)
+- **Deliverables**:
+  - Height slider in DualVideoWorkflow component
+  - Updated DualVideoSyncDemo to accept videoHeight prop
+  - Height state management in DualVideoWorkflow
+  - Unit tests for height prop handling and scaling logic
+  - Updated CSS for slider styling consistency
+
+---
+
+#### Task 1.3.4: Async GOP Detection with Progress Reporting
+
+- **Status**: Not Started
+- **Requirements**: REQ-F-UPLOAD-001 (Video Optimization)
+- **Scope**: Refactor metadata extraction to make GOP size detection asynchronous with progress reporting to improve UX for longer videos
+- **Current Issue**: GOP detection analyzes all frames (via `ffprobe -show_entries frame=pict_type`) taking 5+ seconds for typical videos, blocking the upload endpoint response. Users see spinner but no progress indication.
+- **Proposed Solution**: Split metadata extraction into two phases:
+  1. **Fast metadata** (codec, duration, framerate, dimensions) - returns immediately (~0.15s)
+  2. **Async GOP detection** - runs as background task with progress updates via polling
+- **Acceptance Criteria**:
+  - Upload endpoint returns immediately after fast metadata extraction
+  - GOP detection runs as background task with status polling
+  - Frontend displays progress during GOP detection (e.g., "Analyzing 450/1500 frames")
+  - Progress calculation: `frames_analyzed / total_frames` where `total_frames = duration × framerate`
+  - Estimated time per frame: **~9ms** (empirically measured, document in code)
+  - Optimization decision queued after GOP detection completes
+  - Error handling for GOP detection failures (timeout, parse errors)
+  - All existing upload tests remain passing
+  - Integration tests validate async GOP detection workflow
+- **Dependencies**: Task 1.3.1 (builds on async processing architecture)
+- **Risk Level**: Medium (refactors core upload flow, impacts UX state machine)
+- **Technical Notes**:
+  - Current implementation: `backend/services/video_optimizer.py:64-70` (analyze all frames)
+  - Current blocking call: `backend/routes/upload.py:231` (`get_video_info()`)
+  - Consider streaming ffprobe output (`-of csv`) vs batch JSON parsing
+  - May need to move `needs_optimization()` decision to after GOP detection completes
+- **Design Questions to Resolve**:
+  1. **VideoMetadata structure**: Return `gop_size=null` initially or estimated value (e.g., 999)?
+  2. **Optimization timing**: Always queue GOP detection then conditionally optimize, or assume worst-case and optimize immediately?
+  3. **Frontend state machine**: Add explicit "analyzing_metadata" state or combine with "processing"?
+  4. **Progress display**: Separate phase with own progress bar, or combine GOP + optimization progress?
+  5. **Error handling**: Reject upload on GOP failure, assume needs optimization, or mark incomplete?
+  6. **Streaming vs batch**: Parse ffprobe output line-by-line (CSV) or wait for full JSON?
+- **Deliverables**:
+  - Refactored `get_video_info()` split into fast + slow phases
+  - Background task for GOP detection with progress tracking
+  - Updated upload endpoint to return after fast metadata
+  - Frontend polling for GOP detection status
+  - Progress calculation and display in VideoUploadWorkflow
+  - Updated documentation in `BACKEND_DESIGN.md`
+  - Unit tests for GOP detection background task
+  - Integration tests for async GOP workflow
 
 ---
 

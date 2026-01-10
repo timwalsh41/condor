@@ -36,8 +36,8 @@ interface VideoUploadWorkflowProps {
 type UploadState =
   | 'idle'           // No file selected
   | 'file-selected'  // File selected, awaiting rotation confirmation
-  | 'uploading'      // Upload in progress
-  | 'polling'        // Polling for upload completion
+  | 'uploading'      // Upload in progress (file transfer)
+  | 'processing'     // Video processing (optimization)
   | 'fetching'       // Fetching video blob from backend
   | 'complete'       // Upload complete
   | 'error';         // Error occurred
@@ -57,7 +57,9 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
   const [state, setState] = useState<UploadState>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [rotation, setRotation] = useState<RotationAngle>(0);
-  const [progress, setProgress] = useState<number>(0);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [processingProgress, setProcessingProgress] = useState<number>(0);
+  const [estimatedTimeSeconds, setEstimatedTimeSeconds] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadedMetadata, setUploadedMetadata] = useState<VideoMetadata | null>(null);
 
@@ -73,7 +75,9 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
 
     // Reset state
     setError(null);
-    setProgress(0);
+    setUploadProgress(0);
+    setProcessingProgress(0);
+    setEstimatedTimeSeconds(null);
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -105,95 +109,113 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
   };
 
   /**
-   * Poll upload status until complete or error.
+   * Poll processing status until complete or error.
    */
-  const pollUploadStatus = async (videoId: string) => {
-    const pollInterval = 500; // 500ms polling interval
-    const maxPollAttempts = 600; // 5 minutes max (600 * 500ms)
-    let attempts = 0;
+  const pollProcessingStatus = async (videoId: string): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      const pollInterval = 500; // 500ms polling interval
+      const maxPollAttempts = 600; // 5 minutes max (600 * 500ms)
+      let attempts = 0;
 
-    const poll = async () => {
-      try {
-        const status = await getUploadStatus(videoId);
+      const poll = async () => {
+        try {
+          const status = await getUploadStatus(videoId);
 
-        if (status.status === 'complete' && status.metadata) {
-          // Upload complete - stop polling
+          if (status.status === 'complete' && status.metadata) {
+            // Processing complete - stop polling
+            if (pollingIntervalRef.current !== null) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+
+            setUploadedMetadata(status.metadata);
+            setProcessingProgress(1.0);
+            setState('fetching');
+
+            // Fetch video blob from backend
+            const blob = await fetchVideoBlob(status.metadata.session_id, status.metadata.video_id);
+            setState('complete');
+            onUploadComplete(status.metadata, blob);
+            resolve(); // Polling complete
+
+          } else if (status.status === 'error') {
+            // Processing failed - stop polling
+            if (pollingIntervalRef.current !== null) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+
+            setError(status.error_message || 'Video processing failed');
+            setState('error');
+            reject(new Error(status.error_message || 'Video processing failed'));
+
+          } else if (status.status === 'processing') {
+            // Still processing - update progress and estimated time
+            if (status.progress !== null && status.progress !== undefined) {
+              setProcessingProgress(status.progress);
+            }
+            if (status.estimated_duration_seconds) {
+              setEstimatedTimeSeconds(status.estimated_duration_seconds);
+            }
+          }
+
+          attempts++;
+          if (attempts >= maxPollAttempts) {
+            // Timeout - stop polling
+            if (pollingIntervalRef.current !== null) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+
+            setError('Processing timeout - took too long');
+            setState('error');
+            reject(new Error('Processing timeout - took too long'));
+          }
+        } catch (err) {
+          // Polling error - stop polling
           if (pollingIntervalRef.current !== null) {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
           }
 
-          setUploadedMetadata(status.metadata);
-          setProgress(1.0);
-          setState('fetching');
-
-          // Fetch video blob from backend
-          const blob = await fetchVideoBlob(status.metadata.session_id, status.metadata.video_id);
-          setState('complete');
-          onUploadComplete(status.metadata, blob);
-
-        } else if (status.status === 'error') {
-          // Upload failed - stop polling
-          if (pollingIntervalRef.current !== null) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-
-          setError(status.error_message || 'Upload failed');
+          const errorMessage = err instanceof Error ? err.message : 'Failed to poll processing status';
+          setError(errorMessage);
           setState('error');
-
-        } else {
-          // Still processing - update progress
-          if (status.progress !== null && status.progress !== undefined) {
-            setProgress(status.progress);
-          }
+          reject(err);
         }
+      };
 
-        attempts++;
-        if (attempts >= maxPollAttempts) {
-          // Timeout - stop polling
-          if (pollingIntervalRef.current !== null) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-
-          setError('Upload timeout - processing took too long');
-          setState('error');
-        }
-      } catch (err) {
-        // Polling error - stop polling
-        if (pollingIntervalRef.current !== null) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
-        }
-
-        setError(err instanceof Error ? err.message : 'Failed to poll upload status');
-        setState('error');
-      }
-    };
-
-    // Start polling
-    pollingIntervalRef.current = window.setInterval(poll, pollInterval);
-    await poll(); // Initial poll
+      // Start polling
+      pollingIntervalRef.current = window.setInterval(poll, pollInterval);
+      poll(); // Initial poll (don't await here, let interval continue)
+    });
   };
 
   /**
-   * Handle upload confirmation.
+   * Handle upload confirmation with two-phase progress tracking.
    */
   const handleUpload = async () => {
     if (!selectedFile) return;
 
-    setState('uploading');
     setError(null);
-    setProgress(0.1);
+    setUploadProgress(0);
+    setProcessingProgress(0);
+    setEstimatedTimeSeconds(null);
 
     try {
-      // Upload video with rotation
-      const metadata = await uploadVideo(selectedFile, sessionId, rotation);
+      // Phase 1: Upload file with progress tracking
+      setState('uploading');
 
-      // Start polling for upload status
-      setState('polling');
-      await pollUploadStatus(metadata.video_id);
+      const metadata = await uploadVideo(
+        selectedFile,
+        sessionId,
+        rotation,
+        (progress) => setUploadProgress(progress)
+      );
+
+      // Phase 2: Poll for processing status
+      setState('processing');
+      await pollProcessingStatus(metadata.video_id);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -214,7 +236,9 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
     // Reset state
     setSelectedFile(null);
     setRotation(0);
-    setProgress(0);
+    setUploadProgress(0);
+    setProcessingProgress(0);
+    setEstimatedTimeSeconds(null);
     setError(null);
     setState('idle');
 
@@ -234,7 +258,9 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
     setState('idle');
     setSelectedFile(null);
     setRotation(0);
-    setProgress(0);
+    setUploadProgress(0);
+    setProcessingProgress(0);
+    setEstimatedTimeSeconds(null);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -243,6 +269,12 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
 
   return (
     <div className="video-upload-workflow">
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
       <h3>Upload Video {videoSlot}</h3>
 
       {/* File selection */}
@@ -277,12 +309,55 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
       )}
 
       {/* Upload progress */}
-      {(state === 'uploading' || state === 'polling' || state === 'fetching') && (
-        <UploadProgressIndicator
-          progress={progress}
-          state={state}
-          filename={selectedFile?.name || 'Unknown'}
-        />
+      {state === 'uploading' && (
+        <div className="progress-container">
+          <p>
+            {uploadProgress < 1.0 ? '📤 Uploading file: ' : '🔍 Analyzing video metadata... '}
+            {Math.round(uploadProgress * 100)}%
+            {uploadProgress >= 1.0 && (
+              <span className="spinner" style={{
+                display: 'inline-block',
+                marginLeft: '10px',
+                width: '16px',
+                height: '16px',
+                border: '2px solid #f3f3f3',
+                borderTop: '2px solid #3498db',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                verticalAlign: 'middle'
+              }}></span>
+            )}
+          </p>
+          <progress value={uploadProgress} max={1.0} />
+          {uploadProgress >= 1.0 && (
+            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '5px' }}>
+              Extracting codec, framerate, and duration (typically 1-5 seconds)
+            </p>
+          )}
+          <p className="filename">{selectedFile?.name}</p>
+        </div>
+      )}
+
+      {/* Processing progress */}
+      {state === 'processing' && (
+        <div className="progress-container">
+          <p>Processing video: {Math.round(processingProgress * 100)}%</p>
+          {estimatedTimeSeconds && (
+            <p className="estimated-time">
+              Estimated time: ~{Math.round(estimatedTimeSeconds)}s
+            </p>
+          )}
+          <progress value={processingProgress} max={1.0} />
+          <p className="filename">{selectedFile?.name}</p>
+        </div>
+      )}
+
+      {/* Fetching progress */}
+      {state === 'fetching' && (
+        <div className="progress-container">
+          <p>Fetching video...</p>
+          <p className="filename">{selectedFile?.name}</p>
+        </div>
       )}
 
       {/* Error notification */}

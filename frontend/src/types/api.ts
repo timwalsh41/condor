@@ -33,6 +33,7 @@ export interface UploadStatus {
   progress?: number | null;
   error_message?: string | null;
   metadata?: VideoMetadata | null;
+  estimated_duration_seconds?: number | null;
 }
 
 /**

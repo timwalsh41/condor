@@ -2,12 +2,16 @@
 
 ## Document Control
 
-- **Version**: 1.0
-- **Last Updated**: 2025-12-22
+- **Version**: 1.1
+- **Last Updated**: 2026-01-12
 
 ## Overview
 
 The frontend is a React-based web application providing frame-accurate dual-video playback with temporal synchronization and canvas-based annotation capabilities. It leverages the WebCodecs API for deterministic frame-by-frame video decode and rendering, enabling exact frame positioning (0 tolerance) required for golf swing analysis. The application supports two operational modes: Sync Mode for independent video control and sync point selection, and Playback Mode for synchronized playback with unified controls.
+
+The frontend has two implementations sharing the same core architecture:
+- **DualVideoSyncDemo**: Phase 0 proof-of-concept with client-side file selection (no backend integration)
+- **DualVideoSynchronizer**: Production application with video upload workflow and backend integration
 
 The frontend architecture prioritizes performance through efficient state management (Zustand), bounded memory usage (LRU frame caching), and optimized canvas rendering (react-konva).
 
@@ -19,7 +23,7 @@ The frontend architecture prioritizes performance through efficient state manage
 - **Dual-Video Synchronization**: Calculate and maintain temporal offset between two videos based on user-selected sync point, ensuring synchronized playback during all operations (stepping, seeking, speed changes)
 - **Canvas-Based Annotations**: Provide drawing tools (freehand, polyline, oval, arrow) with canvas overlay, supporting selection, dragging, and reshaping of annotations
 - **Playback Controls**: Unified interface for play/pause, variable speed (0.1x-2.0x), frame stepping (coarse/fine), scrubbing, and looping
-- **Video Upload**: File selection, validation (format, size), upload to backend, and metadata retrieval
+- **Video Upload** (production app only): File selection, validation (format, size), rotation preview, upload to backend, and metadata retrieval
 
 ### Secondary Responsibilities
 

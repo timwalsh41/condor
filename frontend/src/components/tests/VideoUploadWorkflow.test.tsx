@@ -23,11 +23,12 @@ const mockGetUploadStatus = vi.mocked(apiModule.getUploadStatus);
 const mockFetchVideoBlob = vi.mocked(apiModule.fetchVideoBlob);
 
 // Mock child components
-vi.mock('../VideoRotationControls', () => ({
-  VideoRotationControls: ({ rotation, onRotationChange }: { rotation: number; onRotationChange: (rotation: number) => void }) => (
-    <div data-testid="rotation-controls">
-      <button onClick={() => onRotationChange(90)}>Rotate 90°</button>
-      <span data-testid="current-rotation">{rotation}°</span>
+vi.mock('../VideoRotationModal', () => ({
+  VideoRotationModal: ({ onConfirm, onCancel }: { onConfirm: (rotation: number) => void; onCancel: () => void }) => (
+    <div data-testid="rotation-modal">
+      <button onClick={() => onConfirm(0)} data-testid="rotation-confirm">Upload</button>
+      <button onClick={() => onConfirm(90)} data-testid="rotation-confirm-90">Upload with 90° rotation</button>
+      <button onClick={onCancel} data-testid="rotation-cancel">Cancel</button>
     </div>
   ),
 }));
@@ -77,7 +78,7 @@ describe('VideoUploadWorkflow', () => {
       expect(input.getAttribute('type')).toBe('file');
     });
 
-    it('should accept valid file and show rotation controls', () => {
+    it('should accept valid file and show rotation modal', () => {
       render(
         <VideoUploadWorkflow
           videoSlot="A"
@@ -90,9 +91,9 @@ describe('VideoUploadWorkflow', () => {
 
       fireEvent.change(input, { target: { files: [file] } });
 
-      expect(screen.getByTestId('rotation-controls')).toBeTruthy();
-      expect(screen.getByText('Upload')).toBeTruthy();
-      expect(screen.getByText('Cancel')).toBeTruthy();
+      expect(screen.getByTestId('rotation-modal')).toBeTruthy();
+      expect(screen.getByTestId('rotation-confirm')).toBeTruthy();
+      expect(screen.getByTestId('rotation-cancel')).toBeTruthy();
     });
   });
 
@@ -143,7 +144,7 @@ describe('VideoUploadWorkflow', () => {
       fireEvent.change(input, { target: { files: [validFile] } });
 
       // Should show rotation controls, not error
-      expect(screen.getByTestId('rotation-controls')).toBeTruthy();
+      expect(screen.getByTestId('rotation-modal')).toBeTruthy();
       expect(screen.queryByTestId('error-notification')).toBeNull();
     });
   });
@@ -181,7 +182,7 @@ describe('VideoUploadWorkflow', () => {
 
       fireEvent.change(input, { target: { files: [validFile] } });
 
-      expect(screen.getByTestId('rotation-controls')).toBeTruthy();
+      expect(screen.getByTestId('rotation-modal')).toBeTruthy();
       expect(screen.queryByTestId('error-notification')).toBeNull();
     });
 
@@ -201,7 +202,7 @@ describe('VideoUploadWorkflow', () => {
 
         fireEvent.change(input, { target: { files: [validFile] } });
 
-        expect(screen.getByTestId('rotation-controls')).toBeTruthy();
+        expect(screen.getByTestId('rotation-modal')).toBeTruthy();
         expect(screen.queryByTestId('error-notification')).toBeNull();
 
         unmount();
@@ -210,7 +211,7 @@ describe('VideoUploadWorkflow', () => {
   });
 
   describe('Rotation Workflow', () => {
-    it('should update rotation when rotation controls change', () => {
+    it('should show rotation modal on file selection', () => {
       render(
         <VideoUploadWorkflow
           videoSlot="A"
@@ -222,10 +223,7 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      const rotateButton = screen.getByText('Rotate 90°');
-      fireEvent.click(rotateButton);
-
-      expect(screen.getByTestId('current-rotation').textContent).toBe('90°');
+      expect(screen.getByTestId('rotation-modal')).toBeTruthy();
     });
 
     it('should pass rotation to uploadVideo API', async () => {
@@ -261,11 +259,8 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      // Set rotation to 90
-      fireEvent.click(screen.getByText('Rotate 90°'));
-
-      // Upload
-      fireEvent.click(screen.getByText('Upload'));
+      // Confirm upload with 90° rotation
+      fireEvent.click(screen.getByTestId('rotation-confirm-90'));
 
       await waitFor(() => {
         expect(mockUploadVideo).toHaveBeenCalledWith(
@@ -313,7 +308,7 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      fireEvent.click(screen.getByText('Upload'));
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
 
       await waitFor(() => {
         expect(mockUploadVideo).toHaveBeenCalledWith(
@@ -363,7 +358,7 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      fireEvent.click(screen.getByText('Upload'));
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
 
       // Check for uploading state UI
       await waitFor(() => {
@@ -406,7 +401,7 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      fireEvent.click(screen.getByText('Upload'));
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
 
       await waitFor(() => {
         expect(mockGetUploadStatus).toHaveBeenCalledWith('video-123');
@@ -448,7 +443,7 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      fireEvent.click(screen.getByText('Upload'));
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
 
       await waitFor(() => {
         expect(mockFetchVideoBlob).toHaveBeenCalledWith('session-456', 'video-123');
@@ -472,7 +467,7 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      fireEvent.click(screen.getByText('Upload'));
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
 
       await waitFor(() => {
         const errorMessage = screen.getByTestId('error-message');
@@ -512,7 +507,7 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      fireEvent.click(screen.getByText('Upload'));
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
 
       await waitFor(() => {
         const errorMessage = screen.getByTestId('error-message');
@@ -557,7 +552,7 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      fireEvent.click(screen.getByText('Upload'));
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
 
       // Wait for error
       await waitFor(() => {
@@ -572,7 +567,7 @@ describe('VideoUploadWorkflow', () => {
       const file2 = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input2, { target: { files: [file2] } });
 
-      fireEvent.click(screen.getByText('Upload'));
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
 
       await waitFor(() => {
         expect(mockUploadVideo).toHaveBeenCalledTimes(2);
@@ -582,7 +577,7 @@ describe('VideoUploadWorkflow', () => {
   });
 
   describe('Cancel Workflow', () => {
-    it('should call onCancel and reset state', () => {
+    it('should close modal when cancel is clicked', () => {
       render(
         <VideoUploadWorkflow
           videoSlot="A"
@@ -595,11 +590,11 @@ describe('VideoUploadWorkflow', () => {
       const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
       fireEvent.change(input, { target: { files: [file] } });
 
-      expect(screen.getByTestId('rotation-controls')).toBeTruthy();
+      expect(screen.getByTestId('rotation-modal')).toBeTruthy();
 
-      fireEvent.click(screen.getByText('Cancel'));
+      fireEvent.click(screen.getByTestId('rotation-cancel'));
 
-      expect(mockOnCancel).toHaveBeenCalled();
+      expect(screen.queryByTestId('rotation-modal')).toBeNull();
     });
   });
 });

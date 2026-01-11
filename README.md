@@ -34,11 +34,11 @@ To use the original Phase 0 demo with local file selection (no upload required):
 
 ```bash
 # Edit frontend/src/App.tsx - change line 1:
-# FROM: import { DualVideoWorkflow } from "./components/DualVideoWorkflow";
+# FROM: import { DualVideoSynchronizer } from "./components/DualVideoSynchronizer";
 # TO:   import { DualVideoSyncDemo } from "./components/DualVideoSyncDemo";
 
-# And change line 21:
-# FROM: <DualVideoWorkflow />
+# And change line 22:
+# FROM: <DualVideoSynchronizer />
 # TO:   <DualVideoSyncDemo />
 
 cd frontend
@@ -49,9 +49,9 @@ npm run dev
 
 ### Instructions for Use
 
-**Upload Workflow**: Select and upload two videos with optional rotation. After upload, the app enters synchronized playback mode.
+**Upload Workflow** (full application only): Select and upload two videos with optional rotation. After upload, the app enters synchronized playback mode.
 
-**Playback**: The demo starts in SYNC mode where you can independently control each video. Use the playback controls (play/pause, scrub bar, frame stepping) to synchronize the two videos, e.g. by setting them both to the impact frame:
+**Playback** (both modes): The application starts in SYNC mode where you can independently control each video. Use the playback controls (play/pause, scrub bar, frame stepping) to synchronize the two videos, e.g. by setting them both to the impact frame:
 
 ![alt text](image/impact.png)
 
@@ -59,7 +59,7 @@ Switch from sync mode to playback mode:
 
 ![alt text](image/playback-mode.png)
 
-Use the annotation tools to draw illustrate shapes to represent key positions, angles, and checkpoints in the swing. For the polyline tool, each click-and-release creates a vertex; a double click places the final vertex and ends the line. All other tool drawing takes place with a single click and drag.
+**Annotations** (both modes): Use the annotation tools to draw shapes representing key positions, angles, and checkpoints in the swing. For the polyline tool, each click-and-release creates a vertex; a double click places the final vertex and ends the line. All other tool drawing takes place with a single click and drag.
 
 ![alt text](image/annotations.png)
 
@@ -85,10 +85,11 @@ npm run dev
 npm run build
 
 # Run unit tests
-npm run test
+npm test
 
-# Run Playwright integration tests
-npx playwright test
+# Run Playwright E2E tests (install browsers first time)
+npx playwright install --with-deps  # First time only
+npm run test:e2e
 ```
 
 ### Backend Environment

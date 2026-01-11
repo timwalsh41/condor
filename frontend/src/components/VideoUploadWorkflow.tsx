@@ -12,8 +12,7 @@ import React, { useState, useRef } from 'react';
 import { uploadVideo, getUploadStatus, fetchVideoBlob } from '../services/api';
 import type { VideoMetadata } from '../types/api';
 import type { RotationAngle } from '../types/rotation';
-import { VideoRotationControls } from './VideoRotationControls';
-import { UploadProgressIndicator } from './UploadProgressIndicator';
+import { VideoRotationModal } from './VideoRotationModal';
 import { ErrorNotification } from './ErrorNotification';
 
 interface VideoUploadWorkflowProps {
@@ -25,9 +24,6 @@ interface VideoUploadWorkflowProps {
 
   /** Callback when upload completes successfully */
   onUploadComplete: (metadata: VideoMetadata, blob: Blob) => void;
-
-  /** Callback when upload is cancelled */
-  onCancel?: () => void;
 }
 
 /**
@@ -35,7 +31,6 @@ interface VideoUploadWorkflowProps {
  */
 type UploadState =
   | 'idle'           // No file selected
-  | 'file-selected'  // File selected, awaiting rotation confirmation
   | 'uploading'      // Upload in progress (file transfer)
   | 'processing'     // Video processing (optimization)
   | 'fetching'       // Fetching video blob from backend
@@ -52,11 +47,10 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
   videoSlot,
   sessionId,
   onUploadComplete,
-  onCancel,
 }) => {
   const [state, setState] = useState<UploadState>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [rotation, setRotation] = useState<RotationAngle>(0);
+  const [showRotationModal, setShowRotationModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [processingProgress, setProcessingProgress] = useState<number>(0);
   const [estimatedTimeSeconds, setEstimatedTimeSeconds] = useState<number | null>(null);
@@ -97,15 +91,7 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
     }
 
     setSelectedFile(file);
-    setRotation(0);
-    setState('file-selected');
-  };
-
-  /**
-   * Handle rotation change.
-   */
-  const handleRotationChange = (newRotation: RotationAngle) => {
-    setRotation(newRotation);
+    setShowRotationModal(true);
   };
 
   /**
@@ -192,9 +178,11 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
   };
 
   /**
-   * Handle upload confirmation with two-phase progress tracking.
+   * Handle rotation confirmation from modal - triggers upload.
    */
-  const handleUpload = async () => {
+  const handleRotationConfirm = async (rotation: RotationAngle) => {
+    setShowRotationModal(false);
+
     if (!selectedFile) return;
 
     setError(null);
@@ -224,30 +212,16 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
   };
 
   /**
-   * Handle cancel.
+   * Handle rotation modal cancel.
    */
-  const handleCancel = () => {
-    // Stop polling if active
-    if (pollingIntervalRef.current !== null) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-
-    // Reset state
+  const handleRotationCancel = () => {
+    setShowRotationModal(false);
     setSelectedFile(null);
-    setRotation(0);
-    setUploadProgress(0);
-    setProcessingProgress(0);
-    setEstimatedTimeSeconds(null);
-    setError(null);
-    setState('idle');
 
     // Clear file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-
-    onCancel?.();
   };
 
   /**
@@ -257,7 +231,6 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
     setError(null);
     setState('idle');
     setSelectedFile(null);
-    setRotation(0);
     setUploadProgress(0);
     setProcessingProgress(0);
     setEstimatedTimeSeconds(null);
@@ -274,110 +247,178 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        .video-upload-workflow {
+          display: flex;
+          flex-direction: column;
+        }
+        .upload-header {
+          margin-bottom: 10px;
+        }
+        .upload-button-container {
+          margin-bottom: 10px;
+        }
+        .status-box {
+          min-height: 120px;
+          padding: 15px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          background-color: #f9f9f9;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+        .status-box.empty {
+          background-color: #fafafa;
+          border-style: dashed;
+        }
+        .status-box.error {
+          background-color: #fee;
+          border-color: #c00;
+        }
+        .status-box.complete {
+          background-color: #f0f8ff;
+          border-color: #9ec9e6;
+        }
       `}</style>
-      <h3>Upload Video {videoSlot}</h3>
 
-      {/* File selection */}
-      {state === 'idle' && (
-        <div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/mp4"
-            onChange={handleFileSelect}
-            aria-label={`Select video file for slot ${videoSlot}`}
-          />
-          <p className="help-text">
-            Max file size: {MAX_FILE_SIZE_MB}MB. MP4 format with H.264 or H.265/HEVC codec.
-          </p>
-        </div>
-      )}
+      {/* Upload label and button - always visible */}
+      <div className="upload-header">
+        <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+          Upload Video {videoSlot} (MP4):
+        </label>
+      </div>
 
-      {/* Rotation controls */}
-      {state === 'file-selected' && selectedFile && (
-        <div>
-          <VideoRotationControls
-            videoFile={selectedFile}
-            rotation={rotation}
-            onRotationChange={handleRotationChange}
-          />
-          <div className="workflow-actions">
-            <button onClick={handleUpload}>Upload</button>
-            <button onClick={handleCancel}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {/* Upload progress */}
-      {state === 'uploading' && (
-        <div className="progress-container">
-          <p>
-            {uploadProgress < 1.0 ? '📤 Uploading file: ' : '🔍 Analyzing video metadata... '}
-            {Math.round(uploadProgress * 100)}%
-            {uploadProgress >= 1.0 && (
-              <span className="spinner" style={{
-                display: 'inline-block',
-                marginLeft: '10px',
-                width: '16px',
-                height: '16px',
-                border: '2px solid #f3f3f3',
-                borderTop: '2px solid #3498db',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-                verticalAlign: 'middle'
-              }}></span>
-            )}
-          </p>
-          <progress value={uploadProgress} max={1.0} />
-          {uploadProgress >= 1.0 && (
-            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '5px' }}>
-              Extracting codec, framerate, and duration (typically 1-5 seconds)
-            </p>
-          )}
-          <p className="filename">{selectedFile?.name}</p>
-        </div>
-      )}
-
-      {/* Processing progress */}
-      {state === 'processing' && (
-        <div className="progress-container">
-          <p>Processing video: {Math.round(processingProgress * 100)}%</p>
-          {estimatedTimeSeconds && (
-            <p className="estimated-time">
-              Estimated time: ~{Math.round(estimatedTimeSeconds)}s
-            </p>
-          )}
-          <progress value={processingProgress} max={1.0} />
-          <p className="filename">{selectedFile?.name}</p>
-        </div>
-      )}
-
-      {/* Fetching progress */}
-      {state === 'fetching' && (
-        <div className="progress-container">
-          <p>Fetching video...</p>
-          <p className="filename">{selectedFile?.name}</p>
-        </div>
-      )}
-
-      {/* Error notification */}
-      {state === 'error' && error && (
-        <ErrorNotification
-          error={error}
-          onRetry={handleRetry}
-          onDismiss={handleCancel}
+      <div className="upload-button-container">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/mp4"
+          onChange={handleFileSelect}
+          aria-label={`Select video file for slot ${videoSlot}`}
+          style={{ padding: '10px', fontSize: '14px', width: '100%' }}
+          data-testid={`file-input-${videoSlot.toLowerCase()}`}
         />
-      )}
+      </div>
 
-      {/* Complete notification */}
-      {state === 'complete' && uploadedMetadata && (
-        <div className="upload-complete">
-          <p>✓ Video uploaded successfully</p>
-          <p className="metadata">
-            {uploadedMetadata.filename} ({uploadedMetadata.width}×{uploadedMetadata.height},
-            {uploadedMetadata.framerate.toFixed(2)}fps, {uploadedMetadata.duration.toFixed(1)}s)
+      {/* Fixed-height status box */}
+      <div
+        className={`status-box ${
+          state === 'idle' ? 'empty' :
+          state === 'error' ? 'error' :
+          state === 'complete' ? 'complete' : ''
+        }`}
+      >
+        {/* Idle state - empty */}
+        {state === 'idle' && (
+          <p style={{ color: '#999', textAlign: 'center', margin: 0 }}>
+            No video uploaded
           </p>
-        </div>
+        )}
+
+        {/* Upload progress */}
+        {state === 'uploading' && (
+          <>
+            <p style={{ margin: '0 0 10px 0' }}>
+              {uploadProgress < 1.0 ? '📤 Uploading file: ' : '🔍 Analyzing video metadata... '}
+              {Math.round(uploadProgress * 100)}%
+              {uploadProgress >= 1.0 && (
+                <span className="spinner" style={{
+                  display: 'inline-block',
+                  marginLeft: '10px',
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid #f3f3f3',
+                  borderTop: '2px solid #3498db',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  verticalAlign: 'middle'
+                }}></span>
+              )}
+            </p>
+            <progress value={uploadProgress} max={1.0} style={{ width: '100%' }} />
+            {uploadProgress >= 1.0 && (
+              <p style={{ fontSize: '0.85em', color: '#666', margin: '5px 0 0 0' }}>
+                Extracting codec, framerate, and duration...
+              </p>
+            )}
+            {selectedFile && (
+              <p style={{ fontSize: '0.85em', color: '#666', margin: '5px 0 0 0' }}>
+                {selectedFile.name}
+              </p>
+            )}
+          </>
+        )}
+
+        {/* Processing progress */}
+        {state === 'processing' && (
+          <>
+            <p style={{ margin: '0 0 10px 0' }}>
+              Processing video: {Math.round(processingProgress * 100)}%
+            </p>
+            {estimatedTimeSeconds && (
+              <p style={{ fontSize: '0.85em', color: '#666', margin: '0 0 10px 0' }}>
+                Estimated time: ~{Math.round(estimatedTimeSeconds)}s
+              </p>
+            )}
+            <progress value={processingProgress} max={1.0} style={{ width: '100%' }} />
+            {selectedFile && (
+              <p style={{ fontSize: '0.85em', color: '#666', margin: '5px 0 0 0' }}>
+                {selectedFile.name}
+              </p>
+            )}
+          </>
+        )}
+
+        {/* Fetching progress */}
+        {state === 'fetching' && (
+          <>
+            <p style={{ margin: '0 0 10px 0' }}>Fetching video...</p>
+            {selectedFile && (
+              <p style={{ fontSize: '0.85em', color: '#666', margin: '0' }}>
+                {selectedFile.name}
+              </p>
+            )}
+          </>
+        )}
+
+        {/* Error state */}
+        {state === 'error' && error && (
+          <ErrorNotification
+            error={error}
+            onRetry={handleRetry}
+            onDismiss={handleRetry}
+          />
+        )}
+
+        {/* Complete state - show metadata */}
+        {state === 'complete' && uploadedMetadata && (
+          <div style={{ fontSize: '13px', fontFamily: 'monospace' }}>
+            <div style={{ marginBottom: '5px' }}>
+              <strong>✓ {uploadedMetadata.filename}</strong>
+            </div>
+            <div style={{ color: '#555' }}>
+              Codec: {uploadedMetadata.codec}
+            </div>
+            <div style={{ color: '#555' }}>
+              Resolution: {uploadedMetadata.width}×{uploadedMetadata.height}
+            </div>
+            <div style={{ color: '#555' }}>
+              Duration: {uploadedMetadata.duration.toFixed(1)}s
+            </div>
+            <div style={{ color: '#555' }}>
+              Framerate: {uploadedMetadata.framerate.toFixed(2)} fps
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Rotation modal overlay */}
+      {showRotationModal && selectedFile && (
+        <VideoRotationModal
+          videoFile={selectedFile}
+          onConfirm={handleRotationConfirm}
+          onCancel={handleRotationCancel}
+        />
       )}
     </div>
   );

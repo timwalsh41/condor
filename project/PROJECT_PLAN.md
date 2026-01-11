@@ -10,16 +10,16 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 ## Current Status
 
 - **Phase**: Phase 1 - MVP Core Features Implementation (In Progress)
-- **Last Updated**: 2026-01-11 - Task 1.3.1 Complete (Async Upload Processing)
-- **Next Priority**: Task 1.4 - Trim Functionality + Error Handling
-- **Overall Progress**: 31 planned, 14 in progress, 6 validated (12% validated)
-  - _Phase 1 Tasks: 14 total (6 complete, 8 remaining)_
+- **Last Updated**: 2026-01-11 - Task 1.3.2 Complete (Upload Workflow UX Improvements)
+- **Next Priority**: Task 1.3.3 - Video Size Slider Control
+- **Overall Progress**: 31 planned, 14 in progress, 7 validated (14% validated)
+  - _Phase 1 Tasks: 15 total (7 complete, 8 remaining)_
   - _Total test coverage: 627 tests (444 frontend unit + 153 Playwright + 41 backend unit + 21 backend integration) - excludes Playwright_
   - _Tests passing: 506/506 (100%) - backend + frontend unit + integration only_
   - _Backend unit tests: 41/41 passing (100%)_
   - _Backend integration tests: 21/21 passing (100%)_
   - _Frontend unit tests: 444/444 passing (100%)_
-  - _Playwright tests: 121/153 passing (79%, 32 skipped) - not run in current session_
+  - _Playwright tests: Need updating for new workflow (Task 1.3.5)_
 
 ## MVP Scope (Phase 0-1)
 
@@ -767,23 +767,41 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 1.3.2: Upload Workflow UX Improvements
 
-- **Status**: Not Started
+- **Status**: Complete
+- **Completed**: 2026-01-11
 - **Requirements**: REQ-NF-U-001 (Usability), REQ-NF-U-002 (User Experience)
 - **Scope**: Simplify upload workflow by returning to single-page pattern from Phase 0
 - **Acceptance Criteria**:
-  - Both video upload sections visible simultaneously on main page (like Phase 0)
-  - Remove sequential page-by-page workflow (upload-a → upload-b → playback states)
-  - DualVideoSyncDemo appears when both videos uploaded (no page transitions)
-  - Original upload sections with browse buttons preserved per channel
-  - Remove "Upload New Videos" button (use per-channel upload functionality instead)
-  - All existing upload and playback functionality remains working
+  - ✅ Both video upload sections visible simultaneously on main page (like Phase 0)
+  - ✅ Remove sequential page-by-page workflow (upload-a → upload-b → playback states)
+  - ✅ DualVideoSynchronizer appears when at least one video uploaded (supports single-video analysis)
+  - ✅ Original upload sections with browse buttons preserved per channel
+  - ✅ Remove "Upload New Videos" button (use per-channel upload functionality instead)
+  - ✅ All existing upload and playback functionality remains working
+  - ✅ All 444 frontend unit tests passing (100%)
 - **Dependencies**: Task 1.3
 - **Risk Level**: Low (UX simplification, no functional changes)
+- **Implementation Summary**:
+  - Created **DualVideoSynchronizer** as production app (separate from Phase 0 demo)
+  - Removed **DualVideoWorkflow** (replaced by DualVideoSynchronizer)
+  - Created **VideoRotationModal** overlay component for rotation preview
+  - Refactored **VideoUploadWorkflow** with fixed-height status boxes and modal integration
+  - Fixed video display issue with `useMemo()` to prevent unnecessary decoder reinitialization
+  - Updated metadata display to show codec, resolution, duration, and framerate
+  - Updated README files with correct architecture and Playwright setup instructions
+  - Phase 0 demo preserved as **DualVideoSyncDemo** for validation (unchanged)
+- **Deferred to Later Tasks**:
+  - ⚠️ Playwright E2E tests need updating for new workflow (Task 1.3.5)
 - **Technical Notes**:
-  - DualVideoWorkflow: Show both VideoUploadWorkflow components simultaneously
-  - Remove WorkflowState state machine (upload-a, upload-b, playback)
-  - Render DualVideoSyncDemo when both videoA and videoB are populated
-  - Keep Phase 0 UX pattern: all controls on single page, no multi-step wizard
+  - **Architecture Decision**: Separated DualVideoSynchronizer (production) from DualVideoSyncDemo (Phase 0 demo)
+  - **Architecture Decision**: Upload controls positioned above videos (same location as Phase 0 demo)
+  - DualVideoSynchronizer uses zustand store for video state, converts blobs to Files with `useMemo()`
+  - VideoUploadWorkflow: Fixed-height (120px) status box prevents layout shifts during upload
+  - VideoRotationModal: Semi-transparent overlay with ESC/click-outside-to-close
+  - Upload workflow: file select → rotation modal → upload → progress → metadata display
+  - Supports single-video analysis (playback appears when ≥1 video loaded)
+  - No "clear video" functionality - users upload new video to replace
+  - App.tsx updated to render DualVideoSynchronizer (line 22)
 
 ---
 
@@ -861,6 +879,45 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Updated documentation in `BACKEND_DESIGN.md`
   - Unit tests for GOP detection background task
   - Integration tests for async GOP workflow
+
+---
+
+#### Task 1.3.5: Update Playwright Tests for Production Workflow
+
+- **Status**: Not Started
+- **Requirements**: REQ-F-UPLOAD-001, REQ-F-UPLOAD-004, REQ-NF-U-001, REQ-NF-U-002
+- **Scope**: Update Playwright E2E tests to work with DualVideoSynchronizer production app instead of Phase 0 demo
+- **Current Issue**: Tests navigate to `/` which now renders DualVideoSynchronizer with backend upload workflow, but tests expect DualVideoSyncDemo's direct file input pattern
+- **Acceptance Criteria**:
+  - All Playwright tests updated to work with production app architecture
+  - Tests account for VideoUploadWorkflow components (not simple file inputs)
+  - Tests handle rotation modal workflow (file select → modal → rotation → upload)
+  - Tests handle upload progress states (uploading, processing, fetching, complete)
+  - Tests work with backend integration (require backend running)
+  - All existing test scenarios remain covered (frame stepping, sync, annotations, etc.)
+  - Tests pass in all browsers (Chrome, Firefox, WebKit)
+  - Update test documentation in README files
+- **Dependencies**: Task 1.3.2 (completed)
+- **Risk Level**: Medium (significant test refactoring, backend dependency adds complexity)
+- **Technical Notes**:
+  - Phase 0 demo preserved at `/dual-video-sync` route for validation
+  - Tests currently expect `data-testid="file-input-a/b"` to be simple file inputs
+  - Need to mock or handle backend upload API calls
+  - Consider adding test-specific flags to skip actual upload for speed
+  - May need test fixtures for backend responses
+- **Test Files to Update**:
+  - `tests/test_dual_video_sync.spec.ts`
+  - `tests/test_frame_stepping.spec.ts`
+  - `tests/test_webcodecs_frame_stepping.spec.ts`
+  - `tests/test_canvas_overlay.spec.ts`
+  - `tests/test_cache_performance.spec.ts`
+  - `tests/test_memory_leaks.spec.ts`
+- **Deliverables**:
+  - Updated Playwright tests for production workflow
+  - Test helper functions for upload workflow
+  - Backend fixture setup for E2E tests
+  - Updated test documentation
+  - All tests passing (153/153)
 
 ---
 

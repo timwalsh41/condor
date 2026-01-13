@@ -10,15 +10,15 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 ## Current Status
 
 - **Phase**: Phase 1 - MVP Core Features Implementation (In Progress)
-- **Last Updated**: 2026-01-11 - Task 1.3.2 Complete (Upload Workflow UX Improvements)
-- **Next Priority**: Task 1.3.3 - Video Size Slider Control
+- **Last Updated**: 2026-01-12 - Task 1.3.3 Complete (Video Size Slider Control)
+- **Next Priority**: Task 1.3.4 - Async GOP Detection with Progress Reporting
 - **Overall Progress**: 31 planned, 14 in progress, 7 validated (14% validated)
-  - _Phase 1 Tasks: 15 total (7 complete, 8 remaining)_
-  - _Total test coverage: 627 tests (444 frontend unit + 153 Playwright + 41 backend unit + 21 backend integration) - excludes Playwright_
-  - _Tests passing: 506/506 (100%) - backend + frontend unit + integration only_
+  - _Phase 1 Tasks: 15 total (8 complete, 7 remaining)_
+  - _Total test coverage: 642 tests (459 frontend unit + 153 Playwright + 41 backend unit + 21 backend integration) - excludes Playwright_
+  - _Tests passing: 521/521 (100%) - backend + frontend unit + integration only_
   - _Backend unit tests: 41/41 passing (100%)_
   - _Backend integration tests: 21/21 passing (100%)_
-  - _Frontend unit tests: 444/444 passing (100%)_
+  - _Frontend unit tests: 459/459 passing (100%)_
   - _Playwright tests: Need updating for new workflow (Task 1.3.5)_
 
 ## MVP Scope (Phase 0-1)
@@ -807,33 +807,48 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 1.3.3: Video Size Slider Control
 
-- **Status**: Not Started
+- **Status**: Complete
+- **Completed**: 2026-01-12
 - **Requirements**: REQ-F-PLAYBACK-002 (Playback Speed Control - UI pattern reuse)
 - **Scope**: Add slider control to adjust dual video display size while maintaining equal height scaling
 - **Acceptance Criteria**:
-  - Slider control positioned immediately above videos (below metadata info boxes)
-  - Height range: 128px minimum to min(videoA.height, videoB.height) maximum
-  - Default height: 640px
-  - Both videos scale proportionally maintaining equal height
-  - Existing aspect ratio preservation and rotation handling unaffected
-  - Annotations remain at original video dimensions (do not scale with slider)
-  - Slider updates display in real-time as user drags
-  - Unit tests verify scaling calculations and bounds checking
+  - ✅ Slider control positioned immediately above videos (below metadata info boxes)
+  - ✅ Height range: 128px minimum to min(videoA.height, videoB.height) maximum
+  - ✅ Default height: 640px
+  - ✅ Both videos scale proportionally maintaining equal height
+  - ✅ Existing aspect ratio preservation and rotation handling unaffected
+  - ✅ Annotations remain at original video dimensions (do not scale with slider)
+  - ✅ Slider updates display in real-time as user drags
+  - ✅ Unit tests verify scaling calculations and bounds checking
 - **Dependencies**: Task 1.3
 - **Risk Level**: Low
+- **Implementation Summary**:
+  - Modified **DualVideoSynchronizer** (production component) with video height slider
+  - Left **DualVideoSyncDemo** unchanged (Phase 0 demo preserved for validation)
+  - Added `videoHeightConfig` with `useMemo` calculating min (128px), max (min of both video heights), and default (min of 640px and max)
+  - Properly handles rotation: 90° and 270° swap width/height for height calculation
+  - Handles single video, dual video, and no-video scenarios
+  - Slider positioned above video canvas grid at line 814
+  - Replaced hardcoded `maxHeight = 1280` with `videoHeight` state in both Video A and Video B scaling calculations
+  - Auto-updates default height when videos change via `useEffect`
+  - Created comprehensive unit test suite: 15 test cases covering height calculation, bounds, rotation handling
+  - All 459 frontend tests passing (100%)
+  - ESLint: 0 errors, 0 warnings
+  - TypeScript compilation: Success
 - **Technical Notes**:
-  - Replace hardcoded `maxHeight = 1280` in DualVideoSyncDemo (lines 947, 1445)
-  - Add `videoHeight` prop to DualVideoSyncDemo, default to the minimum of 640px and the maximum height of the two videos
-  - Slider component in DualVideoWorkflow playback view (before DualVideoSyncDemo)
-  - Calculate max value dynamically: `Math.min(videoA.metadata.height, videoB.metadata.height)`
-  - Annotation canvas dimensions remain fixed at original video size (future enhancement: scale annotations)
-  - No state persistence needed (resets on page reload)
+  - **Architecture Decision**: Modified DualVideoSynchronizer (production) instead of non-existent DualVideoWorkflow (removed in Task 1.3.2)
+  - Updated technical notes reflected architecture change from Task 1.3.2
+  - Slider shows current value in label: "Video Display Height: {value}px"
+  - Min/max bounds displayed below slider for user reference
+  - Annotation canvas dimensions use original video size (`videoA.metadata.width/height`), unaffected by display scaling
+  - No state persistence (resets on page reload as specified)
 - **Deliverables**:
-  - Height slider in DualVideoWorkflow component
-  - Updated DualVideoSyncDemo to accept videoHeight prop
-  - Height state management in DualVideoWorkflow
-  - Unit tests for height prop handling and scaling logic
-  - Updated CSS for slider styling consistency
+  - ✅ Height slider in DualVideoSynchronizer component (lines 814-858)
+  - ✅ VideoHeight state management with useMemo config (lines 144-178)
+  - ✅ Updated Video A scaling calculations (line 887-892)
+  - ✅ Updated Video B scaling calculations (line 1384-1389)
+  - ✅ Unit tests: `frontend/src/components/tests/DualVideoSynchronizer.test.tsx` (15 tests)
+  - ✅ Inline slider styling with light gray background for visual separation
 
 ---
 
@@ -983,6 +998,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - Icons with text labels for clarity
   - Responsive sizing for different screen widths
   - OnboardingTooltips component with first-time user hints
+  - Keyboard shortcuts for playback controls (spacebar for play/pause, L/R arrow for single frame step)
   - Tooltips dismissible after first use
   - Sync workflow help text visible in Sync Mode
   - All UI interactions respond ≤100ms

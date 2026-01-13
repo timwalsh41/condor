@@ -141,6 +141,48 @@ export function DualVideoSynchronizer() {
     isReshapingAnnotation: isReshapingAnnotationB,
   } = videoBAnnotations;
 
+  // Video height slider configuration
+  const videoHeightConfig = useMemo(() => {
+    // Calculate max height as minimum of both videos' heights (accounting for rotation)
+    const getVideoHeight = (metadata: typeof videoA.metadata) => {
+      if (!metadata) return null;
+      const rotation = metadata.rotation || 0;
+      const isRotated = rotation === 90 || rotation === 270;
+      return isRotated ? metadata.width : metadata.height;
+    };
+
+    const heightA = videoA.metadata ? getVideoHeight(videoA.metadata) : null;
+    const heightB = videoB.metadata ? getVideoHeight(videoB.metadata) : null;
+
+    // Max height is minimum of both videos (or single video if only one loaded)
+    let maxHeight: number;
+    if (heightA !== null && heightB !== null) {
+      maxHeight = Math.min(heightA, heightB);
+    } else if (heightA !== null) {
+      maxHeight = heightA;
+    } else if (heightB !== null) {
+      maxHeight = heightB;
+    } else {
+      maxHeight = 1280; // Fallback if no videos loaded
+    }
+
+    // Default height is minimum of 640px and max height
+    const defaultHeight = Math.min(640, maxHeight);
+
+    return {
+      min: 128,
+      max: maxHeight,
+      default: defaultHeight,
+    };
+  }, [videoA, videoB]);
+
+  const [videoHeight, setVideoHeight] = useState(videoHeightConfig.default);
+
+  // Update videoHeight when videos change
+  useEffect(() => {
+    setVideoHeight(videoHeightConfig.default);
+  }, [videoHeightConfig.default]);
+
   // Update refs on every render to capture latest state
   useEffect(() => {
     videoARef.current = videoA;
@@ -769,6 +811,52 @@ export function DualVideoSynchronizer() {
       {/* Video Display - Side by Side */}
       {(videoA.isReady || videoB.isReady) && (
         <div>
+          {/* Video Size Slider */}
+          <div
+            style={{
+              marginBottom: "15px",
+              padding: "10px",
+              backgroundColor: "#f5f5f5",
+              borderRadius: "4px",
+            }}
+          >
+            <label
+              htmlFor="video-height-slider"
+              style={{
+                display: "block",
+                marginBottom: "8px",
+                fontWeight: "bold",
+                fontSize: "14px",
+              }}
+            >
+              Video Display Height: {videoHeight}px
+            </label>
+            <input
+              id="video-height-slider"
+              type="range"
+              min={videoHeightConfig.min}
+              max={videoHeightConfig.max}
+              value={videoHeight}
+              onChange={(e) => setVideoHeight(Number(e.target.value))}
+              style={{
+                width: "100%",
+                cursor: "pointer",
+              }}
+            />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "12px",
+                color: "#666",
+                marginTop: "4px",
+              }}
+            >
+              <span>{videoHeightConfig.min}px (min)</span>
+              <span>{videoHeightConfig.max}px (max)</span>
+            </div>
+          </div>
+
           {/* Canvases */}
           <div
             style={{
@@ -795,11 +883,10 @@ export function DualVideoSynchronizer() {
                       ? videoA.metadata.width
                       : videoA.metadata.height;
 
-                    // Scale down if height exceeds max
-                    const maxHeight = 1280;
+                    // Scale down if height exceeds slider value
                     const scale =
-                      baseDisplayHeight > maxHeight
-                        ? maxHeight / baseDisplayHeight
+                      baseDisplayHeight > videoHeight
+                        ? videoHeight / baseDisplayHeight
                         : 1;
                     const displayWidth = baseDisplayWidth * scale;
                     const displayHeight = baseDisplayHeight * scale;
@@ -1293,11 +1380,10 @@ export function DualVideoSynchronizer() {
                       ? videoB.metadata.width
                       : videoB.metadata.height;
 
-                    // Scale down if height exceeds max
-                    const maxHeight = 1280;
+                    // Scale down if height exceeds slider value
                     const scale =
-                      baseDisplayHeight > maxHeight
-                        ? maxHeight / baseDisplayHeight
+                      baseDisplayHeight > videoHeight
+                        ? videoHeight / baseDisplayHeight
                         : 1;
                     const displayWidth = baseDisplayWidth * scale;
                     const displayHeight = baseDisplayHeight * scale;

@@ -349,13 +349,15 @@ Key environment variables (`.env`):
 
 ### Post-MVP Enhancements
 
-- **Authentication & Multi-User**: User accounts, session persistence (REQ-NF-PT-003)
+- **Authentication & Multi-User**: User accounts, session persistence with video library (REQ-NF-PT-003)
 - **Annotation Persistence**: Save/load annotation sets with video metadata
 - **Advanced Annotation Features**: Custom colors, line thickness, frame-specific annotations (REQ-F-ANNOT-006)
 - **Cloud Deployment**: Scalable infrastructure, CDN for video delivery
 - **Hardware Encoding**: Raspberry Pi 4 h264_v4l2m2m encoder (currently produces GOP=60, driver limitation)
 - **Additional Video Formats**: VP9, AV1 codec support (if browser support improves)
 - **Comparison Mode Enhancements**: Side-by-side vs overlay, 3+ video comparison
+- **Cloud Storage Integration**: Load videos directly from Google Photos, iCloud, etc.
+- **AI-Assited Features**: Automatic sync-point identification, key position/angle annotation, etc.
 
 ### MVP Implementation Limitations
 

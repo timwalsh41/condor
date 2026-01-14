@@ -97,30 +97,58 @@ The backend implements efficient video streaming with HTTP range request support
 
 ### Upload Progress Feedback
 
-**Two-Phase Progress Tracking**:
+**Three-Phase Progress Tracking**:
 1. **Upload Phase** (client-side): File transfer progress tracked via axios `onUploadProgress` (0-100%)
-2. **Processing Phase** (server-side): Background optimization polled via `/api/upload/{video_id}/status`
+2. **Analyzing Phase** (server-side): GOP detection with frame-by-frame progress via `/api/upload/{video_id}/status`
+3. **Processing Phase** (server-side): Video optimization with real-time progress via `/api/upload/{video_id}/status`
 
-**Async Processing Flow** (Task 1.3.1):
+**Async Processing Flow** (Tasks 1.3.1, 1.3.4):
 1. Client uploads video via POST `/api/upload` with file chunks
-2. Server saves file and runs quick ffprobe (~1s) to extract metadata
-3. Server returns `VideoMetadata` immediately with `estimated_duration_seconds`
-4. If optimization needed: FastAPI BackgroundTask launched (timeout = 2× expected duration)
+2. Server saves file and runs fast metadata extraction (~0.15s) using `get_fast_video_info()` (codec, dimensions, framerate, duration - NO GOP detection)
+3. Server returns `VideoMetadata` immediately with `gop_size=null` (will be populated after GOP detection)
+4. FastAPI BackgroundTask launched for GOP detection + conditional optimization:
+   - **If rotation requested**: Skip GOP detection, go straight to optimization (saves 5-10s)
+   - **If no rotation**: Run GOP detection first, then conditional optimization
 5. Client polls `/api/upload/{video_id}/status` every 500ms for processing status
-6. Progress: 0.0 (start) → 1.0 (complete) with estimated time displayed to user
 
-**Thread Safety**: `progress_tracker` uses locks for concurrent access from main thread and background tasks
+**GOP Detection Phase** (`status: "analyzing"`):
+- Uses ffprobe with CSV streaming to analyze frame types (I, P, B)
+- Progress updates: `frames_analyzed / total_frames` (e.g., 900/1,800 frames)
+- Frontend displays: "🔍 Analyzing video structure: 50%"
+- Duration: ~5-10 seconds for typical video
+- Timeout: 120 seconds
+- Skipped if rotation requested (optimization guaranteed)
 
-**Timeout Handling**: ffmpeg subprocess timeout = `video_duration × 0.42 × 2.0` (2× expected processing time based on 0.42 realtime factor)
+**Optimization Phase** (`status: "processing"`):
+- Uses ffmpeg with `-progress pipe:1` for real-time progress reporting
+- Parses `out_time_ms` field to calculate progress: `current_time / video_duration`
+- Progress updates: 0.0 → 1.0 with smooth incremental updates
+- Frontend displays: "⚙️ Optimizing video: 75%"
+- Duration: ~0.42x realtime (60s video → 25s processing)
+- Timeout: `video_duration × 0.42 × 2.0` (2× expected processing time)
+
+**Thread Safety**:
+- `progress_tracker` uses `threading.Lock()` for concurrent access from FastAPI's thread pool
+- Progress updates made via direct function calls (no `threading.Thread` spawned)
+- Subprocess stdout parsing blocks in thread pool thread (safe blocking I/O pattern)
+- No async/sync mixing issues - stays within FastAPI's managed thread pool
+
+**Timeout Handling**:
+- GOP detection: 120s timeout with fallback to GOP=999 (triggers re-encoding)
+- Optimization: `video_duration × 0.42 × 2.0` subprocess timeout
+- Both use `subprocess.Popen.wait(timeout=...)` for reliable timeout enforcement
 
 **Design Decisions**:
-- No intermediate progress during optimization (KISS - avoids threading complexity)
-- Frontend displays estimated time instead (`~25s remaining`)
-- Future: Parse ffmpeg output for granular progress (requires stdout parsing)
+- Real-time progress for both GOP detection AND optimization (better UX than estimates)
+- Blocking subprocess I/O pattern (safe for FastAPI BackgroundTasks, no threading complexity)
+- Skip GOP detection when rotation requested (optimization: saves 5-10s per upload)
+- CSV streaming for GOP detection enables frame-by-frame progress updates
+- ffmpeg progress parsing via stdout for smooth optimization progress
+- Fallback to GOP=999 on detection errors (conservative - forces re-encoding)
 
 **Future Migration Path (WebSocket)**:
 - Replace polling with WebSocket at `/ws/upload/{video_id}`
-- Server pushes progress updates in real-time
+- Server pushes progress updates in real-time (lower latency than 500ms polling)
 - Client API surface unchanged (still receives `UploadStatus` messages)
 
 ### Data Lifecycle Management

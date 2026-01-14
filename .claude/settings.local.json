@@ -56,7 +56,8 @@
       "Bash(mcp-client serena activate_project:*)",
       "Bash(npm run type-check:*)",
       "Bash(npm run test:e2e:*)",
-      "mcp__serena__list_memories"
+      "mcp__serena__list_memories",
+      "Bash(ffprobe:*)"
     ],
     "deny": []
   },

@@ -20,7 +20,7 @@ export interface VideoMetadata {
   width: number;
   height: number;
   codec: string;
-  gop_size: number;
+  gop_size: number | null;  // null during GOP detection
 }
 
 /**
@@ -29,11 +29,13 @@ export interface VideoMetadata {
  */
 export interface UploadStatus {
   video_id: string;
-  status: "pending" | "processing" | "complete" | "error";
+  status: "pending" | "analyzing" | "processing" | "complete" | "error";
   progress?: number | null;
   error_message?: string | null;
   metadata?: VideoMetadata | null;
   estimated_duration_seconds?: number | null;
+  frames_analyzed?: number | null;
+  total_frames?: number | null;
 }
 
 /**

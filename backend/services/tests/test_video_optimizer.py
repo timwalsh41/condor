@@ -300,3 +300,45 @@ def test_get_transpose_filter_invalid_angle():
     from backend.services.video_optimizer import get_transpose_filter
     with pytest.raises(ValueError, match="Invalid rotation angle"):
         get_transpose_filter(45)
+
+
+# ============================================
+# UNIT TESTS (Async GOP Detection)
+# ============================================
+
+def test_needs_optimization_with_gop_none():
+    """Videos with gop_size=None need optimization (during GOP detection)."""
+    video_info = {
+        'gop_size': None,  # Not yet detected
+        'codec': 'h264',
+        'width': 1920,
+        'height': 1080
+    }
+    assert needs_optimization(video_info) is True
+
+
+def test_needs_optimization_with_missing_gop():
+    """Videos without gop_size key need optimization (fast metadata only)."""
+    video_info = {
+        'codec': 'h264',
+        'width': 1920,
+        'height': 1080
+        # gop_size is missing entirely
+    }
+    assert needs_optimization(video_info) is True
+
+
+def test_needs_optimization_gop_none_overrides_other_checks():
+    """
+    gop_size=None forces optimization even if other criteria are optimal.
+
+    This ensures we re-encode when GOP size is unknown, following
+    conservative fallback strategy.
+    """
+    video_info = {
+        'gop_size': None,
+        'codec': 'h264',  # Optimal codec
+        'width': 1920,    # Optimal resolution
+        'height': 1080
+    }
+    assert needs_optimization(video_info, rotation=0) is True

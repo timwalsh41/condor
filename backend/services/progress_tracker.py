@@ -30,18 +30,22 @@ def set_status(
     progress: Optional[float] = None,
     error_message: Optional[str] = None,
     metadata: Optional[VideoMetadata] = None,
-    estimated_duration_seconds: Optional[float] = None
+    estimated_duration_seconds: Optional[float] = None,
+    frames_analyzed: Optional[int] = None,
+    total_frames: Optional[int] = None
 ) -> None:
     """
     Update upload status (thread-safe).
 
     Args:
         video_id: Video UUID
-        status: Processing status (pending, processing, complete, error)
+        status: Processing status (pending, analyzing, processing, complete, error)
         progress: Optional progress value (0.0-1.0)
         error_message: Optional error message if status=error
         metadata: Optional video metadata if status=complete
         estimated_duration_seconds: Optional estimated processing time in seconds
+        frames_analyzed: Optional number of frames analyzed during GOP detection
+        total_frames: Optional total number of frames for GOP detection progress
     """
     with _status_lock:
         _upload_status[video_id] = UploadStatus(
@@ -50,7 +54,9 @@ def set_status(
             progress=progress,
             error_message=error_message,
             metadata=metadata,
-            estimated_duration_seconds=estimated_duration_seconds
+            estimated_duration_seconds=estimated_duration_seconds,
+            frames_analyzed=frames_analyzed,
+            total_frames=total_frames
         )
     logger.debug(f"Upload status updated: video_id={video_id}, status={status}")
 

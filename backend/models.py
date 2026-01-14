@@ -23,7 +23,7 @@ class VideoMetadata(BaseModel):
     width: int = Field(description="Video width (pixels)", gt=0)
     height: int = Field(description="Video height (pixels)", gt=0)
     codec: str = Field(description="Video codec (e.g., 'h264')")
-    gop_size: int = Field(description="GOP size (keyframe interval)", gt=0)
+    gop_size: Optional[int] = Field(None, description="GOP size (keyframe interval), None during GOP detection")
 
 
 class UploadStatus(BaseModel):
@@ -33,11 +33,13 @@ class UploadStatus(BaseModel):
     Validates: REQ-F-UPLOAD-001 (progress feedback)
     """
     video_id: UUID = Field(description="Unique video identifier")
-    status: str = Field(description="Processing status: pending, processing, complete, error")
+    status: str = Field(description="Processing status: pending, analyzing, processing, complete, error")
     progress: Optional[float] = Field(None, description="Processing progress (0.0-1.0)")
     error_message: Optional[str] = Field(None, description="Error message if status=error")
     metadata: Optional[VideoMetadata] = Field(None, description="Video metadata if status=complete")
     estimated_duration_seconds: Optional[float] = Field(None, description="Estimated processing time in seconds (if status=processing)")
+    frames_analyzed: Optional[int] = Field(None, description="Number of frames analyzed during GOP detection")
+    total_frames: Optional[int] = Field(None, description="Total number of frames for GOP detection progress")
 
 
 class ErrorResponse(BaseModel):

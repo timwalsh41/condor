@@ -597,4 +597,291 @@ describe('VideoUploadWorkflow', () => {
       expect(screen.queryByTestId('rotation-modal')).toBeNull();
     });
   });
+
+  describe('Analyzing State - GOP Detection', () => {
+    it('should transition to analyzing state after upload', async () => {
+      const metadata: VideoMetadata = {
+        video_id: 'test-video-id',
+        session_id: 'test-session',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 60,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: null, // null during GOP detection
+      };
+
+      mockUploadVideo.mockResolvedValue(metadata);
+      mockGetUploadStatus.mockResolvedValue({
+        video_id: 'test-video-id',
+        status: 'analyzing',
+        progress: 0.5,
+        frames_analyzed: 900,
+        total_frames: 1800,
+      });
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
+
+      await waitFor(() => {
+        const text = screen.getByText(/Analyzing video structure/i);
+        expect(text).toBeTruthy();
+      });
+    });
+
+    it('should display frame progress during GOP detection', async () => {
+      const metadata: VideoMetadata = {
+        video_id: 'test-video-id',
+        session_id: 'test-session',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 60,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: null,
+      };
+
+      mockUploadVideo.mockResolvedValue(metadata);
+
+      // Simulate progressive GOP detection
+      let callCount = 0;
+      mockGetUploadStatus.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve({
+            video_id: 'test-video-id',
+            status: 'analyzing',
+            progress: 0.25,
+            frames_analyzed: 450,
+            total_frames: 1800,
+          });
+        } else if (callCount === 2) {
+          return Promise.resolve({
+            video_id: 'test-video-id',
+            status: 'analyzing',
+            progress: 0.75,
+            frames_analyzed: 1350,
+            total_frames: 1800,
+          });
+        } else {
+          return Promise.resolve({
+            video_id: 'test-video-id',
+            status: 'complete',
+            metadata: { ...metadata, gop_size: 30 },
+            progress: 1.0,
+          });
+        }
+      });
+
+      mockFetchVideoBlob.mockResolvedValue(new Blob());
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
+
+      // Wait for analyzing state to appear
+      await waitFor(() => {
+        const analyzing = screen.getByText(/Analyzing video structure/i);
+        expect(analyzing).toBeTruthy();
+      }, { timeout: 2000 });
+
+      // Verify frame count display
+      await waitFor(() => {
+        const frames = screen.getByText(/Frames analyzed:/i);
+        expect(frames).toBeTruthy();
+      }, { timeout: 2000 });
+    });
+
+    it('should handle analyzing state with processing workflow', async () => {
+      const metadata: VideoMetadata = {
+        video_id: 'test-video-id',
+        session_id: 'test-session',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 60,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: null,
+      };
+
+      mockUploadVideo.mockResolvedValue(metadata);
+
+      // Simulate full workflow: analyzing -> processing -> complete
+      let callCount = 0;
+      mockGetUploadStatus.mockImplementation(() => {
+        callCount++;
+        if (callCount <= 2) {
+          // First 2 polls: analyzing state
+          return Promise.resolve({
+            video_id: 'test-video-id',
+            status: 'analyzing',
+            progress: 0.5,
+            frames_analyzed: 900,
+            total_frames: 1800,
+          });
+        } else if (callCount <= 4) {
+          // Next 2 polls: processing state
+          return Promise.resolve({
+            video_id: 'test-video-id',
+            status: 'processing',
+            progress: 0.3,
+            estimated_duration_seconds: 25,
+          });
+        } else {
+          // Final: complete
+          return Promise.resolve({
+            video_id: 'test-video-id',
+            status: 'complete',
+            metadata: { ...metadata, gop_size: 30 },
+            progress: 1.0,
+          });
+        }
+      });
+
+      mockFetchVideoBlob.mockResolvedValue(new Blob());
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
+
+      // Wait for analyzing state to appear
+      await waitFor(() => {
+        expect(screen.getByText(/Analyzing video structure/i)).toBeTruthy();
+      }, { timeout: 2000 });
+
+      // Wait for workflow to complete
+      await waitFor(() => {
+        expect(mockOnUploadComplete).toHaveBeenCalled();
+      }, { timeout: 10000 });
+    }, 15000);
+
+    it('should transition from analyzing directly to complete if no optimization needed', async () => {
+      const metadata: VideoMetadata = {
+        video_id: 'test-video-id',
+        session_id: 'test-session',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 60,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: null,
+      };
+
+      mockUploadVideo.mockResolvedValue(metadata);
+
+      let callCount = 0;
+      mockGetUploadStatus.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve({
+            video_id: 'test-video-id',
+            status: 'analyzing',
+            progress: 0.5,
+            frames_analyzed: 900,
+            total_frames: 1800,
+          });
+        } else {
+          // Skip processing, go directly to complete
+          return Promise.resolve({
+            video_id: 'test-video-id',
+            status: 'complete',
+            metadata: { ...metadata, gop_size: 25 },
+            progress: 1.0,
+          });
+        }
+      });
+
+      mockFetchVideoBlob.mockResolvedValue(new Blob());
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
+
+      // Wait for analyzing state
+      await waitFor(() => {
+        expect(screen.getByText(/Analyzing video structure/i)).toBeTruthy();
+      }, { timeout: 2000 });
+
+      // Wait for complete state (skipping processing)
+      await waitFor(() => {
+        expect(mockOnUploadComplete).toHaveBeenCalled();
+      }, { timeout: 3000 });
+    });
+
+    it('should handle analyzing state error', async () => {
+      const metadata: VideoMetadata = {
+        video_id: 'test-video-id',
+        session_id: 'test-session',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 60,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: null,
+      };
+
+      mockUploadVideo.mockResolvedValue(metadata);
+      mockGetUploadStatus.mockResolvedValue({
+        video_id: 'test-video-id',
+        status: 'error',
+        error_message: 'GOP detection failed: timeout',
+      });
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      const input = screen.getByLabelText(/select video file for slot A/i);
+      const file = new File(['video content'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.click(screen.getByTestId('rotation-confirm'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error-notification')).toBeTruthy();
+        const errorMsg = screen.getByTestId('error-message');
+        expect(errorMsg.textContent).toMatch(/GOP detection failed/i);
+      }, { timeout: 2000 });
+    });
+  });
 });

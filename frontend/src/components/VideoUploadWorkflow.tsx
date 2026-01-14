@@ -32,6 +32,7 @@ interface VideoUploadWorkflowProps {
 type UploadState =
   | 'idle'           // No file selected
   | 'uploading'      // Upload in progress (file transfer)
+  | 'analyzing'      // GOP detection in progress
   | 'processing'     // Video processing (optimization)
   | 'fetching'       // Fetching video blob from backend
   | 'complete'       // Upload complete
@@ -52,6 +53,9 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showRotationModal, setShowRotationModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [analyzingProgress, setAnalyzingProgress] = useState<number>(0);
+  const [framesAnalyzed, setFramesAnalyzed] = useState<number | null>(null);
+  const [totalFrames, setTotalFrames] = useState<number | null>(null);
   const [processingProgress, setProcessingProgress] = useState<number>(0);
   const [estimatedTimeSeconds, setEstimatedTimeSeconds] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +74,9 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
     // Reset state
     setError(null);
     setUploadProgress(0);
+    setAnalyzingProgress(0);
+    setFramesAnalyzed(null);
+    setTotalFrames(null);
     setProcessingProgress(0);
     setEstimatedTimeSeconds(null);
 
@@ -135,8 +142,22 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
             setState('error');
             reject(new Error(status.error_message || 'Video processing failed'));
 
+          } else if (status.status === 'analyzing') {
+            // GOP detection in progress - update analyzing state
+            setState('analyzing');
+            if (status.progress !== null && status.progress !== undefined) {
+              setAnalyzingProgress(status.progress);
+            }
+            if (status.frames_analyzed !== null && status.frames_analyzed !== undefined) {
+              setFramesAnalyzed(status.frames_analyzed);
+            }
+            if (status.total_frames !== null && status.total_frames !== undefined) {
+              setTotalFrames(status.total_frames);
+            }
+
           } else if (status.status === 'processing') {
             // Still processing - update progress and estimated time
+            setState('processing');
             if (status.progress !== null && status.progress !== undefined) {
               setProcessingProgress(status.progress);
             }
@@ -187,6 +208,9 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
 
     setError(null);
     setUploadProgress(0);
+    setAnalyzingProgress(0);
+    setFramesAnalyzed(null);
+    setTotalFrames(null);
     setProcessingProgress(0);
     setEstimatedTimeSeconds(null);
 
@@ -201,8 +225,8 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
         (progress) => setUploadProgress(progress)
       );
 
-      // Phase 2: Poll for processing status
-      setState('processing');
+      // Phase 2: Poll for analyzing/processing status (starts with GOP detection)
+      setState('analyzing');
       await pollProcessingStatus(metadata.video_id);
 
     } catch (err) {
@@ -232,6 +256,9 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
     setState('idle');
     setSelectedFile(null);
     setUploadProgress(0);
+    setAnalyzingProgress(0);
+    setFramesAnalyzed(null);
+    setTotalFrames(null);
     setProcessingProgress(0);
     setEstimatedTimeSeconds(null);
 
@@ -349,11 +376,31 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
           </>
         )}
 
-        {/* Processing progress */}
+        {/* Analyzing progress (GOP detection) */}
+        {state === 'analyzing' && (
+          <>
+            <p style={{ margin: '0 0 10px 0' }}>
+              🔍 Analyzing video structure: {Math.round(analyzingProgress * 100)}%
+            </p>
+            {framesAnalyzed !== null && totalFrames !== null && (
+              <p style={{ fontSize: '0.85em', color: '#666', margin: '0 0 10px 0' }}>
+                Frames analyzed: {framesAnalyzed.toLocaleString()} / {totalFrames.toLocaleString()}
+              </p>
+            )}
+            <progress value={analyzingProgress} max={1.0} style={{ width: '100%' }} />
+            {selectedFile && (
+              <p style={{ fontSize: '0.85em', color: '#666', margin: '5px 0 0 0' }}>
+                {selectedFile.name}
+              </p>
+            )}
+          </>
+        )}
+
+        {/* Processing progress (optimization) */}
         {state === 'processing' && (
           <>
             <p style={{ margin: '0 0 10px 0' }}>
-              Processing video: {Math.round(processingProgress * 100)}%
+              ⚙️ Optimizing video: {Math.round(processingProgress * 100)}%
             </p>
             {estimatedTimeSeconds && (
               <p style={{ fontSize: '0.85em', color: '#666', margin: '0 0 10px 0' }}>

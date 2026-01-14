@@ -11,7 +11,7 @@ import subprocess
 import uuid
 import aiofiles
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, status, BackgroundTasks
 
@@ -19,6 +19,7 @@ from backend.models import VideoMetadata, UploadStatus, ErrorResponse
 from backend.services import storage, progress_tracker
 from backend.services.video_optimizer import (
     get_video_info,
+    get_fast_video_info,
     get_video_duration,
     process_uploaded_video,
     needs_optimization
@@ -33,20 +34,26 @@ MAX_FILE_SIZE_MB = 200
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 
-def optimize_video_background(
+def gop_detection_and_optimization_background(
     video_id: uuid.UUID,
     video_path: Path,
     rotation: int,
     session_uuid: uuid.UUID,
     original_filename: str,
-    estimated_duration_seconds: float
+    video_info_fast: Dict,
+    duration: float
 ) -> None:
     """
-    Background task for video optimization.
+    Background task for GOP detection followed by conditional optimization.
 
-    Progress updates: 0% (start) → 100% (complete)
-    No intermediate updates during optimization to avoid threading complexity.
-    Frontend displays estimated time remaining based on video duration.
+    Workflow:
+        - If rotation requested: Skip GOP detection, go straight to re-encoding
+        - If no rotation:
+            1. Run GOP detection with progress updates (status: "analyzing")
+            2. Update video_info with detected GOP size
+            3. Check if optimization needed
+            4. If yes: Queue optimization task (status: "processing")
+            5. If no: Mark as complete (status: "complete")
 
     Args:
         video_id: Video UUID
@@ -54,65 +61,132 @@ def optimize_video_background(
         rotation: Rotation angle (0, 90, 180, 270)
         session_uuid: Session UUID for cleanup on error
         original_filename: Original uploaded filename
-        estimated_duration_seconds: Expected processing time (duration × 0.42)
+        video_info_fast: Fast metadata dict (codec, dimensions, framerate, duration)
+        duration: Video duration in seconds
     """
+    from backend.services.video_optimizer import detect_gop_async
     import time
 
-    logger.info(f"Starting background optimization: video_id={video_id}, "
-                f"estimated_time={estimated_duration_seconds:.1f}s")
-
-    start_time = time.time()
+    logger.info(f"Starting video processing workflow: video_id={video_id}, rotation={rotation}°")
 
     try:
-        # Run optimization with timeout (2x expected duration)
-        timeout_seconds = estimated_duration_seconds * 2.0
-        optimized_path = process_uploaded_video(video_path, rotation, timeout=timeout_seconds)
+        # Optimization: If rotation requested, skip GOP detection (we know we need to re-encode)
+        if rotation != 0:
+            logger.info(f"Rotation requested ({rotation}°), skipping GOP detection: video_id={video_id}")
+            # Use fast metadata without GOP size (will be determined after re-encoding)
+            video_info = {**video_info_fast, 'gop_size': None}
+            gop_size = None
+        else:
+            # Step 1: Run GOP detection with progress updates
+            logger.info(f"No rotation, running GOP detection: video_id={video_id}")
+            total_frames_estimate = int(duration * video_info_fast['framerate'])
+            gop_size = detect_gop_async(video_path, video_id, total_frames_estimate)
 
-        # Get final metadata
-        final_info = get_video_info(optimized_path)
-        final_duration = get_video_duration(optimized_path)
+            # Step 2: Update video_info with GOP size
+            video_info = {**video_info_fast, 'gop_size': gop_size}
 
-        # Update status to complete with metadata
-        metadata = VideoMetadata(
-            video_id=video_id,
-            session_id=session_uuid,
-            filename=original_filename,
-            framerate=final_info['framerate'],
-            duration=final_duration,
-            width=final_info['width'],
-            height=final_info['height'],
-            codec=final_info['codec'],
-            gop_size=final_info['gop_size']
-        )
+            logger.info(f"GOP detection complete: video_id={video_id}, gop_size={gop_size}")
 
-        elapsed = time.time() - start_time
-        progress_tracker.set_status(video_id, "complete", progress=1.0, metadata=metadata)
-        logger.info(f"Background optimization complete: video_id={video_id}, "
-                   f"elapsed={elapsed:.1f}s, estimated={estimated_duration_seconds:.1f}s")
+        # Step 3: Check if optimization needed
+        if needs_optimization(video_info, rotation):
+            # Calculate estimated processing time (0.42x realtime factor)
+            estimated_duration_seconds = duration * 0.42
+
+            # Initialize progress tracking for optimization
+            progress_tracker.set_status(
+                video_id,
+                "processing",
+                progress=0.0,
+                estimated_duration_seconds=estimated_duration_seconds
+            )
+
+            logger.info(f"Optimization needed, starting re-encoding: video_id={video_id}")
+
+            # Step 4: Run optimization with progress reporting
+            start_time = time.time()
+
+            # Progress callback for optimization
+            def optimization_progress_callback(progress_fraction: float):
+                """Update progress_tracker with optimization progress."""
+                progress_tracker.set_status(
+                    video_id,
+                    "processing",
+                    progress=progress_fraction,
+                    estimated_duration_seconds=estimated_duration_seconds
+                )
+
+            timeout_seconds = estimated_duration_seconds * 2.0
+
+            # Call optimize_video directly with progress callback instead of process_uploaded_video
+            from backend.services.video_optimizer import optimize_video
+            optimized_file = video_path.with_suffix('.optimized.mp4')
+            optimize_video(video_path, optimized_file, rotation, timeout=timeout_seconds, progress_callback=optimization_progress_callback)
+
+            # Replace original with optimized
+            video_path.unlink()
+            optimized_path = optimized_file.rename(video_path)
+
+            # Rename file from _original.mp4 to .mp4 for streaming endpoint
+            final_path = optimized_path.parent / optimized_path.name.replace('_original.mp4', '.mp4')
+            optimized_path.rename(final_path)
+
+            # Get final metadata after optimization
+            final_info = get_video_info(final_path)
+            final_duration = get_video_duration(final_path)
+
+            metadata = VideoMetadata(
+                video_id=video_id,
+                session_id=session_uuid,
+                filename=original_filename,
+                framerate=final_info['framerate'],
+                duration=final_duration,
+                width=final_info['width'],
+                height=final_info['height'],
+                codec=final_info['codec'],
+                gop_size=final_info['gop_size']
+            )
+
+            elapsed = time.time() - start_time
+            progress_tracker.set_status(video_id, "complete", progress=1.0, metadata=metadata)
+            logger.info(f"Optimization complete: video_id={video_id}, elapsed={elapsed:.1f}s")
+
+        else:
+            # Step 5: No optimization needed - mark as complete
+            # Rename file from _original.mp4 to .mp4
+            final_path = video_path.parent / video_path.name.replace('_original.mp4', '.mp4')
+            video_path.rename(final_path)
+
+            metadata = VideoMetadata(
+                video_id=video_id,
+                session_id=session_uuid,
+                filename=original_filename,
+                framerate=video_info['framerate'],
+                duration=duration,
+                width=video_info['width'],
+                height=video_info['height'],
+                codec=video_info['codec'],
+                gop_size=gop_size
+            )
+
+            progress_tracker.set_status(video_id, "complete", progress=1.0, metadata=metadata)
+            logger.info(f"No optimization needed: video_id={video_id}")
 
     except subprocess.TimeoutExpired as e:
-        elapsed = time.time() - start_time
-        logger.error(f"Background optimization timeout: video_id={video_id}, "
-                    f"elapsed={elapsed:.1f}s, timeout={timeout_seconds:.1f}s", exc_info=True)
+        logger.error(f"GOP detection/optimization timeout: video_id={video_id}", exc_info=True)
         storage.cleanup_partial_upload(session_uuid, video_id)
         progress_tracker.set_status(
             video_id,
             "error",
-            error_message=f"Video optimization timed out after {timeout_seconds:.0f}s. "
-                         f"Video may be too long or complex."
+            error_message="Video processing timed out. Video may be too long or complex."
         )
     except Exception as e:
-        elapsed = time.time() - start_time
-        logger.error(f"Background optimization failed: video_id={video_id}, "
-                    f"elapsed={elapsed:.1f}s, error={e}", exc_info=True)
+        logger.error(f"GOP detection/optimization failed: video_id={video_id}, error={e}", exc_info=True)
         storage.cleanup_partial_upload(session_uuid, video_id)
         progress_tracker.set_status(
             video_id,
             "error",
-            error_message=f"Video optimization failed: {str(e)}"
+            error_message=f"Video processing failed: {str(e)}"
         )
-
-
 
 
 
@@ -226,73 +300,60 @@ async def upload_video(
 
         logger.info(f"File saved: {original_path} ({file_size / (1024*1024):.1f}MB)")
 
-        # Extract metadata (analyzes all frames for GOP detection, typically 1-10 seconds)
-        # Timeout: 120 seconds (2 minutes) for very long videos
+        # Extract FAST metadata (codec, dimensions, framerate, duration - returns in ~0.15s)
+        # GOP detection deferred to background task for better UX
         try:
             import asyncio
             import functools
 
-            # Run synchronous metadata extraction with timeout
+            # Run fast metadata extraction (NO GOP detection)
             loop = asyncio.get_event_loop()
-            video_info = await asyncio.wait_for(
-                loop.run_in_executor(None, functools.partial(get_video_info, original_path)),
-                timeout=120.0
-            )
-            duration = await asyncio.wait_for(
-                loop.run_in_executor(None, functools.partial(get_video_duration, original_path)),
+            video_info_fast = await asyncio.wait_for(
+                loop.run_in_executor(None, functools.partial(get_fast_video_info, original_path)),
                 timeout=30.0
             )
-            logger.info(f"Video metadata extracted: codec={video_info['codec']}, "
-                       f"GOP={video_info['gop_size']}, "
-                       f"framerate={video_info['framerate']:.2f}fps")
+            logger.info(f"Fast metadata extracted: codec={video_info_fast['codec']}, "
+                       f"resolution={video_info_fast['width']}x{video_info_fast['height']}, "
+                       f"framerate={video_info_fast['framerate']:.2f}fps, "
+                       f"duration={video_info_fast['duration']:.1f}s")
 
-            # Create metadata response
+            # Create metadata response with gop_size=None (will be updated after GOP detection)
             metadata = VideoMetadata(
                 video_id=video_id,
                 session_id=session_uuid,
                 filename=file.filename or "unknown.mp4",
-                framerate=video_info['framerate'],
-                duration=duration,
-                width=video_info['width'],
-                height=video_info['height'],
-                codec=video_info['codec'],
-                gop_size=video_info['gop_size']
+                framerate=video_info_fast['framerate'],
+                duration=video_info_fast['duration'],
+                width=video_info_fast['width'],
+                height=video_info_fast['height'],
+                codec=video_info_fast['codec'],
+                gop_size=None  # Will be populated after GOP detection
             )
 
-            # Check if optimization needed
-            if needs_optimization(video_info, rotation):
-                # Calculate estimated processing time (0.42x realtime factor from testing)
-                estimated_duration_seconds = duration * 0.42
+            # Initialize progress tracking for GOP detection
+            total_frames_estimate = int(video_info_fast['duration'] * video_info_fast['framerate'])
+            progress_tracker.set_status(
+                video_id,
+                "analyzing",
+                progress=0.0,
+                frames_analyzed=0,
+                total_frames=total_frames_estimate
+            )
 
-                # Initialize progress tracking for background processing
-                progress_tracker.set_status(
-                    video_id,
-                    "processing",
-                    progress=0.0,
-                    estimated_duration_seconds=estimated_duration_seconds
-                )
+            # Launch background GOP detection + conditional optimization task
+            background_tasks.add_task(
+                gop_detection_and_optimization_background,
+                video_id,
+                original_path,
+                rotation,
+                session_uuid,
+                file.filename or "unknown.mp4",
+                video_info_fast,
+                video_info_fast['duration']
+            )
 
-                # Launch background optimization task
-                background_tasks.add_task(
-                    optimize_video_background,
-                    video_id,
-                    original_path,
-                    rotation,
-                    session_uuid,
-                    file.filename or "unknown.mp4",
-                    estimated_duration_seconds
-                )
-
-                logger.info(f"Upload complete, optimization queued: video_id={video_id}, "
-                           f"estimated_time={estimated_duration_seconds:.1f}s")
-            else:
-                # No optimization needed - mark as complete immediately
-                # Rename file from _original.mp4 to .mp4
-                final_path = original_path.parent / original_path.name.replace('_original.mp4', '.mp4')
-                original_path.rename(final_path)
-
-                progress_tracker.set_status(video_id, "complete", progress=1.0, metadata=metadata)
-                logger.info(f"Upload complete, no optimization needed: video_id={video_id}")
+            logger.info(f"Upload complete, GOP detection queued: video_id={video_id}, "
+                       f"estimated_frames={total_frames_estimate}")
 
             return metadata
 

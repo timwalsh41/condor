@@ -1,23 +1,35 @@
 import { test, expect, type Page } from "@playwright/test";
+import {
+  navigateToProductionApp,
+  uploadVideoProduction,
+  getFrameNumber,
+  waitForFrame,
+} from "./helpers/uploadHelpers";
 
 /**
  * Dual Video Synchronized Playback Tests
  *
- * Phase 0 - Task 0.4: Validates synchronized dual-video playback with WebCodecs
+ * Phase 1 - Task 1.3.5: Updated for production workflow with backend integration
+ * Original: Phase 0 - Task 0.4 (WebCodecs sync validation)
  *
  * Requirements Validated:
+ * - REQ-F-UPLOAD-001: Local File Upload (production workflow)
+ * - REQ-F-UPLOAD-004: Video Rotation During Upload (rotation modal workflow)
  * - REQ-F-SYNC-003: Sync Offset Calculation (exact calculation, persistence, user adjustment)
  * - REQ-F-PLAY-001: Unified Playback Controls (single play/pause, joint scrubbing, unified stepping, sync maintained)
  * - REQ-F-PLAY-002: Playback Speed Control (0.1x-2.0x, applies to both videos, maintains sync)
  * - REQ-NF-P-001: Video Playback Smoothness (inherits WebCodecs performance)
  *
  * Success Criteria:
+ * - Upload workflow completes successfully (rotation modal, backend processing)
  * - Sync offset accuracy EXACT (0 frame tolerance)
  * - Offset maintained through all operations (stepping, scrubbing, playback, speed changes)
  * - Mode switching preserves sync points
  * - Tests pass in Chrome, Firefox, WebKit
  *
  * Test Strategy:
+ * - Use production upload workflow (VideoUploadWorkflow component)
+ * - Backend must be running (http://localhost:8000)
  * - Use test_gop30_h264.mp4 (5s, 150 frames, GOP=30) for both videos
  * - Assert exact frame equality and exact offset maintenance (0 tolerance)
  * - Test positive and negative offsets
@@ -25,30 +37,23 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 /**
- * Helper: Navigate to dual video demo and wait for it to be ready
- */
-async function navigateToDualVideoDemo(page: Page) {
-  await page.goto("/");
-
-  // Wait for component to be visible (app directly renders DualVideoSyncDemo)
-  await page.waitForSelector('[data-testid="mode-indicator"]', {
-    timeout: 5000,
-  });
-
-  console.log("Dual video demo loaded");
-}
-
-/**
- * Helper: Upload videos to both slots
+ * Helper: Upload both videos and wait for decoders to be ready.
  */
 async function uploadVideos(page: Page, videoPathA: string, videoPathB: string) {
-  const fileInputA = page.locator('[data-testid="file-input-a"]');
-  const fileInputB = page.locator('[data-testid="file-input-b"]');
+  // Upload both videos using production workflow
+  await uploadVideoProduction(page, "file-input-a", videoPathA, 0, {
+    expectOptimization: false, // GOP=30 videos don't need optimization
+    timeout: 60000,
+  });
 
-  await fileInputA.setInputFiles(videoPathA);
-  await fileInputB.setInputFiles(videoPathB);
+  await uploadVideoProduction(page, "file-input-b", videoPathB, 0, {
+    expectOptimization: false,
+    timeout: 60000,
+  });
 
-  // Wait for both decoders to be ready
+  console.log("Both videos uploaded and processed");
+
+  // Wait for both decoders to be ready and frame counters to appear
   await page.waitForSelector('[data-testid="frame-counter-a"]', {
     timeout: 10000,
   });
@@ -69,38 +74,7 @@ async function uploadVideos(page: Page, videoPathA: string, videoPathB: string) 
     { timeout: 5000 }
   );
 
-  console.log("Both videos loaded and decoders ready");
-}
-
-/**
- * Helper: Get current frame number from counter
- */
-async function getFrameNumber(page: Page, testId: string): Promise<number> {
-  const counter = page.locator(`[data-testid="${testId}"]`);
-  const text = await counter.textContent();
-  const match = text?.match(/Frame (\d+)/);
-  return match ? parseInt(match[1]) : 0;
-}
-
-/**
- * Helper: Wait for specific frame number
- */
-async function waitForFrame(
-  page: Page,
-  testId: string,
-  expectedFrame: number,
-  timeout: number = 3000
-) {
-  await page.waitForFunction(
-    ({ testId, expectedFrame }) => {
-      const counter = document.querySelector(`[data-testid="${testId}"]`);
-      const text = counter?.textContent || "";
-      const currentFrame = parseInt(text.match(/Frame (\d+)/)?.[1] || "0");
-      return currentFrame === expectedFrame;
-    },
-    { testId, expectedFrame },
-    { timeout }
-  );
+  console.log("Both video decoders ready");
 }
 
 /**
@@ -142,7 +116,7 @@ test.describe("Dual Video Synchronized Playback", () => {
     page.on("console", (msg) => console.log(`BROWSER: ${msg.text()}`));
     page.on("pageerror", (err) => console.log(`PAGE ERROR: ${err.message}`));
 
-    await navigateToDualVideoDemo(page);
+    await navigateToProductionApp(page);
   });
 
   test("SYNC mode allows independent video control", async ({ page }) => {

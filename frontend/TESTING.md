@@ -1,55 +1,35 @@
 # Frontend Testing Guide
 
-## Quick Start
-
-```bash
-cd frontend
-npm install                              # Install dependencies
-npx playwright install                   # Install browsers (one-time)
-
-npm run test                             # Unit tests (Vitest)
-npm run test:e2e                         # Browser tests (Playwright)
-npm run test:memory                      # Memory leak tests
-```
-
 ## Test Types
 
 ### Unit Tests (Vitest)
 
-**Location**: `src/**/*.test.{ts,tsx}`  
+**Location**: `src/**/*.test.{ts,tsx}`
 **Purpose**: Component logic, cache behavior, utilities
+**Count**: 459 tests
 
-```bash
-npm run test              # Run once
-npm run test:watch        # Watch mode
-npm run test:ui           # Interactive UI
-```
+### Playwright Integration Tests
 
-### Browser Tests (Playwright)
+**Location**: `tests/**/*.spec.ts`
+**Purpose**: Full-stack integration testing with backend, frame-accurate validation (exact 0-tolerance), cache performance, memory leak detection, cross-browser compatibility
+**Count**: 177 tests (133 passing, 32 intentionally skipped, 12 timed out)
+**Backend Required**: http://localhost:8000 must be running
 
-**Location**: `tests/**/*.spec.ts`  
-**Purpose**: Frame stepping accuracy (exact 0-tolerance), cache performance, memory validation, cross-browser compatibility
+**Test Coverage**:
 
-**Test Files**:
+- Upload workflow and video processing
+- Frame-accurate stepping and seeking
+- Cache behavior and performance
+- Memory leak detection (Chrome DevTools Protocol)
+- Dual-video synchronization
+- Canvas overlay and annotations
+- HEVC codec handling
 
-- `test_frame_stepping.spec.ts` - Frame-accurate stepping and seeking (6 tests)
-- `test_cache_performance.spec.ts` - Cache behavior and performance (4 tests)
-- `test_memory_leaks.spec.ts` - Memory leak detection with CDP (5 tests, Chrome-only)
-
-```bash
-npm run test:e2e          # All browsers (Chrome/Firefox/WebKit)
-npm run test:memory       # Memory tests only
-npm run test:e2e:headed   # Visible browser (debug)
-
-# Specific browser or test
-npx playwright test --project=chrome
-npx playwright test test_frame_stepping.spec.ts
-npx playwright test --grep "step forward"
-
-DISPLAY=:99 timeout 600 npx playwright test --reporter=list
-```
+See `frontend/README.md` for instructions on running tests.
 
 ### Manual Tests
+
+This section provides a short summary of a basic regression test suite that can be run manually to exercise the core app sync and playback functionality.
 
 #### Setup
 
@@ -136,16 +116,50 @@ expect(currentFrame).toBe(expectedFrame); // NOT ±1
 
 **GC Warnings**: "VideoFrame garbage collected" - Expected during cache operations (< 100 acceptable)
 
-**Note**: Memory tests use Chrome DevTools Protocol. Chrome-only testing is sufficient as memory behavior should not vary across browsers.
+## Test Skips and Limitations
 
-## Known Issues
+### Skip Summary (32 total)
 
-### WebKit: Cache Size Limitation Test Skipped
+| Browser     | Memory Leaks | Cache Performance | Canvas Overlay | Total  |
+| ----------- | ------------ | ----------------- | -------------- | ------ |
+| **Chrome**  | 0            | 0                 | 5              | 5      |
+| **Firefox** | 5            | 0                 | 6              | 11     |
+| **WebKit**  | 5            | 1                 | 6              | 12     |
+| **TOTAL**   | **10**       | **1**             | **16**         | **27** |
 
-**Test:** `test_cache_performance.spec.ts:319` - "cache size limitation (300-frame video, 120-frame cache)"
-**Status:** Skipped on WebKit (Chrome/Firefox only)
+**Note:** Actual count is 32 skips - additional 5 from dynamic skips (cache statistics test when UI not exposed).
 
-**Issue:** WebKit's headless WebCodecs decoder occasionally stalls during large seek sequences (200+ frame jumps). The decoder stops processing frames mid-seek, causing timeouts even with 30s limits.
+All skips are intentional and document legitimate testing limitations (CDP availability, browser-specific quirks, headless automation constraints).
+
+---
+
+### 1. Memory Leak Tests (Chrome-only, 10 skips)
+
+**Tests:** 5 tests in `test_memory_leaks.spec.ts`
+
+- Sequential frame stepping memory leak check
+- Component unmount memory release check
+- Rapid cache eviction memory leak check
+- Seeking backwards memory leak check
+- Cache statistics eviction reporting
+
+**Status:**
+
+- Chrome: All 5 tests run ✅
+- Firefox: All 5 skipped ⏭️
+- WebKit: All 5 skipped ⏭️
+
+**Reason:** Tests require Chrome DevTools Protocol (`HeapProfiler.collectGarbage`, `Performance.getMetrics`) which is only available in Chromium-based browsers. Chrome-only testing is sufficient as VideoFrame memory behavior should not vary across browsers.
+
+---
+
+### 2. WebKit: Cache Performance Test (1 skip)
+
+**Test:** `test_cache_performance.spec.ts:280` - "should handle multiple random seeks with exact frame accuracy"
+
+**Status:** Skipped on WebKit (Chrome/Firefox pass)
+
+**Issue:** WebKit's headless WebCodecs decoder stalls during large seek sequences (200+ frame jumps). The decoder stops processing frames mid-seek, causing timeouts even with 30s limits.
 
 **Root Cause:** WebKit WebCodecs implementation issue in headless mode, not a bug in our code. Chrome and Firefox pass this test consistently.
 
@@ -158,10 +172,13 @@ expect(currentFrame).toBe(expectedFrame); // NOT ±1
 
 **Conclusion:** This is a WebKit platform limitation, not an implementation bug. Test validates cache eviction behavior which is already proven on Chrome/Firefox.
 
-### WebKit: Canvas Internal Dimensions Test Skipped
+---
 
-**Test:** `test_canvas_overlay.spec.ts:601` - "annotation canvas has correct internal dimensions"
-**Status:** Skipped on WebKit (Chrome/Firefox only)
+### 3. WebKit: Canvas Internal Dimensions (1 skip)
+
+**Test:** `test_canvas_overlay.spec.ts:615` - "annotation canvas has correct internal dimensions"
+
+**Status:** Skipped on WebKit (Chrome/Firefox pass)
 
 **Issue:** WebKit headless reports unexpected canvas internal dimensions (2560px width instead of expected 1280px or 640px). This appears to be a rendering scale quirk in WebKit's headless mode.
 
@@ -176,28 +193,27 @@ expect(currentFrame).toBe(expectedFrame); // NOT ±1
 
 **Conclusion:** This is a WebKit platform quirk in headless mode, not an implementation bug. Canvas positioning and alignment are validated correctly on WebKit. Internal dimension validation is proven on Chrome/Firefox.
 
-### React+Konva: Annotation Interaction Tests Skipped
+---
 
-**Tests:** 5 tests in `test_canvas_overlay.spec.ts` (polyline finalization, selection, deletion)
-**Status:** Skipped in headless Playwright (all browsers)
+### 4. React+Konva: Annotation Interaction Tests (15 skips)
 
-**Issue:** Certain annotation interactions cannot be reliably automated in headless Playwright due to React+Konva event coordination requirements. The `activeVideo` state must be set by React event handlers before keyboard shortcuts work, but dispatching synthetic DOM events to the Konva canvas triggers Konva's internal event system without properly invoking React's synthetic event handlers.
-
-**Skipped Tests:**
+**Tests:** 5 tests in `test_canvas_overlay.spec.ts`, skipped on all 3 browsers (5 × 3 = 15 skips)
 
 - Polyline tool finalization (Enter key, double-click)
 - Annotation selection (clicking shapes)
 - Annotation deletion (Delete key)
 - Tool switching (depends on polyline)
 
+**Status:** Skipped in headless Playwright (all browsers)
+
+**Issue:** These annotation interactions cannot be reliably automated in headless Playwright due to React+Konva event coordination requirements. The `activeVideo` state must be set by React event handlers before keyboard shortcuts work, but dispatching synthetic DOM events to the Konva canvas triggers Konva's internal event system without properly invoking React's synthetic event handlers.
+
 **Coverage:**
 
 - ✅ **Unit tests**: 175 tests cover all AnnotationManager business logic and hook integration
-- ✅ **Integration tests**: 44 tests (73%) validate real user interactions for core features
+- ✅ **Integration tests**: 44 tests validate real user interactions for core features
 - ✅ **Drawing tools**: Freehand, Oval, Arrow fully validated end-to-end
 - ✅ **Critical requirements**: Canvas alignment, HEVC blocking, dual-video independence
-
-**Production Status:** All skipped features work correctly in production (manually verified in Chrome, Firefox, Safari). The limitation is specific to headless automation, not the implementation.
 
 **Why Not Use Test Hooks?** Adding test-specific APIs (e.g., `window.__setActiveVideo()`) would bypass the actual user interaction path (DOM → React → Konva event chain) and only test internal methods already covered by 175 unit tests.
 
@@ -218,7 +234,7 @@ expect(currentFrame).toBe(expectedFrame); // NOT ±1
 ### Frame Accuracy
 
 ```bash
-npm run dev
+npm run dev -- --host
 # Upload tests/fixtures/videos/test_gop30_h264.mp4
 # Step forward/backward, verify burned-in frame numbers match UI exactly
 # Expected: 0-tolerance accuracy (exact frame match)
@@ -227,7 +243,7 @@ npm run dev
 ### Memory Leaks
 
 ```bash
-npm run dev
+npm run dev -- --host
 # Chrome → DevTools → Memory → Snapshot → Step 50 frames → GC → Snapshot
 # Expected: 10-20MB retained (cached VideoFrames, 120-frame cache)
 ```
@@ -235,7 +251,7 @@ npm run dev
 ### Cache Performance
 
 ```bash
-npm run dev
+npm run dev -- --host
 # Upload tests/fixtures/videos/test_gop30_h264_10s.mp4 (300 frames)
 # Seek frame 10 → 250 (beyond cache capacity)
 # Expected: <300ms latency, cache stats show evictions

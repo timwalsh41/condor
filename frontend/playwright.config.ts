@@ -76,13 +76,13 @@ export default defineConfig({
       name: "chrome",
       use: {
         ...devices["Desktop Chrome"],
-        // Use remote Chrome if chromeEndpoint is set, otherwise launch local browser
+        // Use remote Chrome if chromeEndpoint is set, otherwise use installed Google Chrome
         ...(chromeEndpoint
           ? { connectOptions: { wsEndpoint: chromeEndpoint } }
           : {
+              channel: "chrome", // Use installed Google Chrome (has H.264 support)
               headless: true, // Must be headless in container environment (no X11)
               launchOptions: {
-                executablePath: "/usr/bin/google-chrome-stable", // Use system Google Chrome with H.264 support
                 args: [
                   "--autoplay-policy=no-user-gesture-required",
                   "--disable-blink-features=AutomationControlled",

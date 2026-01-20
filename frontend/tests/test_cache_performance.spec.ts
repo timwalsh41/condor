@@ -1,16 +1,24 @@
 import { test, expect } from "@playwright/test";
+import {
+  navigateToProductionApp,
+  uploadVideoProduction,
+} from "./helpers/uploadHelpers";
 
 /**
  * Cache Performance Tests for WebCodecs Frame Control
  *
- * Phase 0 - Task 0.3 - Phase 6: Cache miss validation with 10-second videos
+ * Phase 1 - Task 1.3.5: Updated for production workflow with backend integration
+ * Original: Phase 0 - Task 0.3 - Phase 6 (Cache validation)
  *
  * Requirements Validated:
+ * - REQ-F-UPLOAD-001: Local File Upload (production workflow)
  * - REQ-NF-P-004: Frame seek response time (<10ms cache hit, <300ms cache miss GOP=30)
  * - Cache eviction behavior with 120-frame cache + 60-frame read-ahead buffer
  * - Exact frame accuracy (0 tolerance) during cache miss scenarios
  *
  * Test Strategy:
+ * - Use production upload workflow (VideoUploadWorkflow component)
+ * - Backend must be running (http://localhost:8000)
  * - Use test_gop30_h264_10s.mp4 (300 frames, GOP=30)
  * - 120-frame cache = 40% of video (forces eviction)
  * - Forward/backward seeks beyond cache capacity
@@ -34,11 +42,13 @@ test.describe("Cache Performance Validation", () => {
       }
     });
 
-    await page.goto("/");
+    await navigateToProductionApp(page);
 
-    // Upload 10-second test video (300 frames) to Video A
-    const fileInput = page.locator('[data-testid="file-input-a"]');
-    await fileInput.setInputFiles(testVideo10s);
+    // Upload 10-second test video (300 frames) to Video A using production workflow
+    await uploadVideoProduction(page, "file-input-a", testVideo10s, 0, {
+      expectOptimization: false, // GOP=30 videos don't need optimization
+      timeout: 60000,
+    });
 
     // Wait for decoder ready
     await page.waitForSelector('[data-testid="frame-counter-a"]', {

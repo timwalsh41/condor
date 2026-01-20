@@ -6,8 +6,10 @@
  * Phase: Phase 1 Task 1.2 (Backend Integration + Upload Workflow)
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import type { RotationAngle } from '../types/rotation';
+import React, { useEffect, useRef, useState } from "react";
+import type { RotationAngle } from "../types/rotation";
+import { MP4Parser } from "../utils/MP4Parser";
+import { isCodecSupported } from "../utils/featureDetection";
 
 interface VideoRotationControlsProps {
   /** Video file to extract first frame from */
@@ -32,6 +34,7 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const [isLoadingFrame, setIsLoadingFrame] = useState(true);
   const [frameError, setFrameError] = useState<string | null>(null);
+  const [codecWarning, setCodecWarning] = useState<string | null>(null);
 
   /**
    * Extract and render first frame to canvas.
@@ -40,10 +43,25 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
     const extractFirstFrame = async () => {
       setIsLoadingFrame(true);
       setFrameError(null);
+      setCodecWarning(null);
 
       try {
+        // Check codec support before attempting preview
+        const metadata = await MP4Parser.readPartialMetadata(videoFile);
+        if (metadata) {
+          const supported = await isCodecSupported(metadata.codec);
+          if (!supported) {
+            setCodecWarning(
+              `Preview unavailable - ${metadata.codec} codec not supported by browser. ` +
+                `You can still select rotation and upload. Video will be transcoded to H.264.`,
+            );
+            setIsLoadingFrame(false);
+            return; // Skip frame extraction, but keep rotation buttons enabled
+          }
+        }
+
         // Create video element
-        const video = document.createElement('video');
+        const video = document.createElement("video");
         video.muted = true;
         video.playsInline = true;
 
@@ -54,7 +72,8 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
         // Wait for metadata to load
         await new Promise<void>((resolve, reject) => {
           video.onloadedmetadata = () => resolve();
-          video.onerror = () => reject(new Error('Failed to load video metadata'));
+          video.onerror = () =>
+            reject(new Error("Failed to load video metadata"));
         });
 
         // Seek to first frame
@@ -63,18 +82,19 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
         // Wait for seeked event
         await new Promise<void>((resolve, reject) => {
           video.onseeked = () => resolve();
-          video.onerror = () => reject(new Error('Failed to seek to first frame'));
+          video.onerror = () =>
+            reject(new Error("Failed to seek to first frame"));
         });
 
         // Draw first frame to canvas
         const canvas = canvasRef.current;
         if (!canvas) {
-          throw new Error('Canvas ref not available');
+          throw new Error("Canvas ref not available");
         }
 
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (!ctx) {
-          throw new Error('Failed to get 2d context');
+          throw new Error("Failed to get 2d context");
         }
 
         // Set canvas dimensions to match video
@@ -91,9 +111,10 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
 
         // Clean up object URL
         URL.revokeObjectURL(videoUrl);
-
       } catch (err) {
-        setFrameError(err instanceof Error ? err.message : 'Failed to extract first frame');
+        setFrameError(
+          err instanceof Error ? err.message : "Failed to extract first frame",
+        );
         setIsLoadingFrame(false);
       }
     };
@@ -125,19 +146,68 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
 
       {/* Canvas preview with rotation */}
       <div className="preview-container">
-        {isLoadingFrame && <p>Loading preview...</p>}
-        {frameError && <p className="error">Error: {frameError}</p>}
+        {isLoadingFrame && !codecWarning && <p>Loading preview...</p>}
+        {frameError && (
+          <div
+            className="error"
+            style={{
+              padding: "15px",
+              backgroundColor: "#fff3cd",
+              border: "1px solid #ffc107",
+              borderRadius: "4px",
+              color: "#856404",
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: "bold" }}>
+              ⚠️ Preview Unavailable
+            </p>
+            <p style={{ margin: "10px 0 0 0", fontSize: "14px" }}>
+              {frameError}
+            </p>
+            <p
+              style={{
+                margin: "10px 0 0 0",
+                fontSize: "14px",
+                fontWeight: "500",
+              }}
+            >
+              You can still select a rotation angle below and proceed with the
+              upload. The video will be processed and loaded.
+            </p>
+          </div>
+        )}
+        {codecWarning && (
+          <div
+            className="codec-warning"
+            style={{
+              padding: "15px",
+              backgroundColor: "#fff3cd",
+              border: "1px solid #ffc107",
+              borderRadius: "4px",
+              color: "#856404",
+            }}
+            data-testid="codec-warning"
+          >
+            <p style={{ margin: 0, fontWeight: "bold" }}>
+              ⚠️ Preview Unavailable
+            </p>
+            <p style={{ margin: "10px 0 0 0", fontSize: "14px" }}>
+              {codecWarning}
+            </p>
+          </div>
+        )}
         <canvas
           ref={canvasRef}
           className="rotation-preview"
           style={{
             transform: `rotate(${rotation}deg)`,
-            transition: 'transform 0.3s ease',
-            display: isLoadingFrame || frameError ? 'none' : 'block',
-            maxWidth: '640px',
-            maxHeight: '480px',
-            width: 'auto',
-            height: 'auto',
+            transition: "transform 0.3s ease",
+            display:
+              isLoadingFrame || frameError || codecWarning ? "none" : "block",
+            maxWidth: "640px",
+            maxHeight: "480px",
+            width: "auto",
+            height: "auto",
           }}
           aria-label="Video rotation preview"
         />
@@ -147,28 +217,28 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
       <div className="rotation-buttons">
         <button
           onClick={() => handleRotationClick(0)}
-          className={rotation === 0 ? 'active' : ''}
+          className={rotation === 0 ? "active" : ""}
           aria-label="No rotation (0 degrees)"
         >
           0°
         </button>
         <button
           onClick={() => handleRotationClick(90)}
-          className={rotation === 90 ? 'active' : ''}
+          className={rotation === 90 ? "active" : ""}
           aria-label="Rotate 90 degrees"
         >
           90°
         </button>
         <button
           onClick={() => handleRotationClick(180)}
-          className={rotation === 180 ? 'active' : ''}
+          className={rotation === 180 ? "active" : ""}
           aria-label="Rotate 180 degrees"
         >
           180°
         </button>
         <button
           onClick={() => handleRotationClick(270)}
-          className={rotation === 270 ? 'active' : ''}
+          className={rotation === 270 ? "active" : ""}
           aria-label="Rotate 270 degrees"
         >
           270°

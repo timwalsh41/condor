@@ -1,11 +1,17 @@
 import { test, expect } from "@playwright/test";
+import {
+  navigateToProductionApp,
+  uploadVideoProduction,
+} from "./helpers/uploadHelpers";
 
 /**
  * WebCodecs Frame-Accurate Seeking Tests
  *
- * Phase 0 - Task 0.3, Phase 6: Validates frame-accurate video control with WebCodecs
+ * Phase 1 - Task 1.3.5: Updated for production workflow with backend integration
+ * Original: Phase 0 - Task 0.3, Phase 6 (WebCodecs validation)
  *
  * Requirements Validated:
+ * - REQ-F-UPLOAD-001: Local File Upload (production workflow)
  * - REQ-F-FRAME-001: Frame stepping (coarse: 5 frames, fine: 1 frame) with EXACT accuracy
  * - REQ-F-FRAME-002: Frame counter display accuracy
  * - REQ-F-FRAME-003: Seeking precision (EXACT - 0 frame tolerance)
@@ -13,11 +19,14 @@ import { test, expect } from "@playwright/test";
  * - REQ-NF-BC-001: Browser compatibility (Chrome, Firefox, WebKit)
  *
  * Success Criteria:
+ * - Upload workflow completes successfully
  * - Frame counter accuracy EXACT (0 frame tolerance) - non-negotiable requirement
  * - Frame step latency <100ms (cache hit) or <300ms (cache miss, GOP=30)
  * - Tests pass in Chrome, Firefox, WebKit
  *
  * Test Strategy:
+ * - Use production upload workflow (VideoUploadWorkflow component)
+ * - Backend must be running (http://localhost:8000)
  * - Use test_gop30_h264.mp4 (5s, 150 frames, GOP=30) for basic stepping tests
  * - Use test_gop30_h264_10s.mp4 (10s, 300 frames, GOP=30) for cache miss scenarios
  * - Assert exact frame equality (no tolerance)
@@ -30,13 +39,15 @@ test.describe("WebCodecs Frame-Accurate Video Control", () => {
     page.on("console", (msg) => console.log(`BROWSER: ${msg.text()}`));
     page.on("pageerror", (err) => console.log(`PAGE ERROR: ${err.message}`));
 
-    await page.goto("/");
+    await navigateToProductionApp(page);
 
-    // Upload test video to Video A
+    // Upload test video to Video A using production workflow
     const testVideoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
 
-    const fileInput = page.locator('[data-testid="file-input-a"]');
-    await fileInput.setInputFiles(testVideoPath);
+    await uploadVideoProduction(page, "file-input-a", testVideoPath, 0, {
+      expectOptimization: false, // GOP=30 videos don't need optimization
+      timeout: 60000,
+    });
 
     // Wait for decoder to be ready
     await page.waitForSelector('[data-testid="frame-counter-a"]', {

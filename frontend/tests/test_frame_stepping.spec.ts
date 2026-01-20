@@ -1,11 +1,17 @@
 import { test, expect } from '@playwright/test';
+import {
+  navigateToProductionApp,
+  uploadVideoProduction,
+} from './helpers/uploadHelpers';
 
 /**
  * WebCodecs Frame-Accurate Seeking Tests
  *
- * Phase 0 - Task 0.3 - Phase 6: Cross-browser validation with exact frame accuracy
+ * Phase 1 - Task 1.3.5: Updated for production workflow with backend integration
+ * Original: Phase 0 - Task 0.3 - Phase 6 (WebCodecs frame control validation)
  *
  * Requirements Validated:
+ * - REQ-F-UPLOAD-001: Local File Upload (production workflow)
  * - REQ-F-FRAME-001: Frame stepping (coarse: 5 frames, fine: 1 frame) - EXACT (0 tolerance)
  * - REQ-F-FRAME-002: Frame counter display accuracy - EXACT
  * - REQ-F-FRAME-003: Seeking precision - EXACT (0 frame error)
@@ -13,6 +19,7 @@ import { test, expect } from '@playwright/test';
  * - REQ-NF-BC-001: Browser compatibility (Chrome, Firefox, WebKit)
  *
  * Success Criteria:
+ * - Upload workflow completes successfully
  * - Frame counter accuracy: EXACT (0 frame tolerance) - non-negotiable requirement
  * - Frame step latency <100ms (cache hits), <300ms (cache miss with GOP=30)
  * - Tests pass in all three browsers (Chrome, Firefox, WebKit)
@@ -26,11 +33,13 @@ test.describe('WebCodecs Frame-Accurate Video Control', () => {
     page.on('console', msg => console.log(`BROWSER: ${msg.text()}`));
     page.on('pageerror', err => console.log(`PAGE ERROR: ${err.message}`));
 
-    await page.goto('/');
+    await navigateToProductionApp(page);
 
-    // Upload test video to Video A
-    const fileInput = page.locator('[data-testid="file-input-a"]');
-    await fileInput.setInputFiles(testVideoPath);
+    // Upload test video to Video A using production workflow
+    await uploadVideoProduction(page, 'file-input-a', testVideoPath, 0, {
+      expectOptimization: false, // GOP=30 videos don't need optimization
+      timeout: 60000,
+    });
 
     // Wait for frame counter to be visible and show frame data
     await page.waitForSelector('[data-testid="frame-counter-a"]', { timeout: 10000 });

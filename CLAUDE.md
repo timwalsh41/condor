@@ -37,7 +37,8 @@ Avoid building functionality on speculation. Implement features only when they a
 - **Create tests for all new features** (functions, classes, routes, etc.) - no feature is complete without tests!
 - **Update tests when logic changes**
 - **Unit tests live next to code** in local `tests/` folders (see Project Architecture)
-- **Integration tests live in project root** `/tests` folder (cross-component)
+- **Backend integration tests** live in project root `/tests` folder (cross-component, Python/pytest)
+- **Playwright integration tests** live in `frontend/tests/` (requires backend and node_modules)
 - **Include at least**: happy path, edge case, failure case
 - **Cover as much as possible with automated tests** supplementing as needed with manual (user-executed) tests
 
@@ -103,7 +104,7 @@ Project phase completions represent integration points where multiple independen
 
 ### Project Organization
 
-Follow vertical slice architecture with unit tests next to code, and any needed integration tests placed in a separate `tests/` folder at project root. Documentation should be created in the appropriate folder, either `docs/` (technical documentation), `project/` (project management documentation), or `validation/` (validation and integration reports).
+Follow vertical slice architecture with unit tests next to code, and any needed backend integration tests placed in a separate `tests/` folder at project root. Documentation should be created in the appropriate folder, either `docs/` (technical documentation), `project/` (project management documentation), or `validation/` (validation and integration reports).
 
 ```
 docs/                           # Technical documentation
@@ -119,10 +120,10 @@ src/
         implementation.py
         tests/                  # Unit tests for module
             test_implementation.py
-tests/                          # Integration tests only (end-to-end, system requirements)
+tests/                          # Backend integration tests
     conftest.py
-    test_integration_auth_flow.py
-    test_integration_checkout.py
+    test_backend_integration.py
+    # Note: Playwright integration tests are in frontend/tests/ due to node_modules dependencies
 validation/                     # Formal validation documents
 ```
 

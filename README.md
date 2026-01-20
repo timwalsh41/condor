@@ -23,7 +23,7 @@ python3 -m backend.main
 cd frontend
 npm install  # First time only
 npm run dev
-# Opens at http://localhost:5173
+# Use `npm run dev -- --host` when port forwarding outside of dev container
 ```
 
 Open browser to http://localhost:5173 - you'll see the upload workflow for dual-video analysis.
@@ -67,56 +67,34 @@ Annotations can be selected (ctrl-click to select multiple). White control point
 
 ## Developer Setup
 
-### Frontend Spike Environment
+### Frontend Development
 
 ```bash
-# Navigate to frontend directory
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start dev server
 npm run dev
 # Opens at http://localhost:5173
 # Use `npm run dev -- --host` when port forwarding outside of dev container
-
-# Build for production
-npm run build
-
-# Run unit tests
-npm test
-
-# Run Playwright E2E tests (install browsers first time)
-npx playwright install --with-deps  # First time only
-npm run test:e2e
 ```
 
-### Backend Environment
-
-Install dependencies and run backend:
+### Backend Development
 
 ```bash
-# Install Python dependencies
+# Install dependencies
 pip install -r requirements.txt
 
 # Run backend server
 python3 -m backend.main
 # Server starts at http://localhost:8000
 # API docs at http://localhost:8000/docs
-
-# Run backend unit tests
-python3 -m pytest backend/services/tests/ -v
-
-# Run backend integration tests
-python3 -m pytest tests/test_backend_integration.py -v
-
-# Run all backend tests (unit + integration)
-python3 -m pytest backend/services/tests/ tests/test_backend_integration.py -v
-
-# Check test coverage
-python3 -m pytest backend/services/tests/ --cov=backend --cov-report=term
 ```
+
+### Testing
+
+See component-specific README files:
+
+- **Frontend**: `frontend/README.md` - Unit tests and Playwright E2E tests
+- **Backend**: `backend/README.md` - Unit tests and integration tests
 
 ### Generate Test Videos
 

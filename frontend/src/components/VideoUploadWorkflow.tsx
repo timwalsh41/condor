@@ -344,7 +344,7 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
 
         {/* Upload progress */}
         {state === 'uploading' && (
-          <>
+          <div data-testid={`upload-state-uploading-${videoSlot.toLowerCase()}`}>
             <p style={{ margin: '0 0 10px 0' }}>
               {uploadProgress < 1.0 ? '📤 Uploading file: ' : '🔍 Analyzing video metadata... '}
               {Math.round(uploadProgress * 100)}%
@@ -373,12 +373,12 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
                 {selectedFile.name}
               </p>
             )}
-          </>
+          </div>
         )}
 
         {/* Analyzing progress (GOP detection) */}
         {state === 'analyzing' && (
-          <>
+          <div data-testid={`upload-state-analyzing-${videoSlot.toLowerCase()}`}>
             <p style={{ margin: '0 0 10px 0' }}>
               🔍 Analyzing video structure: {Math.round(analyzingProgress * 100)}%
             </p>
@@ -393,12 +393,12 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
                 {selectedFile.name}
               </p>
             )}
-          </>
+          </div>
         )}
 
         {/* Processing progress (optimization) */}
         {state === 'processing' && (
-          <>
+          <div data-testid={`upload-state-processing-${videoSlot.toLowerCase()}`}>
             <p style={{ margin: '0 0 10px 0' }}>
               ⚙️ Optimizing video: {Math.round(processingProgress * 100)}%
             </p>
@@ -413,19 +413,19 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
                 {selectedFile.name}
               </p>
             )}
-          </>
+          </div>
         )}
 
         {/* Fetching progress */}
         {state === 'fetching' && (
-          <>
+          <div data-testid={`upload-state-fetching-${videoSlot.toLowerCase()}`}>
             <p style={{ margin: '0 0 10px 0' }}>Fetching video...</p>
             {selectedFile && (
               <p style={{ fontSize: '0.85em', color: '#666', margin: '0' }}>
                 {selectedFile.name}
               </p>
             )}
-          </>
+          </div>
         )}
 
         {/* Error state */}
@@ -439,7 +439,10 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
 
         {/* Complete state - show metadata */}
         {state === 'complete' && uploadedMetadata && (
-          <div style={{ fontSize: '13px', fontFamily: 'monospace' }}>
+          <div
+            style={{ fontSize: '13px', fontFamily: 'monospace' }}
+            data-testid={`video-metadata-${videoSlot.toLowerCase()}`}
+          >
             <div style={{ marginBottom: '5px' }}>
               <strong>✓ {uploadedMetadata.filename}</strong>
             </div>

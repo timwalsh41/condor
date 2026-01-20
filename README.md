@@ -99,7 +99,12 @@ npm install
 npm run dev
 # Opens at http://localhost:5173
 # Use `npm run dev -- --host` when port forwarding outside of dev container
+
+# Build for production
+npm run build
 ```
+
+See `frontend/README.md` for details on running unit and integration tests.
 
 ### Backend Development
 

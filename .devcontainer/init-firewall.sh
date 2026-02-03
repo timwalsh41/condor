@@ -2,6 +2,9 @@
 set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
 IFS=$'\n\t'       # Stricter word splitting
 
+# 1. Extract Docker DNS info BEFORE any flushing
+DOCKER_DNS_RULES=$(iptables-save -t nat | grep "127\.0\.0\.11" || true)
+
 # Flush existing rules and delete existing ipsets
 iptables -F
 iptables -X
@@ -10,6 +13,14 @@ iptables -t nat -X
 iptables -t mangle -F
 iptables -t mangle -X
 ipset destroy allowed-domains 2>/dev/null || true
+
+# 2. Selectively restore ONLY internal Docker DNS resolution
+if [ -n "$DOCKER_DNS_RULES" ]; then
+    echo "Restoring Docker DNS rules..."
+    iptables -t nat -N DOCKER_OUTPUT 2>/dev/null || true
+    iptables -t nat -A OUTPUT -k -j DOCKER_OUTPUT || iptables -t nat -A OUTPUT -j DOCKER_OUTPUT
+    echo "$DOCKER_DNS_RULES" | iptables-restore --noflush
+fi
 
 # First allow DNS and localhost before any restrictions
 # Allow outbound DNS
@@ -24,8 +35,19 @@ iptables -A INPUT -p tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A OUTPUT -o lo -j ACCEPT
 
+# Allow "local binding" - bridge external interface to internal loopback
+# This allows Docker's port mapping to reach Claude even if it binds to ::1 (as seen in netstat)
+# Kill any existing socat bridges
+pkill socat || true
+# Bridge IPv4 traffic from eth0:6274 to the container's IPv6 loopback
+socat TCP4-LISTEN:6274,fork,reuseaddr TCP6:[::1]:6274 &
+
 # Allow inbound connections on port 5173 (Vite dev server)
 iptables -A INPUT -p tcp --dport 5173 -j ACCEPT
+# Allow inbound connections on port 8000 (FastAPI backend)
+iptables -A INPUT -p tcp --dport 8000 -j ACCEPT
+# Allow inbound connections on port 6274 (Claude OAuth callback)
+iptables -A INPUT -p tcp --dport 6274 -j ACCEPT
 
 # Create ipset with CIDR support
 ipset create allowed-domains hash:net
@@ -57,9 +79,15 @@ done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
 for domain in \
     "registry.npmjs.org" \
     "api.anthropic.com" \
+    "anthropic.com" \
+    "auth.anthropic.com" \
+    "console.anthropic.com" \
     "sentry.io" \
     "statsig.anthropic.com" \
     "statsig.com" \
+    "marketplace.visualstudio.com" \
+    "vscode.blob.core.windows.net" \
+    "update.code.visualstudio.com" \
     "pypi.org" \
     "files.pythonhosted.org" \
     "pypi.python.org" \

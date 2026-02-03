@@ -12,16 +12,40 @@ The Condor is an open-source platform for frame-accurate video analysis with dua
 - **FFmpeg**: For video processing and test video generation
 - **Playwright Browsers**: For cross-browser testing
 
+### Build Dev Container
+
+1. **Configure**: Open `.devcontainer/connect-container.sh` and set `HOST_CODE_DIR` to your absolute project path (e.g., `/Users/<user>/Code/Claude/condor`).
+2. **Build**: Create the image:
+   ```bash
+   ./.devcontainer/build-image.sh
+   ```
+3. **Connect**: Access the container environment:
+   ```bash
+   ./.devcontainer/connect-container.sh
+   ```
+
+For detailed instructions on managing the container image, cleaning up disk space, and troubleshooting, see `.devcontainer/DOCKER_MANAGEMENT.md`.
+
 ### Run Full Application (Frontend + Backend)
 
 ```bash
-# Terminal 1: Start backend
+
+# Terminal 1: Backend services
+# Install backend dependencies (one time only)
+sudo apt install python3-fastapi
+sudo apt install ffmpeg
+
+# Start backend services
 python3 -m backend.main
 # Server starts at http://localhost:8000
 
-# Terminal 2: Start frontend
+# Terminal 2: Frontend
 cd frontend
-npm install  # First time only
+
+# Install frontend dependencies (one time only)
+npm install
+
+# Start frontend
 npm run dev
 # Use `npm run dev -- --host` when port forwarding outside of dev container
 ```

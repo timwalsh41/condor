@@ -20,6 +20,7 @@ RUN apt update && apt install -y less \
   dnsutils \
   aggregate \
   vim \
+  socat \
   jq
 
 # Ensure default node user has access to /usr/local/share

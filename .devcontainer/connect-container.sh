@@ -4,7 +4,7 @@ set -euo pipefail
 # Script to run and connect to the Claude development container
 CONTAINER_NAME="claude-dev-container"
 IMAGE_NAME="claude-dev:latest"
-HOST_CODE_DIR="/home/tim/Documents/Code"
+HOST_CODE_DIR="/Users/tim/Code"
 CONTAINER_CODE_DIR="/code"
 
 # Parse command line arguments
@@ -83,6 +83,7 @@ create_container() {
         --cap-add=SYS_ADMIN \
         -p 5173:5173 \
         -p 8000:8000 \
+        -p 6274:6274 \
         -v "$HOST_CODE_DIR:$CONTAINER_CODE_DIR:z" \
         -v claude-dev-history:/commandhistory \
         -v claude-dev-config:/home/node/.claude \
@@ -99,6 +100,7 @@ connect_container() {
     echo "📝 Command history is persisted across sessions"
     echo "🌐 Port 5173 forwarded (Vite dev server: http://localhost:5173)"
     echo "🌐 Port 8000 forwarded (FastAPI backend: http://localhost:8000)"
+    echo "🌐 Port 6274 forwarded (Claude OAuth: http://localhost:6274)"
     echo ""
     
     # Execute the container with zsh and proper terminal settings

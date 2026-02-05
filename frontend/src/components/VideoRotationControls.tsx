@@ -30,23 +30,23 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
   rotation,
   onRotationChange,
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const videoElementRef = useRef<HTMLVideoElement | null>(null);
-  const [isLoadingFrame, setIsLoadingFrame] = useState(true);
-  const [frameError, setFrameError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [codecWarning, setCodecWarning] = useState<string | null>(null);
 
-  /**
-   * Extract and render first frame to canvas.
-   */
+  // Setup video source and check codec support
   useEffect(() => {
-    const extractFirstFrame = async () => {
-      setIsLoadingFrame(true);
-      setFrameError(null);
-      setCodecWarning(null);
+    let objectUrl: string | null = null;
+    let computedSrc: string | null = null;
 
+    const setupVideo = async () => {
       try {
-        // Check codec support before attempting preview
+        // Create Object URL for preview
+        computedSrc = URL.createObjectURL(videoFile);
+        objectUrl = computedSrc;
+        setVideoSrc(computedSrc);
+
+        // Check codec support for warning message
         const metadata = await MP4Parser.readPartialMetadata(videoFile);
         if (metadata) {
           const supported = await isCodecSupported(metadata.codec);
@@ -55,81 +55,21 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
               `Preview unavailable - ${metadata.codec} codec not supported by browser. ` +
                 `You can still select rotation and upload. Video will be transcoded to H.264.`,
             );
-            setIsLoadingFrame(false);
-            return; // Skip frame extraction, but keep rotation buttons enabled
           }
         }
-
-        // Create video element
-        const video = document.createElement("video");
-        video.muted = true;
-        video.playsInline = true;
-
-        // Create object URL for video file
-        const videoUrl = URL.createObjectURL(videoFile);
-        video.src = videoUrl;
-
-        // Wait for metadata to load
-        await new Promise<void>((resolve, reject) => {
-          video.onloadedmetadata = () => resolve();
-          video.onerror = () =>
-            reject(new Error("Failed to load video metadata"));
-        });
-
-        // Seek to first frame
-        video.currentTime = 0;
-
-        // Wait for seeked event
-        await new Promise<void>((resolve, reject) => {
-          video.onseeked = () => resolve();
-          video.onerror = () =>
-            reject(new Error("Failed to seek to first frame"));
-        });
-
-        // Draw first frame to canvas
-        const canvas = canvasRef.current;
-        if (!canvas) {
-          throw new Error("Canvas ref not available");
-        }
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          throw new Error("Failed to get 2d context");
-        }
-
-        // Set canvas dimensions to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        // Draw frame
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Store video element ref for cleanup
-        videoElementRef.current = video;
-
-        setIsLoadingFrame(false);
-
-        // Clean up object URL
-        URL.revokeObjectURL(videoUrl);
       } catch (err) {
-        setFrameError(
-          err instanceof Error ? err.message : "Failed to extract first frame",
-        );
-        setIsLoadingFrame(false);
+        console.warn("Failed to check codec support:", err);
       }
     };
 
-    extractFirstFrame();
+    setupVideo();
 
     // Cleanup
     return () => {
-      if (videoElementRef.current) {
-        const video = videoElementRef.current;
-        if (video.src) {
-          URL.revokeObjectURL(video.src);
-        }
-        videoElementRef.current = null;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
       }
+      setVideoSrc(null);
     };
   }, [videoFile]);
 
@@ -140,42 +80,22 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
     onRotationChange(newRotation);
   };
 
+  /**
+   * Handle video load error
+   */
+  const handleVideoError = () => {
+    // If codec check didn't catch it, this is the fallback
+    if (!codecWarning) {
+       setCodecWarning("Video format not supported by browser for preview. You can still upload.");
+    }
+  };
+
   return (
     <div className="video-rotation-controls">
       <h4>Rotation Preview</h4>
 
-      {/* Canvas preview with rotation */}
+      {/* Video preview with rotation */}
       <div className="preview-container">
-        {isLoadingFrame && !codecWarning && <p>Loading preview...</p>}
-        {frameError && (
-          <div
-            className="error"
-            style={{
-              padding: "15px",
-              backgroundColor: "#fff3cd",
-              border: "1px solid #ffc107",
-              borderRadius: "4px",
-              color: "#856404",
-            }}
-          >
-            <p style={{ margin: 0, fontWeight: "bold" }}>
-              ⚠️ Preview Unavailable
-            </p>
-            <p style={{ margin: "10px 0 0 0", fontSize: "14px" }}>
-              {frameError}
-            </p>
-            <p
-              style={{
-                margin: "10px 0 0 0",
-                fontSize: "14px",
-                fontWeight: "500",
-              }}
-            >
-              You can still select a rotation angle below and proceed with the
-              upload. The video will be processed and loaded.
-            </p>
-          </div>
-        )}
         {codecWarning && (
           <div
             className="codec-warning"
@@ -185,32 +105,51 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
               border: "1px solid #ffc107",
               borderRadius: "4px",
               color: "#856404",
+              marginBottom: "10px"
             }}
             data-testid="codec-warning"
           >
             <p style={{ margin: 0, fontWeight: "bold" }}>
-              ⚠️ Preview Unavailable
+              ⚠️ Preview Warning
             </p>
             <p style={{ margin: "10px 0 0 0", fontSize: "14px" }}>
               {codecWarning}
             </p>
           </div>
         )}
-        <canvas
-          ref={canvasRef}
-          className="rotation-preview"
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            transition: "transform 0.3s ease",
-            display:
-              isLoadingFrame || frameError || codecWarning ? "none" : "block",
-            maxWidth: "640px",
-            maxHeight: "480px",
-            width: "auto",
-            height: "auto",
-          }}
-          aria-label="Video rotation preview"
-        />
+        
+        {videoSrc && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            minHeight: '200px',
+            backgroundColor: '#000',
+            borderRadius: '4px',
+            overflow: 'hidden'
+          }}>
+            <video
+              ref={videoRef}
+              src={videoSrc}
+              className="rotation-preview"
+              muted
+              playsInline
+              controls={false}
+              disablePictureInPicture
+              onError={handleVideoError}
+              style={{
+                transform: `rotate(${rotation}deg)`,
+                transition: "transform 0.3s ease",
+                maxWidth: "640px",
+                maxHeight: "480px",
+                width: "auto",
+                height: "auto",
+                display: "block"
+              }}
+              aria-label="Video rotation preview"
+            />
+          </div>
+        )}
       </div>
 
       {/* Rotation buttons */}

@@ -52,7 +52,12 @@ cd ../backend
 python3 -m backend.main
 
 # STEP 2: First time setup - install browser binaries
-npx playwright install --with-deps
+sudo npx playwright install --with-deps  # as root - install system packages
+npx playwright install firefox webkit.   # as node user - install user copy in /home/node/.cache/ms-playwright
+
+# Optional - install chrome to run all tests (x86/amd64 only)
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo dpkg -i google-chrome-stable_current_amd64.deb
 
 # STEP 3: Run tests
 npm run test:e2e              # Headless mode (all browsers)

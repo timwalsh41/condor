@@ -5,7 +5,8 @@ FastAPI backend for The Condor video analysis platform.
 ## Development
 
 ```bash
-# Install dependencies
+# Install dependencies - note this will not work in a container, instead use
+# sudo apt install python3-<package>
 pip install -r requirements.txt
 
 # Run development server
@@ -18,6 +19,8 @@ python3 -m backend.main
 
 **Unit Tests:**
 ```bash
+# Install required dependency:
+sudo apt install python3-pytest
 python3 -m pytest backend/services/tests/ -v
 ```
 

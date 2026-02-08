@@ -1,4 +1,4 @@
-# Backend dependencies for Golf Swing Analyzer
+# Backend dependencies for condor
 # Python 3.11+
 
 # Web framework

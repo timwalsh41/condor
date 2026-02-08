@@ -1036,24 +1036,22 @@ test.describe("HEVC Codec Blocking", () => {
     const hevcSupported = await isHevcSupported(page);
     console.log(`HEVC codec support check result: ${hevcSupported}`);
 
-    // Wait for either canvas, warning, or error to appear (frame extraction can take a few seconds)
+    // Wait for either video preview or codec warning to appear
     await Promise.race([
-      page.locator('canvas.rotation-preview').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
-      page.locator('[data-testid="codec-warning"]').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
-      page.locator('.error').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+      page.locator('video.rotation-preview').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
+      page.locator('[data-testid="codec-warning"]').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
     ]);
 
     // Check which UI elements are actually visible
-    const hasCanvas = await page.locator('canvas.rotation-preview').isVisible().catch(() => false);
+    const hasVideo = await page.locator('video.rotation-preview').isVisible().catch(() => false);
     const hasWarning = await page.locator('[data-testid="codec-warning"]').isVisible().catch(() => false);
-    const hasError = await page.locator('.error').isVisible().catch(() => false);
-    console.log(`UI state - Canvas visible: ${hasCanvas}, Warning visible: ${hasWarning}, Error visible: ${hasError}`);
+    console.log(`UI state - Video visible: ${hasVideo}, Warning visible: ${hasWarning}`);
 
-    if (hevcSupported && hasCanvas) {
+    if (hevcSupported && hasVideo) {
       console.log("⚠ HEVC is supported in this browser - skipping codec warning test");
       // If HEVC is supported, preview should work normally (no warning)
-      const canvas = page.locator('canvas.rotation-preview');
-      await expect(canvas).toBeVisible({ timeout: 10000 });
+      const video = page.locator('video.rotation-preview');
+      await expect(video).toBeVisible({ timeout: 10000 });
 
       // Verify no codec warning is shown
       const codecWarning = page.locator('[data-testid="codec-warning"]');
@@ -1072,18 +1070,11 @@ test.describe("HEVC Codec Blocking", () => {
       expect(warningText).toContain("transcoded to H.264");
 
       console.log("✓ HEVC codec warning displayed, upload can still proceed");
-    } else if (hasError) {
-      // Generic error (common in Chrome for HEVC) - video loading failed
-      // This is acceptable for HEVC as backend will handle transcoding
-      console.log("Generic error displayed (HEVC metadata loading failed)");
-      const errorElement = page.locator('.error');
-      await expect(errorElement).toBeVisible();
-      console.log("✓ Error displayed, upload can still proceed with transcoding");
-    } else if (hasCanvas) {
-      // Canvas present (fallback for codec support check mismatch)
-      console.log("Canvas present, treating as codec supported");
-      const canvas = page.locator('canvas.rotation-preview');
-      await expect(canvas).toBeVisible();
+    } else if (hasVideo) {
+      // Video present (fallback for codec support check mismatch)
+      console.log("Video present, treating as codec supported");
+      const video = page.locator('video.rotation-preview');
+      await expect(video).toBeVisible();
       console.log("✓ HEVC preview rendered successfully");
     } else if (hasWarning) {
       // Warning present (fallback)
@@ -1094,7 +1085,7 @@ test.describe("HEVC Codec Blocking", () => {
       expect(warningText).toContain("Preview unavailable");
       console.log("✓ HEVC codec warning displayed");
     } else {
-      throw new Error(`No expected UI state present - hasCanvas: ${hasCanvas}, hasWarning: ${hasWarning}, hasError: ${hasError}`);
+      throw new Error(`No expected UI state present - hasVideo: ${hasVideo}, hasWarning: ${hasWarning}`);
     }
 
     // Regardless of codec support, rotation buttons should be enabled
@@ -1117,23 +1108,21 @@ test.describe("HEVC Codec Blocking", () => {
     const hevcSupported = await isHevcSupported(page);
     console.log(`HEVC codec support check result: ${hevcSupported}`);
 
-    // Wait for either canvas, warning, or error to appear (frame extraction can take a few seconds)
+    // Wait for either video preview or codec warning to appear
     await Promise.race([
-      page.locator('canvas.rotation-preview').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
-      page.locator('[data-testid="codec-warning"]').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
-      page.locator('.error').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+      page.locator('video.rotation-preview').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
+      page.locator('[data-testid="codec-warning"]').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
     ]);
 
     // Check actual UI state
-    const hasCanvas = await page.locator('canvas.rotation-preview').isVisible().catch(() => false);
+    const hasVideo = await page.locator('video.rotation-preview').isVisible().catch(() => false);
     const hasWarning = await page.locator('[data-testid="codec-warning"]').isVisible().catch(() => false);
-    const hasError = await page.locator('.error').isVisible().catch(() => false);
-    console.log(`UI state - Canvas visible: ${hasCanvas}, Warning visible: ${hasWarning}, Error visible: ${hasError}`);
+    console.log(`UI state - Video visible: ${hasVideo}, Warning visible: ${hasWarning}`);
 
-    if (hevcSupported && hasCanvas) {
+    if (hevcSupported && hasVideo) {
       console.log("⚠ HEVC is supported in this browser - skipping codec warning test");
-      const canvas = page.locator('canvas.rotation-preview');
-      await expect(canvas).toBeVisible({ timeout: 10000 });
+      const video = page.locator('video.rotation-preview');
+      await expect(video).toBeVisible({ timeout: 10000 });
 
       // Verify no codec warning is shown
       const codecWarning = page.locator('[data-testid="codec-warning"]');
@@ -1152,11 +1141,11 @@ test.describe("HEVC Codec Blocking", () => {
       console.log("✓ HEVC codec warning works for different video files");
     } else {
       // Mismatch - use actual UI state
-      console.log(`⚠ Inconsistent state - hevcSupported: ${hevcSupported}, hasCanvas: ${hasCanvas}, hasWarning: ${hasWarning}`);
+      console.log(`⚠ Inconsistent state - hevcSupported: ${hevcSupported}, hasVideo: ${hasVideo}, hasWarning: ${hasWarning}`);
 
-      if (hasCanvas) {
-        const canvas = page.locator('canvas.rotation-preview');
-        await expect(canvas).toBeVisible();
+      if (hasVideo) {
+        const video = page.locator('video.rotation-preview');
+        await expect(video).toBeVisible();
         console.log("✓ HEVC preview rendered successfully");
       } else if (hasWarning) {
         const codecWarning = page.locator('[data-testid="codec-warning"]');
@@ -1164,13 +1153,8 @@ test.describe("HEVC Codec Blocking", () => {
         const warningText = await codecWarning.textContent();
         expect(warningText).toContain("Preview unavailable");
         console.log("✓ HEVC codec warning displayed");
-      } else if (hasError) {
-        console.log("Generic error displayed (HEVC metadata loading failed)");
-        const errorElement = page.locator('.error');
-        await expect(errorElement).toBeVisible();
-        console.log("✓ Error displayed, upload can still proceed with transcoding");
       } else {
-        throw new Error("Neither canvas, warning, nor error present - unexpected UI state");
+        throw new Error("Neither video nor warning present - unexpected UI state");
       }
     }
   });
@@ -1189,24 +1173,22 @@ test.describe("HEVC Codec Blocking", () => {
     const hevcSupported = await isHevcSupported(page);
     console.log(`HEVC codec support check result: ${hevcSupported}`);
 
-    // Wait for either canvas, warning, or error to appear (frame extraction can take a few seconds)
+    // Wait for either video preview or codec warning to appear
     await Promise.race([
-      page.locator('canvas.rotation-preview').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
-      page.locator('[data-testid="codec-warning"]').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
-      page.locator('.error').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+      page.locator('video.rotation-preview').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
+      page.locator('[data-testid="codec-warning"]').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
     ]);
 
     // Check actual UI state
-    const hasCanvas = await page.locator('canvas.rotation-preview').isVisible().catch(() => false);
+    const hasVideo = await page.locator('video.rotation-preview').isVisible().catch(() => false);
     const hasWarning = await page.locator('[data-testid="codec-warning"]').isVisible().catch(() => false);
-    const hasError = await page.locator('.error').isVisible().catch(() => false);
-    console.log(`UI state - Canvas visible: ${hasCanvas}, Warning visible: ${hasWarning}, Error visible: ${hasError}`);
+    console.log(`UI state - Video visible: ${hasVideo}, Warning visible: ${hasWarning}`);
 
-    if (hevcSupported && hasCanvas) {
+    if (hevcSupported && hasVideo) {
       console.log("⚠ HEVC is supported in this browser - transcoding message test not applicable");
       // When HEVC is supported, no warning is shown (preview works)
-      const canvas = page.locator('canvas.rotation-preview');
-      await expect(canvas).toBeVisible({ timeout: 10000 });
+      const video = page.locator('video.rotation-preview');
+      await expect(video).toBeVisible({ timeout: 10000 });
 
       // Verify no codec warning is shown
       const codecWarning = page.locator('[data-testid="codec-warning"]');
@@ -1226,11 +1208,11 @@ test.describe("HEVC Codec Blocking", () => {
       console.log("✓ HEVC warning correctly mentions H.264 transcoding");
     } else {
       // Mismatch - use actual UI state
-      console.log(`⚠ Inconsistent state - hevcSupported: ${hevcSupported}, hasCanvas: ${hasCanvas}, hasWarning: ${hasWarning}`);
+      console.log(`⚠ Inconsistent state - hevcSupported: ${hevcSupported}, hasVideo: ${hasVideo}, hasWarning: ${hasWarning}`);
 
-      if (hasCanvas) {
-        const canvas = page.locator('canvas.rotation-preview');
-        await expect(canvas).toBeVisible();
+      if (hasVideo) {
+        const video = page.locator('video.rotation-preview');
+        await expect(video).toBeVisible();
         console.log("✓ HEVC preview rendered successfully");
       } else if (hasWarning) {
         const codecWarning = page.locator('[data-testid="codec-warning"]');
@@ -1238,13 +1220,8 @@ test.describe("HEVC Codec Blocking", () => {
         const warningText = await codecWarning.textContent();
         expect(warningText).toContain("transcoded to H.264");
         console.log("✓ HEVC codec warning displayed with transcoding message");
-      } else if (hasError) {
-        console.log("Generic error displayed (HEVC metadata loading failed)");
-        const errorElement = page.locator('.error');
-        await expect(errorElement).toBeVisible();
-        console.log("✓ Error displayed, upload can still proceed with transcoding");
       } else {
-        throw new Error("Neither canvas, warning, nor error present - unexpected UI state");
+        throw new Error("Neither video nor warning present - unexpected UI state");
       }
     }
   });

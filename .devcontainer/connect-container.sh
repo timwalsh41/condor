@@ -8,7 +8,33 @@ HOST_CODE_DIR="/Users/tim/Code"
 CONTAINER_CODE_DIR="/code"
 
 # Parse command line arguments
-ACTION="${1:-connect}"  # Default action is connect
+ACTION="connect"  # Default action
+HOST_CODE_DIR_OVERRIDE=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -p|--path)
+            if [[ -z "${2:-}" ]]; then
+                echo "❌ Error: --path requires an argument."
+                exit 1
+            fi
+            HOST_CODE_DIR_OVERRIDE="$2"
+            shift 2
+            ;;
+        connect|root|start|stop|restart|rebuild)
+            ACTION="$1"
+            shift
+            ;;
+        help|-h|--help)
+            ACTION="help"
+            shift
+            ;;
+        *)
+            ACTION="$1" # Let validation handle invalid actions
+            shift
+            ;;
+    esac
+done
 
 # Function to check if container exists
 container_exists() {
@@ -141,7 +167,7 @@ connect_container_root() {
 
 # Function to print usage
 print_usage() {
-    echo "Usage: $0 [ACTION]"
+    echo "Usage: $0 [ACTION] [OPTIONS]"
     echo ""
     echo "Actions:"
     echo "  connect  - Start container if needed and connect (default)"
@@ -151,6 +177,9 @@ print_usage() {
     echo "  restart  - Restart the container"
     echo "  rebuild  - Remove and recreate the container"
     echo ""
+    echo "Options:"
+    echo "  -p, --path <path>  Override the host code directory mounted to /code"
+    echo ""
     echo "Examples:"
     echo "  $0           # Connect to container (start if needed)"
     echo "  $0 connect   # Same as above"
@@ -158,6 +187,7 @@ print_usage() {
     echo "  $0 stop      # Stop the container"
     echo "  $0 restart   # Restart the container"
     echo "  $0 rebuild   # Remove and recreate container"
+    echo "  $0 -p ~/my-code  # Mount ~/my-code to /code in container"
 }
 
 # Main logic
@@ -181,6 +211,35 @@ case "$ACTION" in
         exit 1
         ;;
 esac
+
+# Handle host directory override
+if [[ -n "$HOST_CODE_DIR_OVERRIDE" ]]; then
+    if [[ ! -d "$HOST_CODE_DIR_OVERRIDE" ]]; then
+        echo "❌ Error: Provided path '$HOST_CODE_DIR_OVERRIDE' is not a directory."
+        exit 1
+    fi
+    
+    # Get absolute path
+    HOST_CODE_DIR=$(cd "$HOST_CODE_DIR_OVERRIDE" && pwd)
+    echo "Using host code directory: $HOST_CODE_DIR"
+    
+    # Check if we need to enforce this path on an existing container
+    if [[ "$ACTION" != "rebuild" && "$ACTION" != "stop" && "$ACTION" != "help" ]]; then
+        if container_running; then
+            echo "❌ Error: Container '$CONTAINER_NAME' is already running."
+            echo "   Cannot change host directory on a running container."
+            echo "   To connect to the existing container with host directory mounted as-is, run '$0 connect' without the -p flag."
+            echo "   To connect with a different host directory mount, please stop the container and remove it, or use the 'rebuild' action."
+            echo "   Example: $0 stop && $0 rebuild -p \"$HOST_CODE_DIR_OVERRIDE\""
+            exit 1
+        fi
+        
+        if container_exists; then
+            echo "⚠️  Removing existing stopped container to apply new host directory..."
+            remove_container
+        fi
+    fi
+fi
 
 # Handle stop action
 if [[ "$ACTION" == "stop" ]]; then

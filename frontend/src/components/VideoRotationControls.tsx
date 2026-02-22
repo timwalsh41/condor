@@ -86,7 +86,9 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
   const handleVideoError = () => {
     // If codec check didn't catch it, this is the fallback
     if (!codecWarning) {
-       setCodecWarning("Video format not supported by browser for preview. You can still upload.");
+      setCodecWarning(
+        "Video format not supported for preview. Proceed with upload to view video.",
+      );
     }
   };
 
@@ -105,29 +107,29 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
               border: "1px solid #ffc107",
               borderRadius: "4px",
               color: "#856404",
-              marginBottom: "10px"
+              marginBottom: "10px",
             }}
             data-testid="codec-warning"
           >
-            <p style={{ margin: 0, fontWeight: "bold" }}>
-              ⚠️ Preview Warning
-            </p>
+            <p style={{ margin: 0, fontWeight: "bold" }}>⚠️ Preview Warning</p>
             <p style={{ margin: "10px 0 0 0", fontSize: "14px" }}>
               {codecWarning}
             </p>
           </div>
         )}
-        
+
         {videoSrc && (
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center',
-            minHeight: '200px',
-            backgroundColor: '#000',
-            borderRadius: '4px',
-            overflow: 'hidden'
-          }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: "200px",
+              backgroundColor: "#000",
+              borderRadius: "4px",
+              overflow: "hidden",
+            }}
+          >
             <video
               ref={videoRef}
               src={videoSrc}
@@ -144,7 +146,7 @@ export const VideoRotationControls: React.FC<VideoRotationControlsProps> = ({
                 maxHeight: "480px",
                 width: "auto",
                 height: "auto",
-                display: "block"
+                display: "block",
               }}
               aria-label="Video rotation preview"
             />

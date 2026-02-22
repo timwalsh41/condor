@@ -1,8 +1,8 @@
 ## Background
 
-We now have the Condor MVP up and running! We can load videos, reoptimize and rotate as needed, and conduct basic analysis with single-frame accurate stepping and customizable annotation overlays. It's time to take this system to the next level with a combination of production-grade workflow enhancements and AI/CV-based analysis tools. Our goal today is to extend our existing design and project documentation to set us up to execute on these exciting new features.
+We now have the Condor MVP up and running! We can load videos, reoptimize and rotate as needed, and conduct basic analysis with single-frame accurate stepping and customizable annotation overlays. It's time to take this system to the next level with a combination of production-grade workflow enhancements and AI/CV-based analysis tools. Our goal today is to extend our existing design and project documentation to set us up to execute on these exciting new features in phase 2 of the project.
 
-## Top features:
+## Scope of new features
 
 The features we'll add refer to functional requirements from `INITIAL.md`:
 
@@ -12,14 +12,6 @@ The features we'll add refer to functional requirements from `INITIAL.md`:
 - FR-13 Video library management
 - FR-16 Advanced annotation tools
 - FR-20 Cloud media import
-
-Additionally, we'll need to spec out new features:
-
-- (New) CV/ML based advanced analysis
-  - Automatic sync point detection (ball impact)
-  - Automatically draw key annotations from setup position (can provide example)
-  - Track human joint position throughout swing
-  - Trace path of golf ball after impact
 - (New) Dockerize for deployment
   - Raspberry Pi 4
 
@@ -30,7 +22,4 @@ Additionally, we'll need to spec out new features:
   - Create sections for new phases as needed
     - Populate tasks to address the above requirements
     - Start with technical spike tasks as needed to prove out designs and finalize the approach
-- Technical spike documentation - capture background and additional detail beyond what is contained in the project plan
-    - Libraries
-    - Specific experiments/demos
     

@@ -268,6 +268,11 @@ An **open-source** golf swing video analysis tool that enables golfers and coach
 
 - System shall provide user selection via dropdown
 - No authentication or authorization required for Phase 2
+- Provide a means to create new users
+- Provide a means to manage existing users
+  - Administrative access
+  - View/modify/delete user library
+  - Create and delete users
 
 ### FR-9: Keyboard Shortcuts (Post-MVP Phase 2)
 

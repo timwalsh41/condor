@@ -8,5 +8,8 @@ logs/
 # Ignore all __pycache__ directories
 **/__pycache__/
 
-# MacOS system files
+# Ignore all .DS_Store files
 **/.DS_Store
+
+# Ignore all Python environment directories
+.venv/

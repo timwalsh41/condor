@@ -1,511 +1,228 @@
-# Frontend - System Design Description
+# Frontend Design Description
 
 ## Document Control
 
-- **Version**: 1.1
-- **Last Updated**: 2026-01-12
+- **Version**: 1.2
+- **Last Updated**: 2026-02-21
 
 ## Overview
 
-The frontend is a React-based web application providing frame-accurate dual-video playback with temporal synchronization and canvas-based annotation capabilities. It leverages the WebCodecs API for deterministic frame-by-frame video decode and rendering, enabling exact frame positioning (0 tolerance) required for golf swing analysis. The application supports two operational modes: Sync Mode for independent video control and sync point selection, and Playback Mode for synchronized playback with unified controls.
+The frontend is a React + TypeScript application with a unified app shell for Analyze, Library, Sessions, and Import workflows.
 
-The frontend has two implementations sharing the same core architecture:
-- **DualVideoSyncDemo**: Phase 0 proof-of-concept with client-side file selection (no backend integration)
-- **DualVideoSynchronizer**: Production application with video upload workflow and backend integration
+The frontend owns user interaction state, frame-accurate playback controls, session hydration behavior, metadata editing flows, and import orchestration feedback.
 
-The frontend architecture prioritizes performance through efficient state management (Zustand), bounded memory usage (LRU frame caching), and optimized canvas rendering (react-konva).
-
-## Responsibilities
-
-### Primary Responsibilities
-
-- **Frame-Accurate Video Playback**: Decode and render video frames with exact frame positioning using WebCodecs API, maintaining 0 frame error for dual-video synchronization
-- **Dual-Video Synchronization**: Calculate and maintain temporal offset between two videos based on user-selected sync point, ensuring synchronized playback during all operations (stepping, seeking, speed changes)
-- **Canvas-Based Annotations**: Provide drawing tools (freehand, polyline, oval, arrow) with canvas overlay, supporting selection, dragging, and reshaping of annotations
-- **Playback Controls**: Unified interface for play/pause, variable speed (0.1x-2.0x), frame stepping (coarse/fine), scrubbing, and looping
-- **Video Upload** (production app only): File selection, validation (format, size), rotation preview, upload to backend, and metadata retrieval
-
-### Secondary Responsibilities
-
-- **Mode Switching**: Toggle between Sync Mode (independent controls) and Playback Mode (unified controls)
-- **Trim Functionality**: Non-destructive trim points for constraining playback range
-- **Error Handling**: User-facing error messages for upload failures, browser incompatibility, video format issues
-- **State Persistence**: Maintain annotation state, sync offset, and playback position during session
-
-## Theory of Operation
-
-### Frame-Accurate Video Control with WebCodecs
-
-The frontend achieves deterministic frame positioning by bypassing HTML5 video seeking (which is non-deterministic, ±1 frame variance) and implementing direct frame decode using the WebCodecs API:
-
-1. **MP4 Container Parsing**: Parse uploaded MP4 file using mp4box.js to extract codec configuration and frame samples (EncodedVideoChunks)
-2. **VideoDecoder Initialization**: Configure VideoDecoder with codec parameters (H.264/H.265), register output callback for decoded frames
-3. **Frame Seeking**: To seek to frame N:
-   - Find nearest keyframe at or before frame N (GOP=30 from server optimization)
-   - Decode frames from keyframe → N + 60 (60-frame read-ahead for playback buffer)
-   - Cache all decoded frames in LRU cache (max 120 frames)
-   - Render target frame N to canvas
-4. **Continuous Playback**: requestAnimationFrame loop renders cached frames at calculated intervals based on framerate and playback speed
-5. **Cache Strategy**: 60-frame read-ahead + 60-frame backward buffer = 120-frame LRU cache (~120MB @ 1080p)
-
-**See**: `docs/spike/WEBCODECS_FRAME_CONTROL.md` for detailed implementation including critical learnings about `flush()`, MP4 decode order vs presentation order, and React ref lifecycle timing.
-
-### Dual-Video Synchronization
-
-Synchronization is achieved through offset-based frame positioning:
-
-1. **Sync Mode**: User navigates each video independently to desired sync point (e.g., ball impact frame)
-2. **Offset Calculation**: When switching to Playback Mode, calculate `offset = syncFrameB - syncFrameA`
-3. **Synchronized Operations**: For all playback operations (step, seek, play), maintain offset:
-   - Step forward: `frameA += 1, frameB = frameA + offset`
-   - Seek to frame N: `frameA = N, frameB = N + offset`
-   - Playback: Both videos render exact frame numbers with offset maintained
-
-### Annotation System
-
-Canvas-based annotation system using react-konva for overlay rendering:
-
-1. **Architecture**: `AnnotationManager` (business logic) + `useVideoAnnotations` hook (React integration) + Canvas components (rendering)
-2. **Coordinate System**: Konva Stage dimensions match video intrinsic dimensions (e.g., 1920×1080), CSS scaling applied to match displayed size
-3. **Drawing Patterns**:
-   - **Drag-based** (freehand, oval, arrow): mouseDown → mouseMove (append/update points) → mouseUp (finalize)
-   - **Click-based** (polyline): click (add vertex) → click (add vertex) → Enter/double-click (finalize)
-4. **State Machine**: idle → drawing (tool-specific) → idle, with preview rendering during drawing phase
-5. **Interactive Features**: Selection (click annotation), multi-select (ctrl+click), drag (move annotations), reshape (drag control points)
-
-**See**: `docs/spike/ANNOTATIONS.md` for detailed architecture including `AnnotationManager` design, custom hook pattern, and control point reshape implementation.
-
-### State Management
-
-Zustand slices provide modular, performant state management:
-
-- **videoSlice**: Video metadata (framerate, duration, dimensions), current frame numbers, refs (not stored in Zustand)
-- **syncSlice**: Sync offset, operational mode (sync/playback), sync frame numbers
-- **annotationSlice**: Annotation data arrays per video, selected IDs, active tool
-
-## Implementation Architecture
-
-### Component Hierarchy
+## Application Composition
 
 ```plantuml
 @startuml
-package "App.tsx" {
-  [Root Component]
+package "App Shell" {
+  [Navigation + Layout] as shell
+  [Analyze View] as analyze
+  [Library View] as library
+  [Sessions View] as sessions
+  [Import View] as import
 }
 
-package "VideoUpload" {
-  [VideoUpload.tsx] --> [uploadService.ts]
+package "State + Services" {
+  [Analyze Store] as aStore
+  [Library Store] as lStore
+  [Session Store] as sStore
+  [Import Store] as iStore
+  [API Clients] as api
 }
 
-package "DualVideoPlayer" {
-  [DualVideoPlayer.tsx] --> [VideoPlayer A]
-  [DualVideoPlayer.tsx] --> [VideoPlayer B]
-  [DualVideoPlayer.tsx] --> [SyncManager]
+package "Media Engine" {
+  [WebCodecs Decoder Hook] as decoder
+  [Sync/Playback Hooks] as sync
+  [Annotation Hooks/Canvas] as anno
 }
 
-package "VideoPlayer" {
-  [VideoPlayer.tsx] --> [useWebCodecsDecoder]
-  [VideoPlayer.tsx] --> [AnnotationCanvas]
-  [useWebCodecsDecoder] --> [MP4Parser]
-  [useWebCodecsDecoder] --> [FrameCache]
-}
+shell --> analyze
+shell --> library
+shell --> sessions
+shell --> import
 
-package "AnnotationCanvas" {
-  [AnnotationCanvas.tsx] --> [useVideoAnnotations]
-  [useVideoAnnotations] --> [AnnotationManager]
-}
+analyze --> aStore
+library --> lStore
+sessions --> sStore
+import --> iStore
 
-package "PlaybackControls" {
-  [PlaybackControls.tsx] --> [FrameStepButtons]
-  [PlaybackControls.tsx] --> [SpeedControl]
-  [PlaybackControls.tsx] --> [Timeline]
-}
+aStore --> api
+lStore --> api
+sStore --> api
+iStore --> api
 
-package "Zustand Store" {
-  [videoSlice]
-  [syncSlice]
-  [annotationSlice]
-}
-
-[Root Component] --> [VideoUpload.tsx]
-[Root Component] --> [DualVideoPlayer.tsx]
-[Root Component] --> [PlaybackControls.tsx]
-[Root Component] --> [ModeToggle]
-[Root Component] --> [Zustand Store]
+analyze --> decoder
+analyze --> sync
+analyze --> anno
 
 @enduml
 ```
 
-### Core Classes and Utilities
+## Module Architecture
+
+Application shell composition is defined in `src/App.tsx` and layout/navigation components under `src/components/layout/`.
+
+Analyze workflow composition is implemented in `src/components/DualVideoSynchronizer.tsx` and analysis hooks including `src/hooks/useWebCodecsDecoder.ts`, `src/hooks/useVideoSynchronization.ts`, and `src/hooks/useVideoAnnotations.ts`.
+
+Library workflow components are under `src/components/library/` with state/actions in `src/store/libraryStore.ts` and API integration in `src/services/libraryApi.ts`.
+
+Upload workflow components are under `src/components/upload/` and `src/components/import/` with upload/import state handling in `src/store/importStore.ts` and transport/orchestration APIs in `src/services/importApi.ts` and upload-related client modules.
+
+Sessions workflow components are under `src/components/sessions/` with state/actions in `src/store/sessionStore.ts` and API integration in `src/services/sessionsApi.ts` and `src/services/annotationsApi.ts`.
+
+Import workflow components are under `src/components/import/` with state/actions in `src/store/importStore.ts` and API integration in `src/services/importApi.ts`.
+
+Analyze workspace state is managed in `src/store/analyzeStore.ts` and includes selected videos, sync state, trim/playback state, and annotation payloads.
+
+## Routing and Navigation Design
+
+Navigation exposes four workflow entry points: Analyze, Library, Sessions, and Import.
+
+Navigation state is isolated from workflow data state so view transitions do not clear analysis or persistence context unless explicitly requested by the user.
+
+Analyze is the default working surface and accepts selected media from Library and hydrated state from Sessions.
+
+## State and Data Contracts
+
+Persisted analysis session payload includes `primaryVideoId`, optional `secondaryVideoId`, synchronization state, trim/playback state, and annotation payload arrays.
+
+Library metadata contract includes technical media metadata and user-editable metadata fields for golfer name, capture date, club, notes, and quality score.
+
+Session list contract includes session identity, title/notes, linked video references, and timestamps used for listing and selection.
+
+## Workflow Interaction Design
+
+### Library to Analyze Flow
+
+1. User opens Library and selects one or two videos.
+2. Library workflow updates Analyze selection state.
+3. Analyze view initializes playback and annotation workspace for selected assets.
+
+### Library Preview Playback Flow
+
+1. User opens Library and selects a video from list view.
+2. Library detail pane loads full metadata and initializes preview player in paused state.
+3. User controls preview using play/pause, fine/coarse step, and playback speed controls.
+4. User confirms selection for Analyze after previewing.
+
+### Sequence Diagram: Library Preview Playback
 
 ```plantuml
 @startuml
+actor User
+participant "Library View" as view
+participant "libraryStore" as store
+participant "libraryApi" as api
+participant "Preview Player" as player
 
-class MP4Parser {
-  -file: File
-  -mp4boxFile: MP4BoxFile
-  +initialize(): Promise<void>
-  +getVideoTrack(): VideoTrackInfo
-  +getSamples(): Sample[]
-  +getCodecConfig(): VideoDecoderConfig
-}
-
-class FrameCache {
-  -cache: Map<number, VideoFrame>
-  -maxSize: number
-  -accessOrder: number[]
-  +get(frameIndex: number): VideoFrame
-  +set(frameIndex: number, frame: VideoFrame): void
-  +has(frameIndex: number): boolean
-  +clear(): void
-  -evictLRU(): void
-}
-
-class AnnotationManager {
-  -annotations: Annotation[]
-  -selectedIds: Set<string>
-  -drawingState: DrawingState
-  -currentTool: AnnotationType
-  +setTool(tool: AnnotationType): void
-  +startDrawing(point: Point): void
-  +continueDrawing(point: Point): void
-  +finishDrawing(): void
-  +addPolylineVertex(point: Point): void
-  +toggleSelection(id: string, isMultiSelect: boolean): void
-  +deleteSelected(): number
-  +startDrag(primaryId: string, selectedIds: string[]): void
-  +updateDrag(delta: Point): void
-  +startReshape(annotationId: string, controlIndex: number): void
-  +updateReshape(newPosition: Point): void
-}
-
-interface Annotation {
-  +id: string
-  +type: AnnotationType
-  +points: Point[]
-  +style: AnnotationStyle
-}
-
-interface Point {
-  +x: number
-  +y: number
-}
-
-MP4Parser --> "uses" VideoDecoderConfig
-FrameCache --> "stores" VideoFrame
-AnnotationManager --> "manages" Annotation
-Annotation --> "contains" Point
-
-note right of MP4Parser : Parses MP4 container\nto extract codec config\nand frame samples
-note right of FrameCache : LRU cache with\n120-frame capacity\n(60 forward + 60 back)
-note right of AnnotationManager : Business logic for\nannotation CRUD,\ndrawing state machine,\nselection, drag, reshape
-
+User -> view: Select video in list pane
+view -> store: setSelectedVideo(videoId)
+store -> api: GET /api/library/videos/{video_id}
+api --> store: full metadata payload
+store --> view: update detail pane
+view -> player: load selected source
+player --> view: ready (paused)
+User -> view: play/pause/step/speed actions
+view -> player: apply playback command
 @enduml
 ```
 
-### Key Interaction Flows
+### Local Upload to Library Flow
 
-#### Frame Seeking Sequence
+1. User starts local upload from Library or Import entry point.
+2. Frontend validates selected file and submits upload request.
+3. Frontend displays upload and processing status.
+4. On completion, frontend refreshes Library and exposes uploaded media for preview and analysis selection.
+
+### Sequence Diagram: Local Upload to Library
 
 ```plantuml
 @startuml
-participant "PlaybackControls" as controls
-participant "useWebCodecsDecoder" as decoder
-participant "FrameCache" as cache
-participant "VideoDecoder" as vd
-participant "Canvas" as canvas
+actor User
+participant "Library/Import View" as view
+participant "importStore" as store
+participant "uploadApi" as api
+participant "libraryStore" as library
 
-controls -> decoder: seekToFrame(targetFrame)
-decoder -> decoder: findNearestKeyframe(targetFrame)
-decoder -> decoder: Set seekTarget = targetFrame
-
-loop from keyframe to targetFrame + 60
-  decoder -> vd: decode(EncodedVideoChunk)
-  vd -> decoder: output callback (VideoFrame)
-  decoder -> cache: set(frameIndex, VideoFrame)
-  alt frameIndex === seekTarget
-    decoder -> canvas: renderFrameToCanvas(VideoFrame)
-    decoder -> controls: setCurrentFrame(frameIndex)
-  end
+User -> view: Select local file
+view -> store: validate + start upload
+store -> api: POST /api/upload
+api --> store: upload accepted + processing id
+loop processing status
+  store -> api: GET /api/upload/{video_id}/status
+  api --> store: progress update
 end
-
-note right of cache: All decoded frames cached\nfor future playback
-note right of decoder: Only target frame rendered,\nothers cached for read-ahead
-
+api --> store: completed video metadata
+store -> library: refresh library records
+library --> view: show uploaded video in list
 @enduml
 ```
 
-#### Annotation Drawing Sequence (Freehand)
+### Analyze Save and Load Flow
+
+1. User performs playback, synchronization, trim, and annotation actions in Analyze.
+2. Save action serializes canonical analysis payload and session metadata.
+3. Sessions workflow lists saved sessions and loads selected session payloads.
+4. Analyze workflow hydrates state and resumes analysis from loaded payload.
+
+### Import to Library Flow
+
+1. User opens Import and authorizes provider access.
+2. User selects provider media and starts import.
+3. Import workflow displays job progress and completion state.
+4. Library workflow refreshes and displays imported video records.
+
+### Sequence Diagram: Save Session
 
 ```plantuml
 @startuml
-participant "User" as user
-participant "AnnotationCanvas" as canvas
-participant "useVideoAnnotations" as hook
-participant "AnnotationManager" as manager
-participant "Konva Layer" as konva
+actor User
+participant "Analyze View" as view
+participant "analyzeStore" as store
+participant "sessionsApi" as api
 
-user -> canvas: mouseDown
-canvas -> hook: handleStageMouseDown(event)
-hook -> manager: startDrawing({x, y})
-manager -> manager: drawingState = { type: 'drag-drawing', points: [{x,y}] }
-
-user -> canvas: mouseMove
-canvas -> hook: handleStageMouseMove(event)
-hook -> manager: continueDrawing({x, y})
-manager -> manager: drawingState.points.push({x, y})
-hook -> konva: render preview (red dashed line)
-
-user -> canvas: mouseUp
-canvas -> hook: handleStageMouseUp(event)
-hook -> manager: finishDrawing()
-manager -> manager: validatePoints(points)
-manager -> manager: annotations.push(new Annotation)
-manager -> manager: drawingState = { type: 'idle' }
-hook -> konva: render completed annotation (black solid line)
-
+User -> view: Save Session
+view -> store: buildSnapshotPayload()
+store -> api: POST /api/sessions
+api --> store: persisted session metadata
+store --> view: update save status
+view --> User: success feedback
 @enduml
 ```
 
-## Interfaces
+## UI Behavior and Constraints
 
-### Input Interfaces
+Analyze interaction responsiveness is treated as a primary UX constraint.
 
-| Interface         | Data Format           | Protocol/Method | Description                                                      |
-| ----------------- | --------------------- | --------------- | ---------------------------------------------------------------- |
-| User Interactions | Mouse/Keyboard Events | DOM Events      | Canvas clicks, drags, keyboard shortcuts (Enter, Escape, Delete) |
-| Video Files       | MP4 (H.264/H.265)     | File API        | User-selected video files via upload interface                   |
-| Backend API       | JSON                  | HTTP/REST       | Video metadata, upload response, streaming URLs                  |
+Library, Sessions, and Import asynchronous operations expose deterministic loading, success, and error feedback.
 
-### Output Interfaces
+Session loading is a client-side hydration operation that does not persist backend changes until explicit save.
 
-| Interface        | Data Format   | Protocol/Method   | Description                                                              |
-| ---------------- | ------------- | ----------------- | ------------------------------------------------------------------------ |
-| Canvas Rendering | ImageBitmap   | Canvas 2D Context | Video frames + annotation overlay rendered to canvas elements            |
-| API Requests     | JSON / Binary | HTTP/REST         | Upload requests, metadata fetch, video streaming with Range headers      |
-| User Feedback    | UI Components | React State       | Error notifications, loading indicators, frame counters, mode indicators |
+Trim controls support bounded playback behavior and trim reset behavior.
 
-### Key Data Structures
-
-**VideoMetadata** (from backend):
-
-```typescript
-interface VideoMetadata {
-  video_id: string;
-  session_id: string;
-  framerate: number;
-  duration: number;
-  width: number;
-  height: number;
-  codec: string;
-  gop_size: number;
-}
-```
-
-**Annotation**:
-
-```typescript
-interface Annotation {
-  id: string;
-  type: "freehand" | "polyline" | "oval" | "arrow";
-  points: Point[];
-  style: {
-    color: string;
-    strokeWidth: number;
-  };
-}
-
-interface Point {
-  x: number;
-  y: number;
-}
-```
-
-**SyncState**:
-
-```typescript
-interface SyncState {
-  mode: "sync" | "playback";
-  syncFrameA: number;
-  syncFrameB: number;
-  offset: number; // frameB - frameA
-}
-```
+Keyboard shortcuts support core playback and stepping operations and do not override active text input contexts.
 
 ## Error Handling Strategy
 
-### Error Types
+Workflow errors are surfaced through domain-specific notifications tied to store actions.
 
-| Error Type             | Cause                                     | Handling Strategy                 | User Feedback                                                                                         |
-| ---------------------- | ----------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| BrowserIncompatibility | WebCodecs API unavailable                 | Detect on mount, block app usage  | "Your browser doesn't support required features. Update to Chrome 94+, Firefox 130+, or Safari 17.4+" |
-| VideoFormatError       | Unsupported codec (HEVC in some contexts) | Detect during MP4 parsing         | "This video format is not compatible. Please use MP4 with H.264 codec"                                |
-| UploadError            | Network failure, server rejection         | Axios error handling              | "Upload failed: [error message]" (toast notification)                                                 |
-| FileSizeError          | Video exceeds 200MB                       | Frontend validation before upload | "Video file exceeds maximum size (200MB)"                                                             |
-| DecodeError            | VideoDecoder failure                      | Catch in output callback          | "Video decode failed. File may be corrupted"                                                          |
+Retry actions are available for transient network/import failures.
 
-### Error Handling Flow
+Error handling in auxiliary workflows does not block Analyze interactions when dependencies are not shared.
 
-```plantuml
-@startuml
-start
+## Performance Design
 
-:User selects video file;
+WebCodecs decode/render path is isolated from non-analysis workflow state updates.
 
-if (File size > 200MB?) then (yes)
-  :Show size error;
-  stop
-endif
+Library and session list workflows use paginated fetch patterns and memoized selectors.
 
-:Upload to backend;
+Import progress polling uses bounded intervals and pauses when workflow visibility is inactive.
 
-if (Upload success?) then (no)
-  :Show upload error;
-  stop
-endif
-
-:Receive VideoMetadata;
-:Initialize MP4Parser;
-
-if (Parse success?) then (no)
-  :Show format error;
-  stop
-endif
-
-:Configure VideoDecoder;
-
-if (Codec supported?) then (no)
-  :Show codec error;
-  stop
-endif
-
-:Begin playback;
-
-if (Decode error?) then (yes)
-  :Show decode error;
-  :Log to console;
-  stop
-endif
-
-:Render frames normally;
-stop
-
-@enduml
-```
-
-### Logging and Monitoring
-
-- **Error Logging**: Browser `console.error()` with stack traces for decode failures, API errors
-- **Performance Monitoring**:
-  - Cache hit rate tracking (target >80%)
-  - Frame decode latency measurement (target <50ms)
-  - Render latency for annotations (target ≤16ms)
-- **Health Checks**: WebCodecs API availability check on app initialization
-
-## Dependencies
-
-### External Dependencies
-
-| Dependency    | Version        | Purpose                      | Failure Impact                         |
-| ------------- | -------------- | ---------------------------- | -------------------------------------- |
-| WebCodecs API | Browser Native | Frame-by-frame video decode  | App unusable without WebCodecs support |
-| mp4box.js     | latest         | MP4 container parsing        | Cannot load videos (critical)          |
-| react-konva   | 18             | Canvas annotation rendering  | Annotation features disabled           |
-| axios         | 1              | HTTP client for API requests | Cannot upload/stream videos (critical) |
-
-### Internal Dependencies
-
-| Module        | Interface Used | Purpose                                         | Coupling Level        |
-| ------------- | -------------- | ----------------------------------------------- | --------------------- |
-| Backend API   | REST endpoints | Video upload, streaming, metadata               | Loose (HTTP)          |
-| Zustand Store | State slices   | Global state access                             | Loose (hooks)         |
-| Custom Hooks  | Hook APIs      | Encapsulated logic (decoder, annotations, sync) | Loose (React context) |
-
-### Configuration Dependencies
-
-| Configuration      | Type   | Purpose                     | Default Value         |
-| ------------------ | ------ | --------------------------- | --------------------- |
-| API_BASE_URL       | string | Backend API endpoint        | http://localhost:8000 |
-| FRAME_CACHE_SIZE   | number | Maximum cached frames       | 120                   |
-| UPLOAD_MAX_SIZE_MB | number | Client-side file size limit | 200                   |
+Session hydration applies payload state deterministically to avoid long main-thread stalls.
 
 ## Testing Strategy
 
-### Unit Testing
+Frontend tests include component tests for workflow views, store tests for state transitions and asynchronous actions, API client tests for contract mapping, and Playwright workflow tests for import, library selection, and session save/load behavior.
 
-- **Test Coverage**: >80% for utilities, hooks, business logic
-- **Test Framework**: Vitest with React Testing Library
-- **Mock Strategy**:
-  - WebCodecs API: Mock VideoDecoder, EncodedVideoChunk
-  - API requests: Mock axios responses
-  - File uploads: Mock File objects
-
-**Key Test Suites**:
-
-- `FrameCache.test.ts`: LRU eviction, capacity limits
-- `AnnotationManager.test.ts`: CRUD operations, drawing state machine, selection, drag, reshape (137 tests)
-- `useVideoAnnotations.test.ts`: Hook integration, keyboard shortcuts, event handlers (38 tests)
-- `MP4Parser.test.ts`: Container parsing, codec extraction
-
-### Integration Testing
-
-- **Integration Points**: Full user workflows (upload → sync → annotate → playback)
-- **Test Framework**: Playwright (cross-browser)
-- **Test Data**: Generated test videos with known frame counts, GOP=30
-- **Environment**: Headless Chrome, Firefox, WebKit
-
-**Key Test Scenarios**:
-
-- Frame stepping accuracy (0 tolerance validation)
-- Dual-video synchronization maintenance
-- Annotation drawing, selection, deletion
-- Canvas overlay alignment during window resize
-- Playback at variable speeds (0.1x-2.0x)
-
-### Performance Testing
-
-- **Cache Performance**: Measure cache hit rate during typical playback (target >80%)
-- **Decode Latency**: Measure time from decode() call to frame render (target <50ms)
-- **Annotation Latency**: Measure drawing tool responsiveness (target ≤16ms for 60fps feel)
-
-**Benchmarks**:
-| Metric | Target | Test Method |
-|--------|--------|-------------|
-| Cache hit rate | >80% | Playwright performance profiling |
-| Cache miss latency | <300ms | Measure decode time from keyframe (GOP=30) |
-| Annotation draw latency | ≤16ms | RAF timestamp deltas during drawing |
-
-## Deployment Considerations
-
-### Resource Requirements
-
-Browser environment:
-
-- **Memory**:
-  - Frame cache: ~120MB (120 frames × 1MB/frame @ 1080p) × 2 videos = 240MB
-  - React app: ~50MB
-  - Total: ~300MB browser memory
-- **CPU**: WebCodecs decode (hardware-accelerated when available), canvas rendering
-- **GPU**: Canvas compositing, potential hardware video decode
-
-### Browser Configuration
-
-- WebCodecs API must be enabled (default in Chrome 94+, Firefox 130+, Safari 17.4+)
-- Hardware acceleration recommended (Settings → System → Use hardware acceleration)
-- Sufficient memory allocation for video decode
-
-### Scaling Considerations
-
-- **Memory bounded**: Frame cache size fixed (120 frames), no unbounded growth
-- **Cleanup**: Zustand state cleared on session end, VideoFrames explicitly closed to prevent memory leaks
-
-## Future Enhancements
-
-- **Annotation Persistence**: Save/load annotation sets with JSON serialization
-- **Advanced Annotation Tools**: Custom colors, line thickness, text annotations
-- **Frame-Specific Annotations**: Time-based annotations that appear/disappear at specific frames
-- **Comparison Mode**: Overlay mode (blend two videos), 3+ video support
-- **Export Functionality**: Export annotated frame as image, export video segment
-- **Offline Support**: Service worker for offline playback of cached videos
-- **Mobile Support**: Touch-based annotation drawing, responsive layout for tablets
-- **Multi-User Support**: Session sharing, collaborative annotations
+Requirement-validating tests include requirement identifiers in test metadata where needed for validation traceability.

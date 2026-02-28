@@ -1,4 +1,4 @@
-# Project Plan: Golf Swing Analyzer
+# Project Plan: The Condor Golf Swing Analyzer
 
 ## Project Vision
 
@@ -9,17 +9,9 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 
 ## Current Status
 
-- **Phase**: Phase 1 - MVP Core Features Implementation (In Progress)
-- **Last Updated**: 2026-01-21 - Task 1.3.5 Complete (Playwright Tests Updated for Production Workflow)
-- **Next Priority**: Task 1.4 - Trim Functionality + Error Handling
-- **Overall Progress**: 31 planned, 14 in progress, 8 validated (16% validated)
-  - _Phase 1 Tasks: 15 total (10 complete, 5 remaining)_
-  - _Total test coverage: 678 tests (459 frontend unit + 177 Playwright + 44 backend unit + 21 backend integration)_
-  - _Tests passing: 657/657 (100%) - all tests passing_
-  - _Backend unit tests: 44/44 passing (100%)_
-  - _Backend integration tests: 21/21 passing (100%)_
-  - _Frontend unit tests: 459/459 passing (100%)_
-  - _Playwright E2E tests: 133/133 passing (100%), 32 intentionally skipped (Chrome CDP), 12 did not run (timeout)_
+- **Phase**: Phase 2 - User Workflows and Persistence Foundation (in progress)
+- **Last Updated**: 2026-02-27 - Task 2.2 UX Workflow Design
+- **Next Priority**: Task 2.3 - Platform and tooling setup
 
 ## MVP Scope (Phase 0-1)
 
@@ -52,11 +44,20 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 
 The MVP establishes the technical foundation for:
 
-- **Phase 2**: Multi-user session management, annotation styles, touch input support
-- **Phase 3**: Cloud deployment infrastructure
-- **Phase 4**: Mobile applications (iOS/Android) for video capture and analysis
-- **Phase 5**: Advanced features (coach-student workflows)
-- **Secondary Users**: Golf coaches with student video management and feedback delivery
+- **Phase 2**: User workflows and persistence foundation
+  - User management with a single default user (no authentication)
+  - Keyboard shortcuts for core analysis operations
+  - Session persistence (save/load/list/delete)
+  - Video library management with metadata
+  - Advanced annotation tools
+  - Cloud media import (Google Photos)
+  - Dockerized deployment for Raspberry Pi 4
+
+- **Future work**:
+  - Extended cloud import providers and scalable cloud deployment
+  - CV/ML based automated analysis capabilities
+  - Mobile-focused workflows and touch-first UX
+  - Advanced collaborative and coach workflows
 
 ### Technical Implementation Improvements
 
@@ -1149,6 +1150,242 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - [ ] `docs/deployment/MVP_DEPLOYMENT.md` accurate and complete
 
 **Integration Report**: `validation/INTEGRATION_REPORT_PHASE_1_MVP.md` (created by validation-gates agent)
+
+---
+
+### Phase 2: Workflow, Persistence, and Library Expansion
+
+**Goal**: Extend Condor from MVP analysis-only workflows to reusable workflows with library management, saved sessions, advanced annotation tools, cloud import, and deployment hardening on Raspberry Pi 4.
+
+**Success Criteria**:
+
+- All Phase 2 requirements in `REQUIREMENTS.md` are implemented and validated
+- Users can complete library → analysis → save session → load session workflows
+- Google Photos import is functional and integrated into library/analyze workflows
+- Dockerized deployment path is executable and documented for Raspberry Pi 4
+
+**Task Mapping Summary**:
+
+- Planning/docs: 2.1-2.2
+- Platform/data foundation: 2.3-2.5
+- Library/sessions workflows: 2.6-2.9
+- Existing MVP gaps: 2.10 (trim), 2.11 (shortcuts)
+- Feature expansion: 2.12-2.13
+- Validation/documentation closeout: 2.14
+
+---
+
+#### Task 2.1: Phase 2 Planning Baseline and Technical Design Alignment
+
+- **Status**: Complete
+- **Completed**: 2026-02-27
+- **Requirements**: REQ-NF-M-002
+- **Scope**: Capture finalized Phase 2 scope, align `PROJECT_PLAN.md` and `REQUIREMENTS.md`, and update technical design docs to represent the intended target architecture for Phase 2.
+- **Acceptance Criteria**:
+  - `inputs/CONDOR_PHASE_2.md` includes agreed scope, workflow intent, metadata model, and architecture constraints.
+  - `project/PROJECT_PLAN.md` includes Phase 2 task decomposition under Task Breakdown.
+  - `project/REQUIREMENTS.md` includes Phase 2 requirement IDs and acceptance criteria.
+  - `docs/SYSTEM_ARCHITECTURE.md`, `docs/BACKEND_DESIGN.md`, and `docs/FRONTEND_DESIGN.md` are updated in place and describe current target-state architecture/design only.
+  - **User-exercisable output**: Documentation review walkthrough demonstrates that a contributor can identify intended user workflows and validate story scope without additional clarification.
+- **Dependencies**: None
+- **Risk Level**: Low
+
+---
+
+#### Task 2.2: UX Workflow Design Document
+
+- **Status**: Complete
+- **Completed**: 2026-02-27
+- **Requirements**: REQ-NF-U-001, REQ-NF-M-002
+- **Scope**: Create dedicated UX workflow specification document covering user journeys, app shell layout, view responsibilities, and expected workflow outcomes.
+- **Acceptance Criteria**:
+  - `docs/UX_WORKFLOW_SPEC.md` exists and defines Analyze, Library, Sessions, and Import user flows.
+  - Document includes screen-level responsibilities, transition rules, and metadata touchpoints.
+  - UX workflow definitions are aligned with technical architecture/design docs.
+  - **User-exercisable output**: Documentation-backed workflow checklist can be executed manually by a reviewer to simulate user journey outcomes.
+- **Dependencies**: Task 2.1
+- **Risk Level**: Low
+
+---
+
+#### Task 2.3: Platform and Tooling Setup (PostgreSQL + Local Runtime)
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-DEPLOY-001, REQ-NF-PT-001
+- **Scope**: Install/configure required local platform dependencies for Phase 2 development, including PostgreSQL and runtime wiring.
+- **Acceptance Criteria**:
+  - PostgreSQL is installed/running in local dev and Raspberry Pi target workflow.
+  - Database/user/database privileges are provisioned for Condor environment.
+  - Backend database connectivity is configured and validated from application runtime.
+  - **User-exercisable output**: Contributor can run setup commands and verify successful DB connectivity check.
+- **Dependencies**: Task 2.1
+- **Risk Level**: Medium
+
+---
+
+#### Task 2.4: Persistence Foundation (Schema + Migrations)
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-USER-001, REQ-P2-SESS-001, REQ-P2-LIB-001
+- **Scope**: Establish persistent schema and migrations for videos, sessions, annotations, and import-support entities.
+- **Acceptance Criteria**:
+  - PostgreSQL-backed schema/migrations are added and versioned.
+  - Tables include user scoping, video metadata, session payloads, and annotation payload storage.
+  - Migration workflow includes upgrade and rollback verification.
+  - **User-exercisable output**: Developer can run migrations and execute API smoke flow to create/list persisted records.
+- **Dependencies**: Task 2.3
+- **Risk Level**: High
+
+---
+
+#### Task 2.5: Single-User Management Layer
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-USER-001
+- **Scope**: Implement explicit default-user resolution and ownership assignment across persistence and API layers.
+- **Acceptance Criteria**:
+  - Backend resolves a single default user identity for all Phase 2 workflows.
+  - Persisted entities consistently include user ownership fields.
+  - API/service boundaries retain user-scoped interfaces without requiring authentication UI.
+  - **User-exercisable output**: API smoke flow confirms created records are associated with default user context.
+- **Dependencies**: Task 2.4
+- **Risk Level**: Medium
+
+---
+
+#### Task 2.6: Video Library API and Metadata Domain
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-LIB-001, REQ-P2-LIB-002
+- **Scope**: Implement backend library domain (CRUD endpoints/services/repositories) and metadata validation rules.
+- **Acceptance Criteria**:
+  - API supports add/list/view/update/delete for library videos.
+  - Metadata validation enforces golfer/date/club/notes/quality score constraints.
+  - Library APIs expose selection-ready payloads for Analyze workflows.
+  - **User-exercisable output**: API test flow validates add/edit/list/delete and metadata validation behavior.
+- **Dependencies**: Task 2.5
+- **Risk Level**: Medium
+
+---
+
+#### Task 2.7: Video Library Frontend Workflows
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-LIB-001, REQ-P2-LIB-002
+- **Scope**: Implement Library view and frontend state/actions for browse/edit/select/delete workflows.
+- **Acceptance Criteria**:
+  - User can add, list, view, and delete library videos from UI.
+  - User can edit metadata in UI and see persisted updates.
+  - User can select one or two library videos and open Analyze view with selected assets.
+  - **User-exercisable output**: UI workflow demo validates add/edit/select/delete operations from Library view.
+- **Dependencies**: Task 2.6
+- **Risk Level**: Medium
+
+---
+
+#### Task 2.8: Session Persistence Backend Domain
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-SESS-001
+- **Scope**: Implement backend session and annotation persistence domain for save/load/list/delete operations.
+- **Acceptance Criteria**:
+  - Session APIs persist and return full analysis payload (video refs, sync, trim/playback, annotations).
+  - Session list and delete APIs are available and tested.
+  - Annotation payload behavior is deterministic and schema-valid.
+  - **User-exercisable output**: API workflow demo shows save/list/load/delete behavior with restored payload fidelity.
+- **Dependencies**: Task 2.5
+- **Risk Level**: High
+
+---
+
+#### Task 2.9: Session Persistence Frontend Workflows
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-SESS-001
+- **Scope**: Implement Sessions view and Analyze integration for save/load/list/delete session workflows.
+- **Acceptance Criteria**:
+  - User can manually save named sessions with notes.
+  - User can list/load/delete sessions from Sessions view.
+  - Loading a session restores selected videos, sync state, trim/playback state, and annotations in Analyze view.
+  - **User-exercisable output**: End-to-end demo shows start analysis → save session → reload session with restored state.
+- **Dependencies**: Task 2.8
+- **Risk Level**: High
+
+---
+
+#### Task 2.10: Trim Functionality Completion
+
+- **Status**: Not Started
+- **Requirements**: REQ-F-TRIM-001, REQ-F-TRIM-002
+- **Scope**: Implement and validate non-destructive trim controls and trim reset behavior that are currently not complete in production workflow.
+- **Acceptance Criteria**:
+  - User can set trim start/end bounds and playback is constrained to trim region.
+  - Trim reset restores full playback range.
+  - Trim state is included in session save/load payload.
+  - **User-exercisable output**: User demonstrates trim set/reset and playback constraint behavior in Analyze workflow.
+- **Dependencies**: Task 2.9
+- **Risk Level**: Medium
+
+---
+
+#### Task 2.11: Keyboard Shortcuts for Analysis Operations
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-KEY-001
+- **Scope**: Add keyboard shortcuts for core playback and stepping workflows with UI discoverability.
+- **Acceptance Criteria**:
+  - Shortcuts cover play/pause, fine step, and coarse step operations.
+  - Shortcuts do not interfere with text-input contexts.
+  - UI includes shortcut legend/help.
+  - **User-exercisable output**: Reviewer can operate core playback controls using keyboard only.
+- **Dependencies**: Task 2.10
+- **Risk Level**: Medium
+
+---
+
+#### Task 2.12: Advanced Annotation Tooling
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-ANNOT-001
+- **Scope**: Extend annotation system with text labels, angle measurement, editable control points, and undo/redo.
+- **Acceptance Criteria**:
+  - Text and angle annotations are available in Analyze workflow.
+  - Existing annotations are editable via control points.
+  - Undo/redo operations work for annotation creation and edits.
+  - **User-exercisable output**: User can create/edit/delete advanced annotations and verify undo/redo behavior in session.
+- **Dependencies**: Task 2.11
+- **Risk Level**: Medium
+
+---
+
+#### Task 2.13: Google Photos Import Integration
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-CLOUD-001
+- **Scope**: Add Google Photos import flow integrated with library and analysis workflows.
+- **Acceptance Criteria**:
+  - User can connect/import videos from Google Photos.
+  - Imported videos appear in library and are selectable for analysis sessions.
+  - iCloud import remains out of scope.
+  - **User-exercisable output**: User imports at least one Google Photos video and uses it in an analysis session.
+- **Dependencies**: Task 2.7
+- **Risk Level**: High
+
+---
+
+#### Task 2.14: Dockerized Deployment, Validation, and Requirements Closeout
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-DEPLOY-001, REQ-NF-PT-001, REQ-NF-M-002
+- **Scope**: Complete Dockerized deployment assets for Raspberry Pi 4 and close the Phase 2 documentation/validation loop.
+- **Acceptance Criteria**:
+  - Docker deployment workflow is documented and executable on Raspberry Pi 4.
+  - Phase 2 user workflows are validated in deployed environment.
+  - `project/REQUIREMENTS.md` statuses are updated to reflect implemented/validated Phase 2 requirements.
+  - Validation evidence is recorded in `validation/VALIDATION_REPORT.md` and integration reporting artifacts as appropriate.
+  - **User-exercisable output**: Reviewer can deploy stack and execute core workflows (Library, Analyze, Sessions, Import).
+- **Dependencies**: Tasks 2.10, 2.11, 2.12, 2.13
+- **Risk Level**: Medium
 
 ---
 

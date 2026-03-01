@@ -93,7 +93,7 @@ class LibraryVideo(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     quality_score: Mapped[int | None] = mapped_column(
         Integer,
-        CheckConstraint("quality_score BETWEEN 1 AND 5", name="ck_quality_score"),
+        CheckConstraint("quality_score BETWEEN 1 AND 10", name="ck_quality_score"),
         nullable=True,
     )
 

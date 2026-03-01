@@ -101,9 +101,10 @@ app.add_middleware(
 )
 
 # Register routers
-from backend.routes import upload, video
+from backend.routes import upload, video, library
 app.include_router(upload.router)
 app.include_router(video.router)
+app.include_router(library.router)
 
 
 @app.get("/health")

@@ -11,7 +11,7 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 
 - **Phase**: Phase 2 - User Workflows and Persistence Foundation (in progress)
 - **Last Updated**: 2026-02-28 - Tasks 2.3, 2.4, 2.5 complete
-- **Next Priority**: Task 2.6 - Video Library API
+- **Next Priority**: Task 2.7 - Video Library Frontend Workflows
 
 ## MVP Scope (Phase 0-1)
 
@@ -1262,7 +1262,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 2.6: Video Library API and Metadata Domain
 
-- **Status**: Not Started
+- **Status**: Complete
 - **Requirements**: REQ-P2-LIB-001, REQ-P2-LIB-002
 - **Scope**: Implement backend library domain (CRUD endpoints/services/repositories) and metadata validation rules.
 - **Acceptance Criteria**:

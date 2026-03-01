@@ -136,3 +136,20 @@ def cleanup_partial_upload(session_id: UUID, video_id: UUID) -> None:
         logger.info(f"Cleaned up partial upload: session={session_id}, video={video_id}")
     except Exception as e:
         logger.error(f"Failed to clean up partial upload: {e}")
+
+
+def find_video(video_id: str) -> Optional[Path]:
+    """Search all sessions for a video file with the given video_id.
+
+    Args:
+        video_id: UUID string of the video to locate.
+
+    Returns:
+        Path to the video file if found, otherwise None.
+    """
+    pattern = f"{video_id}.mp4"
+    for candidate in TMP_STORAGE_BASE.rglob(pattern):
+        # Skip _original files
+        if "_original" not in candidate.name:
+            return candidate
+    return None

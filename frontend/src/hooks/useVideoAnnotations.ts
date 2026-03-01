@@ -60,6 +60,11 @@ export interface UseVideoAnnotationsResult {
   clearAll: () => void;
   isDraggingAnnotation: boolean;
   isReshapingAnnotation: boolean;
+  // Undo/redo
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 /**
@@ -99,6 +104,46 @@ export function useVideoAnnotations(
 
   // Reshape state (Subtask 0.5.11)
   const [isReshapingAnnotation, setIsReshapingAnnotation] = useState(false);
+
+  // Undo/redo history (Phase 2, Task 2.12)
+  const [undoStack, setUndoStack] = useState<Annotation[][]>([[]]);
+  const [redoStack, setRedoStack] = useState<Annotation[][]>([]);
+
+  /**
+   * Push the current annotation state onto the undo stack and clear redo stack.
+   * Call this after any mutation that should be undoable.
+   */
+  const pushHistory = useCallback((current: Annotation[]) => {
+    setUndoStack((prev) => [...prev, [...current]]);
+    setRedoStack([]);
+  }, []);
+
+  const undo = useCallback(() => {
+    setUndoStack((prev) => {
+      if (prev.length <= 1) return prev; // Nothing to undo
+      const newStack = prev.slice(0, -1);
+      const prevState = newStack[newStack.length - 1];
+      manager.setAnnotations(prevState);
+      const restored = manager.getAnnotations();
+      setAnnotations(restored);
+      setSelectedIds(manager.getSelectedIds());
+      setRedoStack((r) => [[...prev[prev.length - 1]], ...r]);
+      return newStack;
+    });
+  }, [manager]);
+
+  const redo = useCallback(() => {
+    setRedoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const [nextState, ...rest] = prev;
+      manager.setAnnotations(nextState);
+      const restored = manager.getAnnotations();
+      setAnnotations(restored);
+      setSelectedIds(manager.getSelectedIds());
+      setUndoStack((u) => [...u, [...nextState]]);
+      return rest;
+    });
+  }, [manager]);
 
   // Canvas scale for CSS transform
   const [scale, setScale] = useState(1);
@@ -142,24 +187,29 @@ export function useVideoAnnotations(
     return () => window.removeEventListener("resize", updateScale);
   }, [videoDecoder.canvasRef, videoDecoder.metadata, videoDecoder.isReady]);
 
-  // Keyboard support for polyline tool (Enter to finalize, Escape to cancel)
+  // Keyboard support for polyline/angle tools (Enter to finalize, Escape to cancel)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle keyboard events if this video is active and polyline is in progress
-      if (activeVideo !== videoId || !manager.isPolylineActive()) return;
+      // Only handle keyboard events if this video is active and polyline/angle is in progress
+      if (activeVideo !== videoId) return;
+      const isPolyline = manager.isPolylineActive();
+      const isAngle = manager.isAngleActive();
+      if (!isPolyline && !isAngle) return;
 
-      if (e.key === "Enter") {
+      if (isPolyline && e.key === "Enter") {
         e.preventDefault();
         console.log(`Video ${videoId}: Polyline finalized via Enter key`);
         const annotation = manager.finishDrawing();
         if (annotation) {
-          setAnnotations(manager.getAnnotations());
+          const current = manager.getAnnotations();
+          setAnnotations(current);
+          pushHistory(current);
         }
         setDrawingState(manager.getDrawingState());
         setPolylineMousePos(null);
       } else if (e.key === "Escape") {
         e.preventDefault();
-        console.log(`Video ${videoId}: Polyline cancelled via Escape key`);
+        console.log(`Video ${videoId}: Drawing cancelled via Escape key`);
         manager.cancelDrawing();
         setDrawingState(manager.getDrawingState());
         setPolylineMousePos(null);
@@ -168,7 +218,7 @@ export function useVideoAnnotations(
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeVideo, videoId, manager]);
+  }, [activeVideo, videoId, manager, pushHistory]);
 
   // Delete key handler for removing selected annotations
   useEffect(() => {
@@ -185,8 +235,10 @@ export function useVideoAnnotations(
           console.log(
             `Video ${videoId}: Deleted ${count} selected annotation(s)`
           );
-          setAnnotations(manager.getAnnotations());
+          const current = manager.getAnnotations();
+          setAnnotations(current);
           setSelectedIds(manager.getSelectedIds());
+          pushHistory(current);
         }
       }
     };
@@ -274,7 +326,9 @@ export function useVideoAnnotations(
         `Video ${videoId} ${annotation.type} annotation created:`,
         annotation
       );
-      setAnnotations(manager.getAnnotations());
+      const current = manager.getAnnotations();
+      setAnnotations(current);
+      pushHistory(current);
     } else {
       console.warn(
         `Video ${videoId}: Invalid annotation: points validation failed`
@@ -284,7 +338,7 @@ export function useVideoAnnotations(
     setDrawingState(manager.getDrawingState());
   }, [manager, videoId]);
 
-  // Click handler for polyline tool
+  // Click handler for polyline, text, and angle tools
   const handleClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (!videoDecoder.isReady) return;
@@ -292,21 +346,51 @@ export function useVideoAnnotations(
       // Skip if in select mode
       if (selectedTool === "select") return;
 
-      // Only handle polyline tool
-      if (manager.getTool() !== "polyline") return;
+      const tool = manager.getTool();
 
-      // Don't start polyline if clicking on an annotation shape
-      // (annotation shapes have onClick handlers that handle selection)
+      // Don't start drawing on annotation shapes — only on stage background
       const target = e.target;
-      if (target !== e.target.getStage()) {
-        // Clicked on a shape (annotation), not the stage background
-        return;
-      }
+      if (target !== e.target.getStage()) return;
 
       setActiveVideo(videoId); // Mark this video as active
 
       const point = getPoint(e);
       if (!point) return;
+
+      // ── Text tool: place annotation at click point ──────────────────────
+      if (tool === "text") {
+        const text = window.prompt("Enter annotation text:");
+        if (!text || !text.trim()) return;
+        manager.createAndAddText(point, text.trim());
+        const current = manager.getAnnotations();
+        setAnnotations(current);
+        pushHistory(current);
+        return;
+      }
+
+      // ── Angle tool: accumulate 3 click points ───────────────────────────
+      if (tool === "angle") {
+        if (!manager.isAngleActive()) {
+          // First click: start angle (vertex)
+          console.log(`Video ${videoId}: Angle started at:`, point);
+          manager.startDrawing(point);
+          setSelectedIds(manager.getSelectedIds());
+        } else {
+          // 2nd and 3rd clicks (addAngleVertex auto-finalizes on 3rd)
+          const annotation = manager.addAngleVertex(point);
+          if (annotation) {
+            console.log(`Video ${videoId}: Angle annotation created:`, annotation);
+            const current = manager.getAnnotations();
+            setAnnotations(current);
+            pushHistory(current);
+          }
+        }
+        setDrawingState(manager.getDrawingState());
+        return;
+      }
+
+      // ── Polyline tool ────────────────────────────────────────────────────
+      if (tool !== "polyline") return;
 
       if (!manager.isDrawing()) {
         // Start new polyline
@@ -321,7 +405,7 @@ export function useVideoAnnotations(
 
       setDrawingState(manager.getDrawingState());
     },
-    [videoDecoder.isReady, videoId, setActiveVideo, selectedTool, manager, getPoint]
+    [videoDecoder.isReady, videoId, setActiveVideo, selectedTool, manager, getPoint, pushHistory]
   );
 
   // Double-click handler for polyline finalization
@@ -334,11 +418,13 @@ export function useVideoAnnotations(
         `Video ${videoId}: Polyline finalized via double-click:`,
         annotation
       );
-      setAnnotations(manager.getAnnotations());
+      const current = manager.getAnnotations();
+      setAnnotations(current);
+      pushHistory(current);
     }
     setDrawingState(manager.getDrawingState());
     setPolylineMousePos(null);
-  }, [manager, videoId]);
+  }, [manager, videoId, pushHistory]);
 
   // Annotation click handler for selection
   const handleAnnotationClick = useCallback(
@@ -375,11 +461,13 @@ export function useVideoAnnotations(
   const clearAll = useCallback(() => {
     if (manager.getCount() > 0) {
       manager.clearAll();
-      setAnnotations(manager.getAnnotations());
+      const current = manager.getAnnotations();
+      setAnnotations(current);
       setSelectedIds(manager.getSelectedIds());
+      pushHistory(current);
       console.log(`Video ${videoId}: All annotations cleared`);
     }
-  }, [manager, videoId]);
+  }, [manager, videoId, pushHistory]);
 
   // ========================================
   // Drag Handlers (Subtask 0.5.10)
@@ -508,13 +596,16 @@ export function useVideoAnnotations(
       console.log(`Video ${videoId}: Reshape ended`);
       manager.endReshape();
       setIsReshapingAnnotation(false);
-      setAnnotations(manager.getAnnotations());
+      const current = manager.getAnnotations();
+      setAnnotations(current);
+      pushHistory(current);
     }
   }, [
     isDraggingAnnotation,
     isReshapingAnnotation,
     manager,
     videoId,
+    pushHistory,
   ]);
 
   return {
@@ -541,5 +632,9 @@ export function useVideoAnnotations(
     clearAll,
     isDraggingAnnotation,
     isReshapingAnnotation,
+    undo,
+    redo,
+    canUndo: undoStack.length > 1,
+    canRedo: redoStack.length > 0,
   };
 }

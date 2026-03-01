@@ -6,7 +6,7 @@
  * Subtask 0.5.3: Integrated annotation framework with all tools
  */
 
-export type AnnotationType = "select" | "freehand" | "polyline" | "oval" | "arrow";
+export type AnnotationType = "select" | "freehand" | "polyline" | "oval" | "arrow" | "text" | "angle";
 
 /**
  * Point interface for type-safe coordinate handling
@@ -22,6 +22,8 @@ export interface Annotation {
   points: Point[]; // Array of Point objects for clearer structure
   color: string;
   strokeWidth: number;
+  /** For "text" annotations: the label string to display. */
+  text?: string;
 }
 
 export interface AnnotationStyle {
@@ -40,7 +42,7 @@ export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
 
 /**
  * Drawing state machine for annotation tools
- * Supports both drag-based (freehand, oval, arrow) and click-based (polyline) interactions
+ * Supports both drag-based (freehand, oval, arrow) and click-based (polyline, angle) interactions
  */
 export type DrawingState =
   | { mode: "idle" }
@@ -49,4 +51,5 @@ export type DrawingState =
       tool: "freehand" | "oval" | "arrow";
       points: Point[];
     }
-  | { mode: "polyline-active"; points: Point[] };
+  | { mode: "polyline-active"; points: Point[] }
+  | { mode: "angle-active"; points: Point[] };

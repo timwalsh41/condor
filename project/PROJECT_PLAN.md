@@ -11,7 +11,7 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 
 - **Phase**: Phase 2 - User Workflows and Persistence Foundation (in progress)
 - **Last Updated**: 2026-02-28 - Tasks 2.3, 2.4, 2.5 complete
-- **Next Priority**: Task 2.12 - Advanced Annotation Tooling
+- **Next Priority**: Task 2.13 - Google Photos Import Integration
 
 ## MVP Scope (Phase 0-1)
 
@@ -1352,7 +1352,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 2.12: Advanced Annotation Tooling
 
-- **Status**: Not Started
+- **Status**: Complete
 - **Requirements**: REQ-P2-ANNOT-001
 - **Scope**: Extend annotation system with text labels, angle measurement, editable control points, and undo/redo.
 - **Acceptance Criteria**:

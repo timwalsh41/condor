@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Stage, Layer, Line, Arrow, Ellipse, Rect } from "react-konva";
+import { Stage, Layer, Line, Arrow, Ellipse, Rect, Text as KonvaText } from "react-konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { useVideoAnnotations } from "../hooks/useVideoAnnotations";
 import type { Point, AnnotationType } from "../types/annotations";
@@ -16,6 +16,7 @@ import {
 } from "../utils/dualVideoPlayback";
 import { VideoUploadWorkflow } from "./VideoUploadWorkflow";
 import { useVideoStore } from "../store/videoStore";
+import { useAnnotationStore } from "../store/annotationStore";
 import { useTrimStore } from "../store/trimStore";
 import type { VideoMetadata } from "../types/api";
 
@@ -126,6 +127,10 @@ export function DualVideoSynchronizer() {
     clearAll: clearAllA,
     isDraggingAnnotation: isDraggingAnnotationA,
     isReshapingAnnotation: isReshapingAnnotationA,
+    undo: undoA,
+    redo: redoA,
+    canUndo: canUndoA,
+    canRedo: canRedoA,
   } = videoAAnnotations;
 
   // Annotation state for Video B (using custom hook)
@@ -148,7 +153,20 @@ export function DualVideoSynchronizer() {
     clearAll: clearAllB,
     isDraggingAnnotation: isDraggingAnnotationB,
     isReshapingAnnotation: isReshapingAnnotationB,
+    undo: undoB,
+    redo: redoB,
+    canUndo: canUndoB,
+    canRedo: canRedoB,
   } = videoBAnnotations;
+
+  // Sync hook annotation state to Zustand store (for session persistence)
+  // Use getState() to avoid creating reactive subscriptions that cause render loops.
+  useEffect(() => {
+    useAnnotationStore.getState().setAnnotationsA(annotationsA);
+  }, [annotationsA]);
+  useEffect(() => {
+    useAnnotationStore.getState().setAnnotationsB(annotationsB);
+  }, [annotationsB]);
 
   // Video height slider configuration
   const videoHeightConfig = useMemo(() => {
@@ -684,6 +702,10 @@ export function DualVideoSynchronizer() {
     activeVideo,
     videoA,
     videoB,
+    undoA,
+    redoA,
+    undoB,
+    redoB,
   });
   // Update ref on every render so stale closures are never used.
   keyboardActionsRef.current = {
@@ -698,6 +720,10 @@ export function DualVideoSynchronizer() {
     activeVideo,
     videoA,
     videoB,
+    undoA,
+    redoA,
+    undoB,
+    redoB,
   };
 
   useEffect(() => {
@@ -732,7 +758,26 @@ export function DualVideoSynchronizer() {
         activeVideo: active,
         videoA: va,
         videoB: vb,
+        undoA: doUndoA,
+        redoA: doRedoA,
+        undoB: doUndoB,
+        redoB: doRedoB,
       } = keyboardActionsRef.current;
+
+      // Ctrl+Z: undo; Ctrl+Y or Ctrl+Shift+Z: redo (annotation history)
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (isCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (active === 'A') doUndoA();
+        else if (active === 'B') doUndoB();
+        return;
+      }
+      if (isCtrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        if (active === 'A') doRedoA();
+        else if (active === 'B') doRedoB();
+        return;
+      }
 
       if (currentMode === 'PLAYBACK') {
         switch (e.key) {
@@ -1361,6 +1406,40 @@ export function DualVideoSynchronizer() {
                                                 ))}
                                             </>
                                           );
+                                        case "text":
+                                          return annotation.points[0] ? (
+                                            <KonvaText
+                                              key={annotation.id}
+                                              x={annotation.points[0].x}
+                                              y={annotation.points[0].y}
+                                              text={annotation.text ?? ""}
+                                              fontSize={18}
+                                              fill={annotation.color}
+                                              stroke={isSelected ? "#2196F3" : undefined}
+                                              strokeWidth={isSelected ? 1 : 0}
+                                              cursor={cursorStyle}
+                                              onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)}
+                                              onMouseDown={(e) => {
+                                                if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e);
+                                              }}
+                                            />
+                                          ) : null;
+                                        case "angle": {
+                                          if (annotation.points.length < 3) return null;
+                                          const [vx, arm1, arm2] = annotation.points;
+                                          const dx1 = arm1.x - vx.x, dy1 = arm1.y - vx.y;
+                                          const dx2 = arm2.x - vx.x, dy2 = arm2.y - vx.y;
+                                          const angleDeg = Math.round(
+                                            Math.abs(Math.atan2(dx1 * dy2 - dy1 * dx2, dx1 * dx2 + dy1 * dy2) * 180 / Math.PI)
+                                          );
+                                          return (
+                                            <>
+                                              <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} />
+                                              <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} />
+                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 6} y={vx.y - 20} text={`${angleDeg}°`} fontSize={14} fill={annotation.color} fontStyle="bold" listening={false} />
+                                            </>
+                                          );
+                                        }
                                         default:
                                           return null;
                                       }
@@ -1858,6 +1937,40 @@ export function DualVideoSynchronizer() {
                                                 ))}
                                             </>
                                           );
+                                        case "text":
+                                          return annotation.points[0] ? (
+                                            <KonvaText
+                                              key={annotation.id}
+                                              x={annotation.points[0].x}
+                                              y={annotation.points[0].y}
+                                              text={annotation.text ?? ""}
+                                              fontSize={18}
+                                              fill={annotation.color}
+                                              stroke={isSelected ? "#2196F3" : undefined}
+                                              strokeWidth={isSelected ? 1 : 0}
+                                              cursor={cursorStyle}
+                                              onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)}
+                                              onMouseDown={(e) => {
+                                                if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e);
+                                              }}
+                                            />
+                                          ) : null;
+                                        case "angle": {
+                                          if (annotation.points.length < 3) return null;
+                                          const [vx, arm1, arm2] = annotation.points;
+                                          const dx1 = arm1.x - vx.x, dy1 = arm1.y - vx.y;
+                                          const dx2 = arm2.x - vx.x, dy2 = arm2.y - vx.y;
+                                          const angleDeg = Math.round(
+                                            Math.abs(Math.atan2(dx1 * dy2 - dy1 * dx2, dx1 * dx2 + dy1 * dy2) * 180 / Math.PI)
+                                          );
+                                          return (
+                                            <>
+                                              <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} />
+                                              <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} />
+                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 6} y={vx.y - 20} text={`${angleDeg}°`} fontSize={14} fill={annotation.color} fontStyle="bold" listening={false} />
+                                            </>
+                                          );
+                                        }
                                         default:
                                           return null;
                                       }
@@ -2752,9 +2865,100 @@ export function DualVideoSynchronizer() {
                 >
                   Arrow
                 </button>
+                <button
+                  data-testid="tool-text"
+                  onClick={() => setSelectedTool("text")}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    border: selectedTool === "text" ? "2px solid #2196F3" : "1px solid #999",
+                    backgroundColor: selectedTool === "text" ? "#E3F2FD" : "white",
+                    fontWeight: selectedTool === "text" ? "bold" : "normal",
+                    borderRadius: "4px",
+                  }}
+                >
+                  Text
+                </button>
+                <button
+                  data-testid="tool-angle"
+                  onClick={() => setSelectedTool("angle")}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    border: selectedTool === "angle" ? "2px solid #2196F3" : "1px solid #999",
+                    backgroundColor: selectedTool === "angle" ? "#E3F2FD" : "white",
+                    fontWeight: selectedTool === "angle" ? "bold" : "normal",
+                    borderRadius: "4px",
+                  }}
+                >
+                  ∠ Angle
+                </button>
                 <div
                   style={{ marginLeft: "auto", display: "flex", gap: "8px" }}
                 >
+                  {/* Undo/Redo for active video */}
+                  {videoA.isReady && activeVideo === 'A' && (
+                    <>
+                      <button
+                        data-testid="undo-a"
+                        onClick={undoA}
+                        disabled={!canUndoA}
+                        title="Undo (Ctrl+Z)"
+                        style={{
+                          padding: "8px 12px", fontSize: "14px",
+                          cursor: canUndoA ? "pointer" : "not-allowed",
+                          border: "1px solid #999",
+                          backgroundColor: canUndoA ? "white" : "#f5f5f5",
+                          color: canUndoA ? "#333" : "#999", borderRadius: "4px",
+                        }}
+                      >↩ Undo</button>
+                      <button
+                        data-testid="redo-a"
+                        onClick={redoA}
+                        disabled={!canRedoA}
+                        title="Redo (Ctrl+Y)"
+                        style={{
+                          padding: "8px 12px", fontSize: "14px",
+                          cursor: canRedoA ? "pointer" : "not-allowed",
+                          border: "1px solid #999",
+                          backgroundColor: canRedoA ? "white" : "#f5f5f5",
+                          color: canRedoA ? "#333" : "#999", borderRadius: "4px",
+                        }}
+                      >↪ Redo</button>
+                    </>
+                  )}
+                  {videoB.isReady && activeVideo === 'B' && (
+                    <>
+                      <button
+                        data-testid="undo-b"
+                        onClick={undoB}
+                        disabled={!canUndoB}
+                        title="Undo (Ctrl+Z)"
+                        style={{
+                          padding: "8px 12px", fontSize: "14px",
+                          cursor: canUndoB ? "pointer" : "not-allowed",
+                          border: "1px solid #999",
+                          backgroundColor: canUndoB ? "white" : "#f5f5f5",
+                          color: canUndoB ? "#333" : "#999", borderRadius: "4px",
+                        }}
+                      >↩ Undo</button>
+                      <button
+                        data-testid="redo-b"
+                        onClick={redoB}
+                        disabled={!canRedoB}
+                        title="Redo (Ctrl+Y)"
+                        style={{
+                          padding: "8px 12px", fontSize: "14px",
+                          cursor: canRedoB ? "pointer" : "not-allowed",
+                          border: "1px solid #999",
+                          backgroundColor: canRedoB ? "white" : "#f5f5f5",
+                          color: canRedoB ? "#333" : "#999", borderRadius: "4px",
+                        }}
+                      >↪ Redo</button>
+                    </>
+                  )}
                   {videoA.isReady && (
                     <button
                       data-testid="clear-all-a"
@@ -2802,12 +3006,7 @@ export function DualVideoSynchronizer() {
                   fontSize: "12px",
                   marginTop: "8px",
                   minHeight: "18px",
-                  color:
-                    selectedTool === "polyline" &&
-                    (drawingStateA.mode === "polyline-active" ||
-                      drawingStateB.mode === "polyline-active")
-                      ? "#666"
-                      : "transparent",
+                  color: "#666",
                   fontStyle: "italic",
                 }}
               >
@@ -2815,6 +3014,12 @@ export function DualVideoSynchronizer() {
                 (drawingStateA.mode === "polyline-active" ||
                   drawingStateB.mode === "polyline-active")
                   ? "Click to add vertices. Press Enter to finish or Escape to cancel."
+                  : selectedTool === "angle" &&
+                    (drawingStateA.mode === "angle-active" ||
+                      drawingStateB.mode === "angle-active")
+                  ? "Click vertex then 2 endpoints to measure angle. Escape to cancel."
+                  : selectedTool === "text"
+                  ? "Click on the video to place a text label."
                   : "\u00A0"}
               </div>
             </div>

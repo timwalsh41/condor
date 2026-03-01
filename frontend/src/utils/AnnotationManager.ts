@@ -65,7 +65,8 @@ export class AnnotationManager {
   createAnnotation(
     type: AnnotationType,
     points: Point[],
-    style: AnnotationStyle = DEFAULT_ANNOTATION_STYLE
+    style: AnnotationStyle = DEFAULT_ANNOTATION_STYLE,
+    text?: string
   ): Annotation {
     return {
       id: `annotation-${this.nextId++}`,
@@ -73,7 +74,21 @@ export class AnnotationManager {
       points,
       color: style.color,
       strokeWidth: style.strokeWidth,
+      ...(text !== undefined && { text }),
     };
+  }
+
+  /**
+   * Create and add a text annotation at the given position.
+   */
+  createAndAddText(
+    position: Point,
+    text: string,
+    style: AnnotationStyle = DEFAULT_ANNOTATION_STYLE
+  ): Annotation {
+    const annotation = this.createAnnotation('text', [position], style, text);
+    this.addAnnotation(annotation);
+    return annotation;
   }
 
   /**
@@ -206,9 +221,33 @@ export class AnnotationManager {
         // Need exactly 2 points: start and end
         return points.length === 2;
 
+      case "text":
+        // Need exactly 1 point: the placement position
+        return points.length === 1;
+
+      case "angle":
+        // Need exactly 3 points: vertex, arm1-end, arm2-end
+        return points.length === 3;
+
       default:
         return false;
     }
+  }
+
+  /**
+   * Replace the entire annotations collection (used for undo/redo).
+   * Resets drawing state and selection as part of the replacement.
+   */
+  setAnnotations(annotations: Annotation[]): void {
+    this.annotations = annotations.map((a) => ({ ...a }));
+    this.drawingState = { mode: 'idle' };
+    this.selectedIds.clear();
+    // Sync nextId to avoid ID collisions after restore
+    const maxId = annotations.reduce((max, a) => {
+      const n = parseInt(a.id.replace('annotation-', ''), 10);
+      return isNaN(n) ? max : Math.max(max, n);
+    }, 0);
+    if (maxId >= this.nextId) this.nextId = maxId + 1;
   }
 
   /**
@@ -246,6 +285,8 @@ export class AnnotationManager {
 
     if (this.selectedTool === "polyline") {
       this.drawingState = { mode: "polyline-active", points: [point] };
+    } else if (this.selectedTool === "angle") {
+      this.drawingState = { mode: "angle-active", points: [point] };
     } else {
       // freehand, oval, arrow are drag-based
       this.drawingState = {
@@ -288,6 +329,11 @@ export class AnnotationManager {
   ): Annotation | null {
     if (this.drawingState.mode === "idle") return null;
 
+    if (this.drawingState.mode === "angle-active") {
+      // Angle tool not finalized this way — use finalizeAngle()
+      return null;
+    }
+
     const type =
       this.drawingState.mode === "polyline-active"
         ? "polyline"
@@ -297,6 +343,38 @@ export class AnnotationManager {
     this.drawingState = { mode: "idle" };
 
     return this.createAndAddAnnotation(type, points, style);
+  }
+
+  /**
+   * Add a vertex point to the angle annotation being drawn.
+   * Automatically finalizes after 3 points.
+   * Returns the completed annotation if finalized, otherwise null.
+   */
+  addAngleVertex(
+    point: Point,
+    style: AnnotationStyle = DEFAULT_ANNOTATION_STYLE
+  ): Annotation | null {
+    if (this.drawingState.mode !== 'angle-active') return null;
+    this.drawingState.points.push(point);
+    if (this.drawingState.points.length === 3) {
+      return this.finalizeAngle(style);
+    }
+    return null;
+  }
+
+  /**
+   * Finalize the current angle annotation (3 points: vertex, arm1-end, arm2-end).
+   */
+  finalizeAngle(
+    style: AnnotationStyle = DEFAULT_ANNOTATION_STYLE
+  ): Annotation | null {
+    if (this.drawingState.mode !== 'angle-active') return null;
+    const points = [...this.drawingState.points];
+    this.drawingState = { mode: 'idle' };
+    if (points.length !== 3) return null;
+    const annotation = this.createAnnotation('angle', points, style);
+    this.addAnnotation(annotation);
+    return annotation;
   }
 
   /**
@@ -339,6 +417,13 @@ export class AnnotationManager {
   }
 
   /**
+   * Returns true if angle drawing is in progress.
+   */
+  isAngleActive(): boolean {
+    return this.drawingState.mode === 'angle-active';
+  }
+
+  /**
    * Cancel the current drawing without creating an annotation.
    * Resets drawing state to idle.
    */
@@ -356,6 +441,8 @@ export class AnnotationManager {
       return { mode: "idle" };
     } else if (this.drawingState.mode === "polyline-active") {
       return { mode: "polyline-active", points: [...this.drawingState.points] };
+    } else if (this.drawingState.mode === "angle-active") {
+      return { mode: "angle-active", points: [...this.drawingState.points] };
     } else {
       return {
         mode: "drag-drawing",
@@ -397,6 +484,7 @@ export class AnnotationManager {
   getCurrentTool(): AnnotationType | null {
     if (this.drawingState.mode === "idle") return null;
     if (this.drawingState.mode === "polyline-active") return "polyline";
+    if (this.drawingState.mode === "angle-active") return "angle";
     return this.drawingState.tool;
   }
 

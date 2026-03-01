@@ -11,7 +11,7 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 
 - **Phase**: Phase 2 - User Workflows and Persistence Foundation (in progress)
 - **Last Updated**: 2026-02-28 - Tasks 2.3, 2.4, 2.5 complete
-- **Next Priority**: Task 2.11 - Keyboard Shortcuts for Analysis Operations
+- **Next Priority**: Task 2.12 - Advanced Annotation Tooling
 
 ## MVP Scope (Phase 0-1)
 
@@ -1337,7 +1337,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 2.11: Keyboard Shortcuts for Analysis Operations
 
-- **Status**: Not Started
+- **Status**: Complete
 - **Requirements**: REQ-P2-KEY-001
 - **Scope**: Add keyboard shortcuts for core playback and stepping workflows with UI discoverability.
 - **Acceptance Criteria**:

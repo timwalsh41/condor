@@ -670,6 +670,131 @@ export function DualVideoSynchronizer() {
     setSliderValueA(videoA.currentFrame);
   }, [videoA.currentFrame]);
 
+  // ─── Keyboard Shortcuts ──────────────────────────────────────────────────
+  // Use a ref to capture latest callbacks without re-registering the listener.
+  const keyboardActionsRef = useRef({
+    mode,
+    handlePlayPauseBoth,
+    handleStepForwardFine,
+    handleStepBackwardFine,
+    handleStepForwardCoarse,
+    handleStepBackwardCoarse,
+    handlePlayPauseA,
+    handlePlayPauseB,
+    activeVideo,
+    videoA,
+    videoB,
+  });
+  // Update ref on every render so stale closures are never used.
+  keyboardActionsRef.current = {
+    mode,
+    handlePlayPauseBoth,
+    handleStepForwardFine,
+    handleStepBackwardFine,
+    handleStepForwardCoarse,
+    handleStepBackwardCoarse,
+    handlePlayPauseA,
+    handlePlayPauseB,
+    activeVideo,
+    videoA,
+    videoB,
+  };
+
+  useEffect(() => {
+    /**
+     * Returns true when the focused element is an editable input field,
+     * meaning keyboard events should not be intercepted.
+     */
+    function isInputFocused(): boolean {
+      const el = document.activeElement;
+      if (!el) return false;
+      const tag = el.tagName.toLowerCase();
+      return (
+        tag === 'input' ||
+        tag === 'textarea' ||
+        tag === 'select' ||
+        el.getAttribute('contenteditable') === 'true'
+      );
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (isInputFocused()) return;
+
+      const {
+        mode: currentMode,
+        handlePlayPauseBoth: playPauseBoth,
+        handleStepForwardFine: stepFwdFine,
+        handleStepBackwardFine: stepBwdFine,
+        handleStepForwardCoarse: stepFwdCoarse,
+        handleStepBackwardCoarse: stepBwdCoarse,
+        handlePlayPauseA: playPauseA,
+        handlePlayPauseB: playPauseB,
+        activeVideo: active,
+        videoA: va,
+        videoB: vb,
+      } = keyboardActionsRef.current;
+
+      if (currentMode === 'PLAYBACK') {
+        switch (e.key) {
+          case ' ':
+            e.preventDefault();
+            playPauseBoth();
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            if (e.shiftKey) {
+              void stepFwdCoarse();
+            } else {
+              void stepFwdFine();
+            }
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            if (e.shiftKey) {
+              void stepBwdCoarse();
+            } else {
+              void stepBwdFine();
+            }
+            break;
+        }
+      } else {
+        // SYNC mode — step the active video if one is focused
+        switch (e.key) {
+          case ' ':
+            e.preventDefault();
+            if (active === 'A') playPauseA();
+            else if (active === 'B') playPauseB();
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            if (active === 'A') {
+              const next = va.currentFrame + (e.shiftKey ? 5 : 1);
+              void va.seekToFrame(Math.min(next, va.totalFrames - 1));
+            } else if (active === 'B') {
+              const next = vb.currentFrame + (e.shiftKey ? 5 : 1);
+              void vb.seekToFrame(Math.min(next, vb.totalFrames - 1));
+            }
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            if (active === 'A') {
+              const prev = va.currentFrame - (e.shiftKey ? 5 : 1);
+              void va.seekToFrame(Math.max(0, prev));
+            } else if (active === 'B') {
+              const prev = vb.currentFrame - (e.shiftKey ? 5 : 1);
+              void vb.seekToFrame(Math.max(0, prev));
+            }
+            break;
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+    // Empty deps: listener is registered once; keyboardActionsRef always has latest values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     setSliderValueB(videoB.currentFrame);
   }, [videoB.currentFrame]);
@@ -2750,6 +2875,33 @@ export function DualVideoSynchronizer() {
           </p>
         </div>
       )}
+
+      {/* Keyboard Shortcut Legend */}
+      <div
+        data-testid="keyboard-legend"
+        style={{
+          marginTop: "16px",
+          padding: "12px 16px",
+          backgroundColor: "#fafafa",
+          border: "1px solid #ddd",
+          borderRadius: "4px",
+          fontSize: "12px",
+          color: "#555",
+        }}
+      >
+        <strong style={{ display: "block", marginBottom: "6px" }}>⌨️ Keyboard Shortcuts</strong>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 24px" }}>
+          <span><kbd>Space</kbd> Play / Pause</span>
+          <span><kbd>←</kbd> Step back 1 frame</span>
+          <span><kbd>→</kbd> Step forward 1 frame</span>
+          <span><kbd>Shift</kbd>+<kbd>←</kbd> Step back 5 frames</span>
+          <span><kbd>Shift</kbd>+<kbd>→</kbd> Step forward 5 frames</span>
+        </div>
+        <div style={{ marginTop: "4px", color: "#888" }}>
+          In PLAYBACK mode steps both videos together. In SYNC mode steps the active video.
+          Shortcuts are disabled when a text field is focused.
+        </div>
+      </div>
     </div>
   );
 }

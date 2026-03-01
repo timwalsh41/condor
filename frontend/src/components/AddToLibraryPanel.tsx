@@ -9,7 +9,7 @@
  * Validates: REQ-P2-LIB-001
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useVideoStore } from "../store/videoStore";
 import { useLibraryStore } from "../store/libraryStore";
 import type { LibraryVideoCreate } from "../types/api";
@@ -33,7 +33,7 @@ const emptyForm = (): SaveFormState => ({
   qualityScore: "",
 });
 
-export function AddToLibraryPanel() {
+export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
   const { videoA, videoB } = useVideoStore();
   const { addVideo } = useLibraryStore();
 
@@ -98,6 +98,9 @@ export function AddToLibraryPanel() {
           {savedSlots.has("B") ? "✓ Video B saved" : "＋ Video B"}
         </button>
       )}
+
+      {/* Extra toolbar content passed by parent (e.g. SaveSessionPanel) */}
+      {children}
 
       {/* Save modal */}
       {savingSlot && (

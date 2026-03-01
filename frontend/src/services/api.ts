@@ -9,7 +9,12 @@
  */
 
 import axios, { AxiosError } from 'axios';
-import type { VideoMetadata, UploadStatus, ErrorResponse, LibraryVideo, LibraryVideoCreate, LibraryVideoUpdate } from '../types/api';
+import type {
+  VideoMetadata, UploadStatus, ErrorResponse,
+  LibraryVideo, LibraryVideoCreate, LibraryVideoUpdate,
+  AnalysisSessionSummary, AnalysisSessionResponse,
+  AnalysisSessionCreate, AnalysisSessionUpdate,
+} from '../types/api';
 import type { RotationAngle } from '../types/rotation';
 
 /**
@@ -267,5 +272,90 @@ export async function fetchLibraryVideoBlob(videoId: string): Promise<Blob> {
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError('Failed to fetch library video blob', 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sessions API
+// ---------------------------------------------------------------------------
+
+/**
+ * List all analysis sessions (newest first).
+ *
+ * @returns Array of lightweight session summaries.
+ * @throws ApiError on failure.
+ */
+export async function listSessions(): Promise<AnalysisSessionSummary[]> {
+  try {
+    const response = await apiClient.get<AnalysisSessionSummary[]>('/sessions');
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/**
+ * Create a new analysis session.
+ *
+ * @param payload Session state to persist.
+ * @returns Created session record.
+ * @throws ApiError on failure.
+ */
+export async function createSession(payload: AnalysisSessionCreate): Promise<AnalysisSessionResponse> {
+  try {
+    const response = await apiClient.post<AnalysisSessionResponse>('/sessions', payload);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/**
+ * Fetch a single session by ID.
+ *
+ * @param sessionId Session UUID.
+ * @returns Full session record.
+ * @throws ApiError if not found.
+ */
+export async function getSession(sessionId: string): Promise<AnalysisSessionResponse> {
+  try {
+    const response = await apiClient.get<AnalysisSessionResponse>(`/sessions/${sessionId}`);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/**
+ * Update a session.
+ *
+ * @param sessionId Session UUID.
+ * @param updates Fields to update.
+ * @returns Updated session record.
+ * @throws ApiError if not found.
+ */
+export async function updateSession(
+  sessionId: string,
+  updates: AnalysisSessionUpdate,
+): Promise<AnalysisSessionResponse> {
+  try {
+    const response = await apiClient.put<AnalysisSessionResponse>(`/sessions/${sessionId}`, updates);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/**
+ * Delete an analysis session.
+ *
+ * @param sessionId Session UUID.
+ * @throws ApiError if not found.
+ */
+export async function deleteSession(sessionId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/sessions/${sessionId}`);
+  } catch (error) {
+    handleApiError(error);
   }
 }

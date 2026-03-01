@@ -88,14 +88,14 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 | REQ-NF-PT-001      | Raspberry Pi Deployment        | Critical | Planned | All                                            | 1     |
 | REQ-NF-PT-002      | No Proprietary Deps            | High     | Planned | All                                            | 0/1   |
 | REQ-NF-PT-003      | Cloud Migration Path           | Low      | Planned | REQ-NF-SC-002                                  | 1     |
-| REQ-P2-USER-001    | Default User Context           | High     | Planned | REQ-NF-SC-001                                  | 2     |
-| REQ-P2-KEY-001     | Analysis Keyboard Shortcuts    | High     | Planned | REQ-F-PLAY-001, REQ-F-FRAME-001                | 2     |
-| REQ-P2-SESS-001    | Session Persistence CRUD       | Critical | Planned | REQ-P2-USER-001                                | 2     |
-| REQ-P2-LIB-001     | Video Library CRUD             | Critical | Planned | REQ-P2-USER-001, REQ-F-UPLOAD-001              | 2     |
-| REQ-P2-LIB-002     | Video Metadata Management      | High     | Planned | REQ-P2-LIB-001                                 | 2     |
-| REQ-P2-ANNOT-001   | Advanced Annotation Tools      | High     | Planned | REQ-F-ANNOT-003                                | 2     |
-| REQ-P2-CLOUD-001   | Google Photos Import           | High     | Planned | REQ-P2-LIB-001                                 | 2     |
-| REQ-P2-DEPLOY-001  | Dockerized Raspberry Pi Deploy | High     | Planned | REQ-NF-PT-001                                  | 2     |
+| REQ-P2-USER-001    | Default User Context           | High     | Implemented | REQ-NF-SC-001                                  | 2     |
+| REQ-P2-KEY-001     | Analysis Keyboard Shortcuts    | High     | Implemented | REQ-F-PLAY-001, REQ-F-FRAME-001                | 2     |
+| REQ-P2-SESS-001    | Session Persistence CRUD       | Critical | Implemented | REQ-P2-USER-001                                | 2     |
+| REQ-P2-LIB-001     | Video Library CRUD             | Critical | Implemented | REQ-P2-USER-001, REQ-F-UPLOAD-001              | 2     |
+| REQ-P2-LIB-002     | Video Metadata Management      | High     | Implemented | REQ-P2-LIB-001                                 | 2     |
+| REQ-P2-ANNOT-001   | Advanced Annotation Tools      | High     | Implemented | REQ-F-ANNOT-003                                | 2     |
+| REQ-P2-CLOUD-001   | Google Photos Import           | High     | Implemented | REQ-P2-LIB-001                                 | 2     |
+| REQ-P2-DEPLOY-001  | Dockerized Raspberry Pi Deploy | High     | Implemented | REQ-NF-PT-001                                  | 2     |
 
 **Phase Legend:**
 
@@ -114,92 +114,92 @@ An open-source golf swing video analysis tool that enables golfers and coaches t
 
 - **Description**: System shall operate with a single default user context in Phase 2 without login/authentication flows.
 - **Priority**: High
-- **Status**: Planned
+- **Status**: Implemented
 - **Acceptance Criteria**:
-  - [ ] Persisted entities (library videos, saved sessions, annotations) are associated with default user context.
-  - [ ] No authentication prompts are required to use Phase 2 workflows.
-  - [ ] API contracts maintain user scoping semantics to support future multi-user evolution.
+  - [x] Persisted entities (library videos, saved sessions, annotations) are associated with default user context.
+  - [x] No authentication prompts are required to use Phase 2 workflows.
+  - [x] API contracts maintain user scoping semantics to support future multi-user evolution.
 - **Dependencies**: REQ-NF-SC-001
 
 #### REQ-P2-KEY-001: Analysis Keyboard Shortcuts
 
 - **Description**: System shall provide keyboard shortcuts for core analysis operations.
 - **Priority**: High
-- **Status**: Planned
+- **Status**: Implemented
 - **Acceptance Criteria**:
-  - [ ] At minimum, shortcuts support play/pause, fine step forward/back, and coarse step forward/back.
-  - [ ] Shortcuts operate in the Analyze workflow without conflicting with active text inputs.
-  - [ ] Shortcut legend/help is available in the user interface.
+  - [x] At minimum, shortcuts support play/pause, fine step forward/back, and coarse step forward/back.
+  - [x] Shortcuts operate in the Analyze workflow without conflicting with active text inputs.
+  - [x] Shortcut legend/help is available in the user interface.
 - **Dependencies**: REQ-F-PLAY-001, REQ-F-FRAME-001
 
 #### REQ-P2-SESS-001: Session Persistence CRUD
 
 - **Description**: System shall allow users to save, load, list, and delete analysis sessions.
 - **Priority**: Critical
-- **Status**: Planned
+- **Status**: Implemented
 - **Acceptance Criteria**:
-  - [ ] User can save a session with name and notes.
-  - [ ] Saved session restores selected video references, sync points, trim/playback state, and annotations.
-  - [ ] User can list and load saved sessions from a Sessions workflow.
-  - [ ] User can delete saved sessions.
+  - [x] User can save a session with name and notes.
+  - [x] Saved session restores selected video references, sync points, trim/playback state, and annotations.
+  - [x] User can list and load saved sessions from a Sessions workflow.
+  - [x] User can delete saved sessions.
 - **Dependencies**: REQ-P2-USER-001
 
 #### REQ-P2-LIB-001: Video Library CRUD
 
 - **Description**: System shall provide a reusable video library with add/list/select/delete workflows.
 - **Priority**: Critical
-- **Status**: Planned
+- **Status**: Implemented
 - **Acceptance Criteria**:
-  - [ ] User can add videos from local upload and Google Photos import.
-  - [ ] User can browse and select library videos for analysis sessions.
-  - [ ] User can delete videos from the library.
-  - [ ] Analyze workflow allows optional save-to-library for directly loaded videos.
+  - [x] User can add videos from local upload and Google Photos import.
+  - [x] User can browse and select library videos for analysis sessions.
+  - [x] User can delete videos from the library.
+  - [x] Analyze workflow allows optional save-to-library for directly loaded videos.
 - **Dependencies**: REQ-P2-USER-001, REQ-F-UPLOAD-001
 
 #### REQ-P2-LIB-002: Video Metadata Management
 
 - **Description**: System shall store and allow editing of core metadata for library videos.
 - **Priority**: High
-- **Status**: Planned
+- **Status**: Implemented
 - **Acceptance Criteria**:
-  - [ ] Metadata includes golfer name, capture/recorded date, club, notes, and quality score (1-10).
-  - [ ] User can create and edit metadata from the library workflow.
-  - [ ] Metadata is available when selecting videos for analysis sessions.
+  - [x] Metadata includes golfer name, capture/recorded date, club, notes, and quality score (1-10).
+  - [x] User can create and edit metadata from the library workflow.
+  - [x] Metadata is available when selecting videos for analysis sessions.
 - **Dependencies**: REQ-P2-LIB-001
 
 #### REQ-P2-ANNOT-001: Advanced Annotation Tools
 
 - **Description**: System shall extend annotation tooling beyond MVP basics for richer analysis workflows.
 - **Priority**: High
-- **Status**: Planned
+- **Status**: Implemented
 - **Acceptance Criteria**:
-  - [ ] Text label annotation tool is available.
-  - [ ] Angle measurement annotation tool is available.
-  - [ ] Annotation control points support editing of existing annotations.
-  - [ ] Undo/redo support is available for annotation operations.
+  - [x] Text label annotation tool is available.
+  - [x] Angle measurement annotation tool is available.
+  - [x] Annotation control points support editing of existing annotations.
+  - [x] Undo/redo support is available for annotation operations.
 - **Dependencies**: REQ-F-ANNOT-003
 
 #### REQ-P2-CLOUD-001: Google Photos Import
 
 - **Description**: System shall support importing videos from Google Photos in Phase 2.
 - **Priority**: High
-- **Status**: Planned
+- **Status**: Implemented
 - **Acceptance Criteria**:
-  - [ ] User can authenticate import access for Google Photos.
-  - [ ] User can browse/select media for import.
-  - [ ] Imported videos are available in library and analysis workflows.
-  - [ ] iCloud import is explicitly out of scope for Phase 2.
+  - [x] User can authenticate import access for Google Photos.
+  - [x] User can browse/select media for import.
+  - [x] Imported videos are available in library and analysis workflows.
+  - [x] iCloud import is explicitly out of scope for Phase 2.
 - **Dependencies**: REQ-P2-LIB-001
 
 #### REQ-P2-DEPLOY-001: Dockerized Raspberry Pi Deployment
 
 - **Description**: System shall support Dockerized deployment for Raspberry Pi 4 in Phase 2.
 - **Priority**: High
-- **Status**: Planned
+- **Status**: Implemented
 - **Acceptance Criteria**:
-  - [ ] Docker artifacts are provided for backend/frontend runtime.
-  - [ ] Deployment instructions for Raspberry Pi 4 are documented and executable.
-  - [ ] Core workflows (Analyze, Library, Sessions, Import) are user-exercisable in deployed environment.
+  - [x] Docker artifacts are provided for backend/frontend runtime.
+  - [x] Deployment instructions for Raspberry Pi 4 are documented and executable.
+  - [x] Core workflows (Analyze, Library, Sessions, Import) are user-exercisable in deployed environment.
 - **Dependencies**: REQ-NF-PT-001
 
 ### Video Upload (REQ-F-UPLOAD)

@@ -1,0 +1,54 @@
+# Backend Dockerfile — Production image for Condor API
+#
+# Multi-stage build:
+#   1. builder  — install Python dependencies via uv
+#   2. runtime  — minimal image with app code, deps, and ffmpeg
+#
+# Compatible with linux/amd64 and linux/arm64 (Raspberry Pi 4).
+
+# ── Stage 1: dependency installation ──────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+# Copy dependency manifests first (layer cache-friendly)
+COPY pyproject.toml ./
+
+# Install production dependencies into /app/.venv (no dev extras)
+RUN uv venv .venv && \
+    uv sync --no-dev
+
+# ── Stage 2: runtime ───────────────────────────────────────────────────────────
+FROM python:3.11-slim AS runtime
+
+# Install ffmpeg/ffprobe (required for video metadata extraction and optimization)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy virtual environment from builder stage
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy application source
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
+COPY backend/ ./backend/
+
+# Create video storage directory (mounted as a volume in production)
+RUN mkdir -p /app/video_storage/library
+
+# Environment defaults (override via docker-compose / environment variables)
+ENV DATABASE_URL="postgresql+asyncpg://condor_user:condor_dev@postgres/condor_db"
+ENV VIDEO_STORAGE_PATH="/app/video_storage"
+ENV LOG_LEVEL="INFO"
+ENV PATH="/app/.venv/bin:$PATH"
+
+EXPOSE 8000
+
+# Run database migrations then start the API server
+CMD ["sh", "-c", "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000"]

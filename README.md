@@ -138,6 +138,94 @@ uv run python -m backend.main
 uv run pytest backend/
 ```
 
+## Docker Deployment (Raspberry Pi 4)
+
+Condor ships production Docker images for `linux/amd64` and `linux/arm64` (Raspberry Pi 4 OS 64-bit).
+
+### Prerequisites
+
+- Docker 24+ and Docker Compose v2
+- 4 GB RAM recommended (Raspberry Pi 4 4 GB or 8 GB model)
+- Sufficient storage for the PostgreSQL data volume and video files
+
+### Deploy
+
+```bash
+# 1. Clone the repository
+git clone <repo-url> condor && cd condor
+
+# 2. Configure environment (edit passwords for production)
+cp .env.example .env
+
+# 3. Build images and start all services (postgres, backend, frontend)
+docker compose up --build -d
+
+# 4. Open the application
+#    http://<raspberry-pi-ip>:3000
+```
+
+The stack starts three containers:
+
+| Container  | Port  | Description                                      |
+| ---------- | ----- | ------------------------------------------------ |
+| `postgres` | —     | PostgreSQL 15 (internal to Docker network only)  |
+| `backend`  | 8000  | FastAPI API + video processing                   |
+| `frontend` | 3000  | nginx serving SPA + reverse-proxying `/api/`     |
+
+### Manage and Operate
+
+```bash
+# View running containers
+docker compose ps
+
+# Tail logs for all services
+docker compose logs -f
+
+# Tail backend logs only
+docker compose logs -f backend
+
+# Stop all services (data volumes are preserved)
+docker compose down
+
+# Stop and remove all data (⚠ irreversible)
+docker compose down -v
+
+# Rebuild after a code change
+docker compose up --build -d
+```
+
+### Persistent Data
+
+Two named Docker volumes store state outside the containers:
+
+| Volume          | Content                              |
+| --------------- | ------------------------------------ |
+| `postgres_data` | PostgreSQL database files            |
+| `video_storage` | Uploaded and processed video files   |
+
+Both volumes survive `docker compose down` and are only removed with the `-v` flag.
+
+### Configuration
+
+Override any of the following in your `.env` file:
+
+| Variable          | Default         | Description                   |
+| ----------------- | --------------- | ----------------------------- |
+| `POSTGRES_USER`   | `condor_user`   | Database username             |
+| `POSTGRES_PASSWORD`| `condor_dev`   | Database password (**change for production**) |
+| `POSTGRES_DB`     | `condor_db`     | Database name                 |
+| `LOG_LEVEL`       | `INFO`          | Backend log verbosity         |
+| `FRONTEND_PORT`   | `3000`          | Host port for UI              |
+| `BACKEND_PORT`    | `8000`          | Host port for API (optional)  |
+
+### Troubleshooting
+
+| Symptom | Check |
+| ------- | ----- |
+| Frontend loads but API calls fail | Verify backend is healthy: `docker compose ps` and `curl http://localhost:8000/health` |
+| `alembic upgrade head` fails on start | Database may still be initialising — restarting the backend container usually resolves this |
+| Out of disk space | Remove unused Docker images with `docker image prune -a` |
+
 ### Testing
 
 See component-specific README files:

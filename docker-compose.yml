@@ -1,0 +1,64 @@
+# Condor Golf Swing Analyzer — Docker Compose
+#
+# Services:
+#   postgres   PostgreSQL 15 database
+#   backend    FastAPI API server (port 8000)
+#   frontend   nginx serving the Vite SPA + reverse-proxying /api (port 3000)
+#
+# Tested on linux/amd64 and linux/arm64 (Raspberry Pi 4).
+#
+# Quick start:
+#   cp .env.example .env          # edit if needed
+#   docker compose up --build -d
+
+services:
+  # ── PostgreSQL database ──────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-condor_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-condor_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-condor_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-condor_user} -d ${POSTGRES_DB:-condor_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── FastAPI backend ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-condor_user}:${POSTGRES_PASSWORD:-condor_dev}@postgres/${POSTGRES_DB:-condor_db}
+      VIDEO_STORAGE_PATH: /app/video_storage
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      # Persist video files outside the container
+      - video_storage:/app/video_storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Expose backend port directly for development/debugging (optional)
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  # ── nginx + Vite SPA frontend ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  video_storage:

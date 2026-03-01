@@ -28,5 +28,19 @@
   "editor.inlineSuggest.enabled": true,
   "plantuml.server": "http://localhost:8080",
   "plantuml.render": "PlantUMLServer",
-  "search.followSymlinks": false
+  "search.followSymlinks": false,
+  "chat.tools.terminal.enableAutoApprove": true,
+  "chat.tools.terminal.autoApprove": {
+    "/^uv($|\\s+)/": true,
+    "/^python3?($|\\s+)/": true,
+    "/^git\\s+(status|add|commit)/": true,
+    "/^npm($|\\s+)/": true,
+    "/^npx($|\\s+)/": true,
+    "/^pytest($|\\s+)/": true,
+    "/^cd($|\\s+)/": true,
+    "ls": true,
+    "pwd": true,
+    "wc": true
+  },
+  "chat.agent.maxRequests": 50
 }

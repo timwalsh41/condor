@@ -2,6 +2,9 @@ TODO.md
 LEARNINGS.md
 tests/fixtures/videos/
 
+# Environment files - contains secrets; .env.example IS committed
+.env
+
 # Logs
 logs/
 

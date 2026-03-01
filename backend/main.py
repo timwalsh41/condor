@@ -15,6 +15,8 @@ from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.database import check_db_connectivity
+
 # Configure logging (console + file)
 log_dir = Path("logs")
 log_dir.mkdir(exist_ok=True)
@@ -52,6 +54,11 @@ async def lifespan(app: FastAPI):
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
         logger.error(f"ffmpeg/ffprobe not available: {e}")
         logger.warning("Video optimization will not work without ffmpeg/ffprobe")
+
+    # Verify database connectivity (non-fatal: DB may not be configured in all dev setups)
+    db_ok = await check_db_connectivity()
+    if not db_ok:
+        logger.warning("Database is not reachable - database-dependent features will be unavailable")
 
     yield
 

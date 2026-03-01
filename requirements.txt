@@ -1,3 +1,6 @@
+# NOTE: This file is superseded by pyproject.toml + uv.
+# Use `uv sync` to install dependencies. This file is kept for reference only.
+#
 # Backend dependencies for condor
 # Python 3.11+
 

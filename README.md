@@ -8,9 +8,11 @@ The Condor is an open-source platform for frame-accurate video analysis with dua
 
 - **Node.js**: 18+ (for frontend development)
 - **Python 3.11+**: For backend API
+- **uv**: Python package manager ([install](https://docs.astral.sh/uv/getting-started/installation/))
 - **npm** or **yarn**: Package management
 - **FFmpeg**: For video processing and test video generation
 - **Playwright Browsers**: For cross-browser testing
+- **PostgreSQL 15+**: Database server
 
 ### Build Dev Container
 
@@ -31,12 +33,19 @@ For detailed instructions on managing the container image, cleaning up disk spac
 ```bash
 
 # Terminal 1: Backend services
-# Install backend dependencies (one time only)
-sudo apt install python3-fastapi
-sudo apt install ffmpeg
+# Install Python dependencies with uv (one time only)
+uv sync
+
+# Set up PostgreSQL database (one time only)
+sudo -u postgres psql -c "CREATE USER condor_user WITH PASSWORD 'condor_dev';"
+sudo -u postgres psql -c "CREATE DATABASE condor_db OWNER condor_user;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE condor_db TO condor_user;"
+
+# Verify database connectivity
+uv run python scripts/check_db.py
 
 # Start backend services
-python3 -m backend.main
+uv run python -m backend.main
 # Server starts at http://localhost:8000
 
 # Terminal 2: Frontend
@@ -109,13 +118,24 @@ See `frontend/README.md` for details on running unit and integration tests.
 ### Backend Development
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install Python dependencies
+uv sync
+
+# Set up PostgreSQL (one time only)
+sudo -u postgres psql -c "CREATE USER condor_user WITH PASSWORD 'condor_dev';"
+sudo -u postgres psql -c "CREATE DATABASE condor_db OWNER condor_user;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE condor_db TO condor_user;"
+
+# Verify database connectivity
+uv run python scripts/check_db.py
 
 # Run backend server
-python3 -m backend.main
+uv run python -m backend.main
 # Server starts at http://localhost:8000
 # API docs at http://localhost:8000/docs
+
+# Run backend tests
+uv run pytest backend/
 ```
 
 ### Testing
@@ -166,6 +186,8 @@ condor/
 ### Backend
 
 - **Python 3.11+**: FastAPI, uvicorn
+- **uv**: Dependency management (`pyproject.toml`)
+- **PostgreSQL / SQLAlchemy (asyncpg)**: Database
 - **FFmpeg**: Video metadata extraction
 - **Testing**: pytest
 

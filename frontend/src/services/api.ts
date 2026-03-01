@@ -359,3 +359,86 @@ export async function deleteSession(sessionId: string): Promise<void> {
     handleApiError(error);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Google Photos (mocked) integration — REQ-P2-IMPORT-001
+// ---------------------------------------------------------------------------
+
+import type {
+  GooglePhotosStatus,
+  GooglePhotosAlbum,
+  GooglePhotosVideo,
+  GooglePhotosImportRequest,
+  ImportJobResponse,
+} from '../types/api';
+
+/** Get the current Google Photos connection status. */
+export async function getGooglePhotosStatus(): Promise<GooglePhotosStatus> {
+  try {
+    const response = await apiClient.get<GooglePhotosStatus>('/google-photos/status');
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/** Connect to Google Photos (mocked OAuth). */
+export async function connectGooglePhotos(): Promise<GooglePhotosStatus> {
+  try {
+    const response = await apiClient.post<GooglePhotosStatus>('/google-photos/connect');
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/** Disconnect from Google Photos. */
+export async function disconnectGooglePhotos(): Promise<void> {
+  try {
+    await apiClient.post('/google-photos/disconnect');
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/** List available Google Photos albums (requires connection). */
+export async function listGooglePhotosAlbums(): Promise<GooglePhotosAlbum[]> {
+  try {
+    const response = await apiClient.get<GooglePhotosAlbum[]>('/google-photos/albums');
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/** List videos in a specific Google Photos album (requires connection). */
+export async function listGooglePhotosAlbumVideos(albumId: string): Promise<GooglePhotosVideo[]> {
+  try {
+    const response = await apiClient.get<GooglePhotosVideo[]>(`/google-photos/albums/${albumId}/videos`);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/** Start an import job for selected Google Photos videos. */
+export async function importGooglePhotosVideos(
+  payload: GooglePhotosImportRequest
+): Promise<ImportJobResponse> {
+  try {
+    const response = await apiClient.post<ImportJobResponse>('/google-photos/import', payload);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/** Get the status of a Google Photos import job. */
+export async function getImportJob(jobId: string): Promise<ImportJobResponse> {
+  try {
+    const response = await apiClient.get<ImportJobResponse>(`/google-photos/import/${jobId}`);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}

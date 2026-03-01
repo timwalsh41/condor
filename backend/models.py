@@ -225,3 +225,59 @@ class AnalysisSessionResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+# ---------------------------------------------------------------------------
+# Google Photos (mocked) integration models — REQ-P2-IMPORT-001
+# ---------------------------------------------------------------------------
+
+
+class GooglePhotosStatus(BaseModel):
+    """Connection status for the mocked Google Photos integration."""
+
+    connected: bool
+    account_email: Optional[str] = None
+
+
+class GooglePhotosAlbum(BaseModel):
+    """A single Google Photos album (mock data)."""
+
+    id: str
+    title: str
+    video_count: int
+
+
+class GooglePhotosVideo(BaseModel):
+    """A single video inside a Google Photos album (mock data)."""
+
+    id: str
+    filename: str
+    duration: float = Field(gt=0, description="Duration in seconds")
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+
+
+class GooglePhotosImportRequest(BaseModel):
+    """Payload to trigger an import job.
+
+    Validates: REQ-P2-IMPORT-001
+    """
+
+    video_ids: list[str] = Field(min_length=1, description="Mock video IDs to import")
+
+
+class ImportJobResponse(BaseModel):
+    """Import job status returned by the API.
+
+    Validates: REQ-P2-IMPORT-001
+    """
+
+    id: UUID
+    provider: str
+    status: str
+    items: Optional[dict] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+

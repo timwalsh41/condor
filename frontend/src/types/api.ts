@@ -149,3 +149,45 @@ export interface AnalysisSessionCreate {
 export type AnalysisSessionUpdate = Partial<Omit<AnalysisSessionCreate, 'name'>> & {
   name?: string;
 };
+
+// ---------------------------------------------------------------------------
+// Google Photos (mocked) integration types — REQ-P2-IMPORT-001
+// ---------------------------------------------------------------------------
+
+/** Google Photos connection status. */
+export interface GooglePhotosStatus {
+  connected: boolean;
+  account_email: string | null;
+}
+
+/** A Google Photos album entry (mock data). */
+export interface GooglePhotosAlbum {
+  id: string;
+  title: string;
+  video_count: number;
+}
+
+/** A video inside a Google Photos album (mock data). */
+export interface GooglePhotosVideo {
+  id: string;
+  filename: string;
+  duration: number;
+  width: number;
+  height: number;
+}
+
+/** Payload to start a Google Photos import job. */
+export interface GooglePhotosImportRequest {
+  video_ids: string[];
+}
+
+/** Status of a Google Photos import job. */
+export interface ImportJobResponse {
+  id: string;
+  provider: string;
+  status: string;
+  items: { videos: Array<{ google_photos_id: string; library_video_id: string; filename: string; status: string }> } | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}

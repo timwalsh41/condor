@@ -14,6 +14,7 @@ import { useVideoStore } from '../store/videoStore';
 import { fetchLibraryVideoBlob } from '../services/api';
 import type { LibraryVideo, LibraryVideoUpdate } from '../types/api';
 import type { VideoMetadata } from '../types/api';
+import GooglePhotosImport from './GooglePhotosImport';
 import './LibraryView.css';
 
 // ─── Helper: format seconds as m:ss ─────────────────────────────────────────
@@ -218,6 +219,7 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
   const [editTarget, setEditTarget] = useState<LibraryVideo | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LibraryVideo | null>(null);
   const [loadingSlots, setLoadingSlots] = useState<Record<string, 'A' | 'B' | null>>({});
+  const [showGooglePhotos, setShowGooglePhotos] = useState(false);
 
   useEffect(() => {
     fetchVideos();
@@ -286,13 +288,21 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
     <div className="library-view">
       <div className="library-view__header">
         <h2 className="library-view__title">Video Library</h2>
-        <button
-          className="btn btn--secondary"
-          onClick={() => fetchVideos()}
-          disabled={loading}
-        >
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="library-view__header-actions">
+          <button
+            className="btn btn--secondary"
+            onClick={() => setShowGooglePhotos(true)}
+          >
+            📸 Import from Google Photos
+          </button>
+          <button
+            className="btn btn--secondary"
+            onClick={() => fetchVideos()}
+            disabled={loading}
+          >
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -358,6 +368,14 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Google Photos import modal */}
+      {showGooglePhotos && (
+        <GooglePhotosImport
+          onImportComplete={() => fetchVideos()}
+          onClose={() => setShowGooglePhotos(false)}
+        />
       )}
     </div>
   );

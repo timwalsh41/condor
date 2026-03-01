@@ -11,7 +11,7 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 
 - **Phase**: Phase 2 - User Workflows and Persistence Foundation (in progress)
 - **Last Updated**: 2026-02-28 - Tasks 2.3, 2.4, 2.5 complete
-- **Next Priority**: Task 2.13 - Google Photos Import Integration
+- **Next Priority**: Task 2.14 - Dockerized Deployment, Validation, and Requirements Closeout
 
 ## MVP Scope (Phase 0-1)
 
@@ -1367,14 +1367,20 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 2.13: Google Photos Import Integration
 
-- **Status**: Not Started
+- **Status**: Complete
 - **Requirements**: REQ-P2-CLOUD-001
 - **Scope**: Add Google Photos import flow integrated with library and analysis workflows.
 - **Acceptance Criteria**:
-  - User can connect/import videos from Google Photos.
-  - Imported videos appear in library and are selectable for analysis sessions.
-  - iCloud import remains out of scope.
-  - **User-exercisable output**: User imports at least one Google Photos video and uses it in an analysis session.
+  - User can connect/import videos from Google Photos. ✅
+  - Imported videos appear in library and are selectable for analysis sessions. ✅
+  - iCloud import remains out of scope. ✅
+  - **User-exercisable output**: User imports at least one Google Photos video and uses it in an analysis session. ✅
+- **Implementation Notes**:
+  - Fully mocked integration — no real Google API calls; mock OAuth + 3 predefined albums with 10 sample videos.
+  - Backend: `ImportJob` ORM (pre-existing), `import_repository`, `routes/google_photos.py` (connect/disconnect/albums/videos/import/status endpoints).
+  - Frontend: `GooglePhotosImport` modal component wired into LibraryView header button.
+  - On import: `LibraryVideo` rows created with mock metadata; `ImportJob` record persisted with status `completed`.
+  - 18 new backend tests; 124 backend + 464 frontend tests all pass.
 - **Dependencies**: Task 2.7
 - **Risk Level**: High
 

@@ -46,3 +46,50 @@ export interface ErrorResponse {
   detail: string;
   error_code?: string | null;
 }
+
+/**
+ * Library video record returned by the API.
+ * @see backend/models.py:LibraryVideoResponse
+ */
+export interface LibraryVideo {
+  id: string;
+  filename: string;
+  framerate: number;
+  duration: number;
+  width: number;
+  height: number;
+  codec: string;
+  gop_size: number | null;
+  golfer_name: string | null;
+  club: string | null;
+  swing_date: string | null;
+  notes: string | null;
+  quality_score: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Payload to add an uploaded video to the library.
+ * @see backend/models.py:LibraryVideoCreate
+ */
+export interface LibraryVideoCreate {
+  video_id: string;
+  golfer_name?: string | null;
+  club?: string | null;
+  swing_date?: string | null;
+  notes?: string | null;
+  quality_score?: number | null;
+}
+
+/**
+ * Payload to update library video metadata (all fields optional).
+ * @see backend/models.py:LibraryVideoUpdate
+ */
+export interface LibraryVideoUpdate {
+  golfer_name?: string | null;
+  club?: string | null;
+  swing_date?: string | null;
+  notes?: string | null;
+  quality_score?: number | null;
+}

@@ -1,25 +1,55 @@
+import { useState } from "react";
 import { DualVideoSynchronizer } from "./components/DualVideoSynchronizer";
+import { LibraryView } from "./components/LibraryView";
+import { AddToLibraryPanel } from "./components/AddToLibraryPanel";
 import "./App.css";
 
 /**
- * Golf swing analysis app with dual-video synchronized playback
+ * Top-level app shell with view navigation.
  *
- * Phase 1 Task 1.3.2 Features:
- * - Video upload workflow with rotation controls (REQ-F-UPLOAD-001, REQ-F-UPLOAD-004)
- * - Backend integration for video processing and streaming (REQ-F-PLAYBACK-003)
- * - Frame-accurate video control using WebCodecs API (REQ-F-FRAME-001)
- * - Synchronized dual video playback (REQ-F-SYNC-001, REQ-F-PLAY-001)
- * - Canvas overlay annotations (REQ-F-ANNOT-001, REQ-F-ANNOT-002)
- * - Annotation selection, deletion, dragging, and reshaping
- * - Upload workflow UX improvements (REQ-NF-U-001, REQ-NF-U-002)
+ * Views:
+ *   - "analyze"  → DualVideoSynchronizer with Add-to-Library panel
+ *   - "library"  → LibraryView (browse / edit / load)
  *
- * Demonstrates exact frame positioning (0 frame error) with LRU frame cache
- * and GOP=30 optimization.
+ * Phase 2, Task 2.7 (Video Library Frontend Workflows)
  */
+type View = "analyze" | "library";
+
 function App() {
+  const [view, setView] = useState<View>("analyze");
+
   return (
     <div className="app">
-      <DualVideoSynchronizer />
+      {/* ── Navigation bar ──────────────────────────────────────────────── */}
+      <nav className="app-nav">
+        <span className="app-nav__brand">🏌️ Condor</span>
+        <div className="app-nav__tabs">
+          <button
+            className={`app-nav__tab ${view === "analyze" ? "app-nav__tab--active" : ""}`}
+            onClick={() => setView("analyze")}
+          >
+            Analyze
+          </button>
+          <button
+            className={`app-nav__tab ${view === "library" ? "app-nav__tab--active" : ""}`}
+            onClick={() => setView("library")}
+          >
+            Library
+          </button>
+        </div>
+      </nav>
+
+      {/* ── Page content ────────────────────────────────────────────────── */}
+      {view === "analyze" && (
+        <>
+          <AddToLibraryPanel />
+          <DualVideoSynchronizer />
+        </>
+      )}
+
+      {view === "library" && (
+        <LibraryView onNavigateToAnalyze={() => setView("analyze")} />
+      )}
     </div>
   );
 }

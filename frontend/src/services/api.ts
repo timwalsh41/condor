@@ -9,7 +9,7 @@
  */
 
 import axios, { AxiosError } from 'axios';
-import type { VideoMetadata, UploadStatus, ErrorResponse } from '../types/api';
+import type { VideoMetadata, UploadStatus, ErrorResponse, LibraryVideo, LibraryVideoCreate, LibraryVideoUpdate } from '../types/api';
 import type { RotationAngle } from '../types/rotation';
 
 /**
@@ -153,5 +153,119 @@ export async function fetchVideoBlob(sessionId: string, videoId: string): Promis
       throw error;
     }
     throw new ApiError('Failed to fetch video blob', 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Library API
+// ---------------------------------------------------------------------------
+
+/**
+ * List all videos in the user's library.
+ *
+ * @returns Array of library video records, newest first.
+ * @throws ApiError on failure.
+ */
+export async function listLibraryVideos(): Promise<LibraryVideo[]> {
+  try {
+    const response = await apiClient.get<LibraryVideo[]>('/library');
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/**
+ * Add an uploaded video to the library.
+ *
+ * @param payload video_id and optional metadata.
+ * @returns Created library video record.
+ * @throws ApiError on failure.
+ */
+export async function addToLibrary(payload: LibraryVideoCreate): Promise<LibraryVideo> {
+  try {
+    const response = await apiClient.post<LibraryVideo>('/library', payload);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/**
+ * Fetch a single library video by ID.
+ *
+ * @param videoId Library video UUID.
+ * @returns Library video record.
+ * @throws ApiError if not found.
+ */
+export async function getLibraryVideo(videoId: string): Promise<LibraryVideo> {
+  try {
+    const response = await apiClient.get<LibraryVideo>(`/library/${videoId}`);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/**
+ * Update library video metadata.
+ *
+ * @param videoId Library video UUID.
+ * @param updates Fields to update.
+ * @returns Updated library video record.
+ * @throws ApiError if not found.
+ */
+export async function updateLibraryVideo(videoId: string, updates: LibraryVideoUpdate): Promise<LibraryVideo> {
+  try {
+    const response = await apiClient.put<LibraryVideo>(`/library/${videoId}`, updates);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/**
+ * Delete a library video.
+ *
+ * @param videoId Library video UUID.
+ * @throws ApiError if not found.
+ */
+export async function deleteLibraryVideo(videoId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/library/${videoId}`);
+  } catch (error) {
+    handleApiError(error);
+  }
+}
+
+/**
+ * Return a URL that streams the library video from the backend.
+ *
+ * Suitable for use as a ``<video src>`` or for fetching the blob.
+ *
+ * @param videoId Library video UUID.
+ */
+export function getLibraryVideoStreamUrl(videoId: string): string {
+  return `/api/library/${videoId}/stream`;
+}
+
+/**
+ * Fetch the blob of a library video for WebCodecs playback.
+ *
+ * @param videoId Library video UUID.
+ * @returns Video blob.
+ * @throws ApiError on failure.
+ */
+export async function fetchLibraryVideoBlob(videoId: string): Promise<Blob> {
+  try {
+    const url = getLibraryVideoStreamUrl(videoId);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new ApiError(`Failed to fetch library video: ${response.statusText}`, response.status);
+    }
+    return await response.blob();
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Failed to fetch library video blob', 500);
   }
 }

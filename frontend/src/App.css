@@ -2,30 +2,72 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: #1a1a1a;
 }
 
-.app-header {
-  padding: 2rem;
-  text-align: center;
-  background: #f5f5f5;
-  border-bottom: 2px solid #ddd;
+/* ─── Navigation bar ─────────────────────────────────────────────────────────── */
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: #111;
+  border-bottom: 1px solid #333;
+  padding: 0 1.25rem;
+  height: 48px;
+  flex-shrink: 0;
 }
 
-.app-header h1 {
-  margin: 0 0 0.5rem;
-  font-size: 2rem;
-  color: #333;
+.app-nav__brand {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.01em;
 }
 
-.app-header p {
-  margin: 0;
-  color: #666;
-  font-size: 1.1rem;
+.app-nav__tabs {
+  display: flex;
+  gap: 0.25rem;
 }
 
-main {
-  flex: 1;
-  padding: 2rem;
+.app-nav__tab {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.35rem 0.85rem;
+  border-radius: 5px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.app-nav__tab:hover {
+  color: #ccc;
+  background: #1f1f1f;
+}
+
+.app-nav__tab--active {
+  color: #fff;
+  background: #2b4a7a;
+}
+
+/* ─── Add-to-Library panel ───────────────────────────────────────────────────── */
+
+.add-to-library-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1.25rem;
+  background: #1e2535;
+  border-bottom: 1px solid #2d3a52;
+}
+
+.add-to-library-panel__label {
+  font-size: 0.82rem;
+  color: #8a9dc0;
+  font-weight: 500;
+  margin-right: 0.25rem;
 }
 
 .app-footer {

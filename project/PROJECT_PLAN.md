@@ -10,8 +10,8 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 ## Current Status
 
 - **Phase**: Phase 2 - User Workflows and Persistence Foundation (in progress)
-- **Last Updated**: 2026-02-27 - Task 2.2 UX Workflow Design
-- **Next Priority**: Task 2.3 - Platform and tooling setup
+- **Last Updated**: 2026-02-28 - Tasks 2.3, 2.4, 2.5 complete
+- **Next Priority**: Task 2.6 - Video Library API
 
 ## MVP Scope (Phase 0-1)
 
@@ -1210,14 +1210,16 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 2.3: Platform and Tooling Setup (PostgreSQL + Local Runtime)
 
-- **Status**: Not Started
+- **Status**: Complete
+- **Completed**: 2026-02-28
 - **Requirements**: REQ-P2-DEPLOY-001, REQ-NF-PT-001
 - **Scope**: Install/configure required local platform dependencies for Phase 2 development, including PostgreSQL and runtime wiring.
 - **Acceptance Criteria**:
-  - PostgreSQL is installed/running in local dev and Raspberry Pi target workflow.
-  - Database/user/database privileges are provisioned for Condor environment.
-  - Backend database connectivity is configured and validated from application runtime.
-  - **User-exercisable output**: Contributor can run setup commands and verify successful DB connectivity check.
+  - ✅ PostgreSQL 15 installed and running in dev container.
+  - ✅ `condor_user` / `condor_db` provisioned with correct privileges.
+  - ✅ `backend/database.py` provides `check_db_connectivity()` called at startup.
+  - ✅ `uv` virtual environment initialized (`pyproject.toml`, `uv.lock`).
+  - ✅ **User-exercisable output**: `uv run python scripts/check_db.py` prints `SUCCESS`.
 - **Dependencies**: Task 2.1
 - **Risk Level**: Medium
 
@@ -1225,14 +1227,17 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 2.4: Persistence Foundation (Schema + Migrations)
 
-- **Status**: Not Started
+- **Status**: Complete
+- **Completed**: 2026-02-28
 - **Requirements**: REQ-P2-USER-001, REQ-P2-SESS-001, REQ-P2-LIB-001
 - **Scope**: Establish persistent schema and migrations for videos, sessions, annotations, and import-support entities.
 - **Acceptance Criteria**:
-  - PostgreSQL-backed schema/migrations are added and versioned.
-  - Tables include user scoping, video metadata, session payloads, and annotation payload storage.
-  - Migration workflow includes upgrade and rollback verification.
-  - **User-exercisable output**: Developer can run migrations and execute API smoke flow to create/list persisted records.
+  - ✅ SQLAlchemy ORM models defined in `backend/orm_models.py` (User, LibraryVideo, AnalysisSession, ImportJob).
+  - ✅ Alembic initialized with async engine in `alembic/env.py`; reads DATABASE_URL from application settings.
+  - ✅ Initial migration `fc559ec13c86_initial_schema.py` generated and applied.
+  - ✅ Tables include user scoping, video metadata, session payloads (JSONB), and import job tracking.
+  - ✅ Migration roundtrip verified: `alembic upgrade head` → `alembic downgrade -1` → `alembic upgrade head`.
+  - ✅ **User-exercisable output**: `uv run alembic upgrade head` applies schema; 14 ORM/repository tests pass.
 - **Dependencies**: Task 2.3
 - **Risk Level**: High
 
@@ -1240,14 +1245,16 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 2.5: Single-User Management Layer
 
-- **Status**: Not Started
+- **Status**: Complete
+- **Completed**: 2026-02-28
 - **Requirements**: REQ-P2-USER-001
 - **Scope**: Implement explicit default-user resolution and ownership assignment across persistence and API layers.
 - **Acceptance Criteria**:
-  - Backend resolves a single default user identity for all Phase 2 workflows.
-  - Persisted entities consistently include user ownership fields.
-  - API/service boundaries retain user-scoped interfaces without requiring authentication UI.
-  - **User-exercisable output**: API smoke flow confirms created records are associated with default user context.
+  - ✅ `backend/repositories/user_repository.py` provides `get_or_create_default_user()` with fixed UUID `00000000-0000-0000-0000-000000000001`.
+  - ✅ `backend/dependencies.py` exposes `get_current_user` FastAPI dependency scoped to default user.
+  - ✅ All ORM entities (LibraryVideo, AnalysisSession, ImportJob) have `user_id` FK → `users.id`.
+  - ✅ `backend/main.py` seeds default user on startup (idempotent get-or-create).
+  - ✅ **User-exercisable output**: Starting the backend confirms default user ID in logs; 4 repository tests pass.
 - **Dependencies**: Task 2.4
 - **Risk Level**: Medium
 

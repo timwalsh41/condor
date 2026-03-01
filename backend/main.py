@@ -1,21 +1,24 @@
 """
 FastAPI backend for Golf Swing Analyzer.
 
-Provides video upload, optimization, and streaming services.
-
-Phase: Phase 1 Task 1.1 (Backend Skeleton + Video Upload)
+Provides video upload, optimization, streaming, library management,
+and session persistence services.
 """
 
 import logging
+import subprocess
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.database import check_db_connectivity
+from backend.database import AsyncSessionLocal, check_db_connectivity
+from backend.repositories.user_repository import get_or_create_default_user
 
 # Configure logging (console + file)
 log_dir = Path("logs")
@@ -47,7 +50,6 @@ async def lifespan(app: FastAPI):
 
     # Verify ffmpeg/ffprobe availability
     try:
-        import subprocess
         subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True, timeout=5)
         subprocess.run(['ffprobe', '-version'], capture_output=True, check=True, timeout=5)
         logger.info("ffmpeg and ffprobe available")
@@ -55,10 +57,26 @@ async def lifespan(app: FastAPI):
         logger.error(f"ffmpeg/ffprobe not available: {e}")
         logger.warning("Video optimization will not work without ffmpeg/ffprobe")
 
-    # Verify database connectivity (non-fatal: DB may not be configured in all dev setups)
+    # Verify database connectivity
     db_ok = await check_db_connectivity()
     if not db_ok:
         logger.warning("Database is not reachable - database-dependent features will be unavailable")
+    else:
+        # Apply any pending Alembic migrations automatically
+        try:
+            alembic_cfg = AlembicConfig("alembic.ini")
+            alembic_command.upgrade(alembic_cfg, "head")
+            logger.info("Database migrations applied (or already up to date)")
+        except Exception as e:
+            logger.error(f"Migration failed: {e}")
+
+        # Seed the default user (get-or-create, idempotent)
+        try:
+            async with AsyncSessionLocal() as session:
+                user = await get_or_create_default_user(session)
+                logger.info(f"Default user ready (id={user.id})")
+        except Exception as e:
+            logger.error(f"Failed to seed default user: {e}")
 
     yield
 

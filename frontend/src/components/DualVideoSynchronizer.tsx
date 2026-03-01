@@ -16,6 +16,7 @@ import {
 } from "../utils/dualVideoPlayback";
 import { VideoUploadWorkflow } from "./VideoUploadWorkflow";
 import { useVideoStore } from "../store/videoStore";
+import { useTrimStore } from "../store/trimStore";
 import type { VideoMetadata } from "../types/api";
 
 /**
@@ -77,6 +78,14 @@ export function DualVideoSynchronizer() {
   const playbackLoopRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(false);
+
+  // Trim state (non-destructive, unified playhead position = Video A frame units)
+  const { trimStart, trimEnd, setTrimStart, setTrimEnd, resetTrim } = useTrimStore();
+  // Refs for trim bounds — accessed in playback loop to avoid stale closure
+  const trimStartRef = useRef<number | null>(trimStart);
+  const trimEndRef = useRef<number | null>(trimEnd);
+  useEffect(() => { trimStartRef.current = trimStart; }, [trimStart]);
+  useEffect(() => { trimEndRef.current = trimEnd; }, [trimEnd]);
 
   // Keep playhead ref in sync with state
   useEffect(() => {
@@ -500,10 +509,19 @@ export function DualVideoSynchronizer() {
       // Calculate next playhead position
       const nextPosition = advancePlayhead(currentPlayhead, 1);
 
-      // Check if we've reached the boundary
+      // Check if we've reached the boundary (end of video or trim end)
       if (nextPosition === null) {
         console.log(
           `[PLAYBACK] ⛔ STOPPING PLAYBACK - boundary reached at position ${currentPlayhead.position}`
+        );
+        stopPlayback();
+        return;
+      }
+
+      // Check trim end — stop when playhead would exceed trimEnd
+      if (trimEndRef.current !== null && nextPosition > trimEndRef.current) {
+        console.log(
+          `[PLAYBACK] ⛔ STOPPING PLAYBACK - trim end reached at position ${trimEndRef.current}`
         );
         stopPlayback();
         return;
@@ -2217,7 +2235,7 @@ export function DualVideoSynchronizer() {
                 marginBottom: "15px",
               }}
             >
-              {/* Joint Scrub Bar - moved to top */}
+              {/* Joint Scrub Bar and Trim Controls */}
               {playheadState &&
                 (() => {
                   const range = calculatePlayheadRange(
@@ -2225,32 +2243,120 @@ export function DualVideoSynchronizer() {
                     videoB.totalFrames,
                     playheadState.syncOffset
                   );
+                  const effectiveTrimStart = trimStart ?? range.min;
+                  const effectiveTrimEnd = trimEnd ?? range.max;
                   return (
-                    <div style={{ marginBottom: "10px" }}>
-                      <input
-                        data-testid="scrub-bar-both"
-                        type="range"
-                        min={range.min}
-                        max={range.max}
-                        value={sliderValueBoth}
-                        onChange={handleSliderChangeBoth}
-                        onMouseUp={handleSliderReleaseBoth}
-                        onTouchEnd={handleSliderReleaseBoth}
-                        style={{ width: "100%", height: "30px" }}
-                      />
+                    <>
+                      {/* Playhead scrub bar */}
+                      <div style={{ marginBottom: "10px" }}>
+                        <input
+                          data-testid="scrub-bar-both"
+                          type="range"
+                          min={range.min}
+                          max={range.max}
+                          value={sliderValueBoth}
+                          onChange={handleSliderChangeBoth}
+                          onMouseUp={handleSliderReleaseBoth}
+                          onTouchEnd={handleSliderReleaseBoth}
+                          style={{ width: "100%", height: "30px" }}
+                        />
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#666",
+                            marginTop: "5px",
+                          }}
+                        >
+                          Video A: Frame {sliderValueBoth} / {range.max} | Video
+                          B: Frame {sliderValueBoth + playheadState.syncOffset} /{" "}
+                          {videoB.totalFrames - 1}
+                          {range.min > 0 && ` (min: ${range.min})`}
+                        </div>
+                      </div>
+
+                      {/* Trim Controls */}
                       <div
+                        data-testid="trim-controls"
                         style={{
-                          fontSize: "12px",
-                          color: "#666",
-                          marginTop: "5px",
+                          padding: "10px",
+                          backgroundColor: "#fff8e1",
+                          border: "1px solid #ffc107",
+                          borderRadius: "4px",
+                          marginBottom: "10px",
                         }}
                       >
-                        Video A: Frame {sliderValueBoth} / {range.max} | Video
-                        B: Frame {sliderValueBoth + playheadState.syncOffset} /{" "}
-                        {videoB.totalFrames - 1}
-                        {range.min > 0 && ` (min: ${range.min})`}
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "bold",
+                            marginBottom: "8px",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <span>✂️ Trim</span>
+                          <button
+                            data-testid="trim-reset"
+                            onClick={resetTrim}
+                            style={{
+                              fontSize: "11px",
+                              padding: "2px 8px",
+                              cursor: "pointer",
+                              backgroundColor: "#fff",
+                              border: "1px solid #ccc",
+                              borderRadius: "3px",
+                            }}
+                          >
+                            Reset
+                          </button>
+                        </div>
+
+                        {/* Trim In */}
+                        <label style={{ display: "block", marginBottom: "6px", fontSize: "12px" }}>
+                          In: Frame {effectiveTrimStart}
+                          {trimStart !== null && (
+                            <span style={{ color: "#f57c00", marginLeft: "4px" }}>
+                              (set)
+                            </span>
+                          )}
+                          <input
+                            data-testid="trim-start-slider"
+                            type="range"
+                            min={range.min}
+                            max={range.max}
+                            value={effectiveTrimStart}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setTrimStart(v === range.min ? null : v);
+                            }}
+                            style={{ width: "100%", marginTop: "2px" }}
+                          />
+                        </label>
+
+                        {/* Trim Out */}
+                        <label style={{ display: "block", fontSize: "12px" }}>
+                          Out: Frame {effectiveTrimEnd}
+                          {trimEnd !== null && (
+                            <span style={{ color: "#f57c00", marginLeft: "4px" }}>
+                              (set)
+                            </span>
+                          )}
+                          <input
+                            data-testid="trim-end-slider"
+                            type="range"
+                            min={range.min}
+                            max={range.max}
+                            value={effectiveTrimEnd}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setTrimEnd(v === range.max ? null : v);
+                            }}
+                            style={{ width: "100%", marginTop: "2px" }}
+                          />
+                        </label>
                       </div>
-                    </div>
+                    </>
                   );
                 })()}
 

@@ -27,6 +27,7 @@ import { useVideoStore } from './videoStore';
 import { useAnnotationStore } from './annotationStore';
 import { useSyncStore } from './syncStore';
 import { usePlaybackStore } from './playbackStore';
+import { useTrimStore } from './trimStore';
 import type { VideoMetadata } from '../types/api';
 
 interface SessionStoreState {
@@ -54,6 +55,7 @@ function buildSessionPayload(name: string, notes?: string): AnalysisSessionCreat
   const { annotationsA, annotationsB } = useAnnotationStore.getState();
   const { syncPoints } = useSyncStore.getState();
   const { playbackRate } = usePlaybackStore.getState();
+  const { trimStart, trimEnd } = useTrimStore.getState();
 
   // Use first sync point as canonical sync frames (MVP: single sync point)
   const syncPoint = syncPoints[0] ?? null;
@@ -73,6 +75,11 @@ function buildSessionPayload(name: string, notes?: string): AnalysisSessionCreat
     sync_frame_b: syncPoint?.frameB ?? null,
     playback_speed: playbackRate,
     loop_playback: false,
+    // Trim bounds (Video A frame units, unified playhead position)
+    trim_start_a: trimStart,
+    trim_end_a: trimEnd,
+    trim_start_b: null,
+    trim_end_b: null,
     annotations,
   };
 }
@@ -85,9 +92,14 @@ async function restoreSessionState(session: AnalysisSessionResponse): Promise<vo
   const { setAnnotationsA, setAnnotationsB } = useAnnotationStore.getState();
   const { addSyncPoint, clearSyncPoints } = useSyncStore.getState();
   const { setPlaybackRate } = usePlaybackStore.getState();
+  const { setTrimStart, setTrimEnd } = useTrimStore.getState();
 
   // Restore playback settings
   setPlaybackRate(session.playback_speed);
+
+  // Restore trim bounds
+  setTrimStart(session.trim_start_a ?? null);
+  setTrimEnd(session.trim_end_a ?? null);
 
   // Restore sync points
   clearSyncPoints();

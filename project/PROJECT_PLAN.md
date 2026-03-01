@@ -11,7 +11,7 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 
 - **Phase**: Phase 2 - User Workflows and Persistence Foundation (in progress)
 - **Last Updated**: 2026-02-28 - Tasks 2.3, 2.4, 2.5 complete
-- **Next Priority**: Task 2.8 - Session Persistence Backend
+- **Next Priority**: Task 2.9 - Session Persistence Frontend Workflows
 
 ## MVP Scope (Phase 0-1)
 
@@ -1292,7 +1292,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 
 #### Task 2.8: Session Persistence Backend Domain
 
-- **Status**: Not Started
+- **Status**: Complete
 - **Requirements**: REQ-P2-SESS-001
 - **Scope**: Implement backend session and annotation persistence domain for save/load/list/delete operations.
 - **Acceptance Criteria**:

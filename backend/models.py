@@ -120,3 +120,108 @@ class LibraryVideoResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+# ---------------------------------------------------------------------------
+# Analysis Session models
+# ---------------------------------------------------------------------------
+
+
+class AnnotationPayload(BaseModel):
+    """JSONB annotation payload keyed by video slot.
+
+    Shape: {"a": [...annotations...], "b": [...annotations...]}
+    Each annotation object is unstructured to allow future schema evolution.
+    """
+
+    a: list[dict] = Field(default_factory=list, description="Annotations for Video A")
+    b: list[dict] = Field(default_factory=list, description="Annotations for Video B")
+
+    model_config = {"from_attributes": True}
+
+
+class AnalysisSessionCreate(BaseModel):
+    """Payload to create a new analysis session.
+
+    Validates: REQ-P2-SESS-001
+    """
+
+    name: str = Field(description="Session name", min_length=1, max_length=200)
+    notes: Optional[str] = Field(None, description="User notes")
+    video_a_id: Optional[UUID] = Field(None, description="Library video used in slot A")
+    video_b_id: Optional[UUID] = Field(None, description="Library video used in slot B")
+    sync_frame_a: Optional[int] = Field(None, ge=0)
+    sync_frame_b: Optional[int] = Field(None, ge=0)
+    trim_start_a: Optional[int] = Field(None, ge=0)
+    trim_end_a: Optional[int] = Field(None, ge=0)
+    trim_start_b: Optional[int] = Field(None, ge=0)
+    trim_end_b: Optional[int] = Field(None, ge=0)
+    playback_speed: float = Field(1.0, ge=0.1, le=4.0)
+    loop_playback: bool = Field(False)
+    annotations: Optional[AnnotationPayload] = Field(None)
+
+
+class AnalysisSessionUpdate(BaseModel):
+    """Payload to update an existing analysis session.
+
+    All fields are optional; only provided fields are updated.
+
+    Validates: REQ-P2-SESS-001
+    """
+
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    notes: Optional[str] = Field(None)
+    video_a_id: Optional[UUID] = Field(None)
+    video_b_id: Optional[UUID] = Field(None)
+    sync_frame_a: Optional[int] = Field(None, ge=0)
+    sync_frame_b: Optional[int] = Field(None, ge=0)
+    trim_start_a: Optional[int] = Field(None, ge=0)
+    trim_end_a: Optional[int] = Field(None, ge=0)
+    trim_start_b: Optional[int] = Field(None, ge=0)
+    trim_end_b: Optional[int] = Field(None, ge=0)
+    playback_speed: Optional[float] = Field(None, ge=0.1, le=4.0)
+    loop_playback: Optional[bool] = Field(None)
+    annotations: Optional[AnnotationPayload] = Field(None)
+
+
+class AnalysisSessionSummary(BaseModel):
+    """Lightweight session record for list responses.
+
+    Validates: REQ-P2-SESS-001
+    """
+
+    id: UUID
+    name: str
+    notes: Optional[str]
+    video_a_id: Optional[UUID]
+    video_b_id: Optional[UUID]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AnalysisSessionResponse(BaseModel):
+    """Full session record with all state fields.
+
+    Validates: REQ-P2-SESS-001
+    """
+
+    id: UUID
+    name: str
+    notes: Optional[str]
+    video_a_id: Optional[UUID]
+    video_b_id: Optional[UUID]
+    sync_frame_a: Optional[int]
+    sync_frame_b: Optional[int]
+    trim_start_a: Optional[int]
+    trim_end_a: Optional[int]
+    trim_start_b: Optional[int]
+    trim_end_b: Optional[int]
+    playback_speed: float
+    loop_playback: bool
+    annotations: Optional[dict]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+

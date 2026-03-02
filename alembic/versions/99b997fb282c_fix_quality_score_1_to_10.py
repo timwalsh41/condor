@@ -20,7 +20,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema: fix quality_score check constraint to allow 1-10."""
-    op.drop_constraint("ck_quality_score", "library_videos", type_="check")
+    # Use IF EXISTS — constraint may not exist if the DB was created without it.
+    op.execute("ALTER TABLE library_videos DROP CONSTRAINT IF EXISTS ck_quality_score")
     op.create_check_constraint(
         "ck_quality_score",
         "library_videos",
@@ -30,7 +31,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema: revert quality_score check constraint to 1-5."""
-    op.drop_constraint("ck_quality_score", "library_videos", type_="check")
+    op.execute("ALTER TABLE library_videos DROP CONSTRAINT IF EXISTS ck_quality_score")
     op.create_check_constraint(
         "ck_quality_score",
         "library_videos",

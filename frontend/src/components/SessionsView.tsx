@@ -40,7 +40,7 @@ function SessionCard({ session, isActive, loading, onLoad, onDelete }: SessionCa
           {session.name}
         </p>
         {session.notes && (
-          <p style={{ fontSize: '0.8rem', color: '#aaa', margin: '0 0 0.5rem' }}>
+          <p style={{ fontSize: '0.8rem', color: '#555', margin: '0 0 0.5rem' }}>
             {session.notes}
           </p>
         )}
@@ -61,7 +61,7 @@ function SessionCard({ session, isActive, loading, onLoad, onDelete }: SessionCa
           )}
         </dl>
         {isActive && (
-          <span style={{ fontSize: '0.75rem', color: '#68d391', fontWeight: 600 }}>
+          <span style={{ fontSize: '0.75rem', color: '#2e7d32', fontWeight: 600 }}>
             ✓ Currently loaded
           </span>
         )}

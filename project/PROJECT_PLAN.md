@@ -10,8 +10,8 @@ An open-source golf swing video analysis platform enabling frame-by-frame video 
 ## Current Status
 
 - **Phase**: Phase 2 - User Workflows and Persistence Foundation (**Complete**)
-- **Last Updated**: 2026-03-01 - All Phase 2 tasks (2.3–2.14) complete
-- **Next Priority**: Phase 3 planning / cloud migration path
+- **Last Updated**: 2026-03-01 - Tasks 2.3–2.14 complete; Task 2.15 (Real Google Photos API) pending
+- **Next Priority**: Task 2.15 (Real Google Photos API integration) or Phase 3 planning
 
 ## MVP Scope (Phase 0-1)
 
@@ -1172,6 +1172,7 @@ See `REQUIREMENTS.md` for full list of technical requirements.
 - Existing MVP gaps: 2.10 (trim), 2.11 (shortcuts)
 - Feature expansion: 2.12-2.13
 - Validation/documentation closeout: 2.14
+- Real API integration: 2.15
 
 ---
 
@@ -1408,6 +1409,33 @@ See `REQUIREMENTS.md` for full list of technical requirements.
   - `validation/INTEGRATION_REPORT_PHASE_2_MVP.md`: Phase 2 integration report created
 - **Dependencies**: Tasks 2.10, 2.11, 2.12, 2.13
 - **Risk Level**: Medium
+
+---
+
+#### Task 2.15: Real Google Photos API Integration
+
+- **Status**: Not Started
+- **Requirements**: REQ-P2-CLOUD-001
+- **Scope**: Replace mocked Google Photos integration with real OAuth 2.0 + Google Photos Library API calls.
+- **Acceptance Criteria**:
+  - User can complete a real OAuth 2.0 authorization flow (Google consent screen) to grant access. ✅ (pending)
+  - Backend exchanges authorization code for access + refresh tokens and stores them securely. ✅ (pending)
+  - User can browse their actual Google Photos albums and videos via the API. ✅ (pending)
+  - Importing a video downloads the real media file into local video storage. ✅ (pending)
+  - Token refresh is handled transparently (access token expiry does not break the import flow). ✅ (pending)
+  - Error cases (insufficient scope, quota exceeded, revoked access) surface informative messages to the user. ✅ (pending)
+  - **User-exercisable output**: User authorizes with a real Google account, browses an album, imports a video, and uses it in an analysis session.
+- **Implementation Notes** (planned):
+  - Register app in Google Cloud Console; obtain OAuth client ID + secret; configure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars.
+  - Implement server-side OAuth 2.0 Authorization Code flow: `/api/google-photos/auth-url` → redirect → `/api/google-photos/callback` → token exchange.
+  - Store refresh token per user (new column on `User` ORM model or separate credentials table).
+  - Replace mock album/video endpoints with real `Google Photos Library API v1` calls (`albums.list`, `mediaItems.search`).
+  - On import: use `mediaItem.baseUrl` with `=dv` suffix to download original video; stream to `video_storage` rather than holding in memory.
+  - Remove mock OAuth scaffold (`MOCK_GOOGLE_AUTH` flag, hardcoded albums/videos) from `routes/google_photos.py`.
+  - Update `.env.example` and `docker-compose.yml` with new required env vars.
+  - Update integration and validation documentation on completion.
+- **Dependencies**: Task 2.13
+- **Risk Level**: High (external API dependency, OAuth flow complexity, quota/rate-limit management)
 
 ---
 

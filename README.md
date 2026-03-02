@@ -28,13 +28,17 @@ The Condor is an open-source platform for frame-accurate video analysis with dua
 
 For detailed instructions on managing the container image, cleaning up disk space, and troubleshooting, see `.devcontainer/DOCKER_MANAGEMENT.md`.
 
-### Run Full Application (Frontend + Backend)
+### Run Full Application (Frontend + Backend) from Dev Container
 
 ```bash
 
 # Terminal 1: Backend services
 # Install Python dependencies with uv (one time only)
 uv sync
+
+# Install and start PostgreSQL (one time only)
+sudo apt-get install -y postgresql
+sudo service postgresql start
 
 # Set up PostgreSQL database (one time only)
 sudo -u postgres psql -c "CREATE USER condor_user WITH PASSWORD 'condor_dev';"
@@ -43,6 +47,9 @@ sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE condor_db TO condor_u
 
 # Verify database connectivity
 uv run python scripts/check_db.py
+
+# Install ffmpeg (one time only)
+sudo apt-get install ffmpeg
 
 # Start backend services
 uv run python -m backend.main
@@ -120,6 +127,10 @@ See `frontend/README.md` for details on running unit and integration tests.
 ```bash
 # Install Python dependencies
 uv sync
+
+# Install and start PostgreSQL (one time only)
+sudo apt-get install -y postgresql
+sudo service postgresql start
 
 # Set up PostgreSQL (one time only)
 sudo -u postgres psql -c "CREATE USER condor_user WITH PASSWORD 'condor_dev';"

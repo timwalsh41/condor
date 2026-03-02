@@ -91,5 +91,7 @@ RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/init-claude.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/bin/apt" >> /etc/sudoers.d/node-firewall && \
   echo "node ALL=(root) NOPASSWD: /usr/bin/apt-get" >> /etc/sudoers.d/node-firewall && \
   echo "node ALL=(root) NOPASSWD: /usr/bin/apt-key" >> /etc/sudoers.d/node-firewall && \
+  echo "node ALL=(root) NOPASSWD: /usr/sbin/service" >> /etc/sudoers.d/node-firewall && \
+  echo "node ALL=(postgres) NOPASSWD: /usr/bin/psql" >> /etc/sudoers.d/node-firewall && \
   chmod 0440 /etc/sudoers.d/node-firewall
 USER node

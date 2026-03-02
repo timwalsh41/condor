@@ -3074,10 +3074,6 @@ export function DualVideoSynchronizer() {
               sync points for easy adjustment
             </li>
           </ol>
-          <p>
-            <strong>Test Videos:</strong> Sample videos are available in{" "}
-            <code>frontend/tests/fixtures/videos/</code>
-          </p>
         </div>
       )}
 

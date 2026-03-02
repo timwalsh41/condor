@@ -5,6 +5,7 @@ Provides video upload, optimization, streaming, library management,
 and session persistence services.
 """
 
+import asyncio
 import logging
 import subprocess
 import sys
@@ -12,8 +13,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
-from alembic import command as alembic_command
-from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -62,11 +61,25 @@ async def lifespan(app: FastAPI):
     if not db_ok:
         logger.warning("Database is not reachable - database-dependent features will be unavailable")
     else:
-        # Apply any pending Alembic migrations automatically
+        # Apply any pending Alembic migrations automatically.
+        # Use subprocess so Alembic's async engine runs in its own process/event
+        # loop rather than competing with the application's running loop.
         try:
-            alembic_cfg = AlembicConfig("alembic.ini")
-            alembic_command.upgrade(alembic_cfg, "head")
-            logger.info("Database migrations applied (or already up to date)")
+            alembic_ini = str(Path(__file__).parent.parent / "alembic.ini")
+            result = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: subprocess.run(
+                    [sys.executable, "-m", "alembic", "-c", alembic_ini, "upgrade", "head"],
+                    capture_output=True,
+                    text=True,
+                ),
+            )
+            if result.returncode != 0:
+                logger.error(f"Migration failed (rc={result.returncode}): {result.stderr}")
+            else:
+                logger.info("Database migrations applied (or already up to date)")
+                if result.stdout:
+                    logger.debug(result.stdout.strip())
         except Exception as e:
             logger.error(f"Migration failed: {e}")
 

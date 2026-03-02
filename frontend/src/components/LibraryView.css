@@ -2,9 +2,9 @@
 
 .library-view {
   padding: 1.5rem;
-  color: #e0e0e0;
+  color: #213547;
   min-height: 100vh;
-  background: #1a1a1a;
+  background: #f5f5f5;
 }
 
 .library-view__header {
@@ -26,19 +26,19 @@
   font-size: 1.5rem;
   font-weight: 600;
   margin: 0;
-  color: #ffffff;
+  color: #1a1a1a;
 }
 
 .library-view__error {
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: #3a1a1a;
-  border: 1px solid #c53030;
+  background: #fff0f0;
+  border: 1px solid #e53e3e;
   border-radius: 6px;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
-  color: #fc8181;
+  color: #c53030;
 }
 
 .library-view__empty {
@@ -57,8 +57,8 @@
 /* ─── Video Card ────────────────────────────────────────────────────────────── */
 
 .library-card {
-  background: #242424;
-  border: 1px solid #333;
+  background: #ffffff;
+  border: 1px solid #ddd;
   border-radius: 8px;
   padding: 1rem;
   display: flex;
@@ -68,7 +68,7 @@
 }
 
 .library-card:hover {
-  border-color: #555;
+  border-color: #aaa;
 }
 
 .library-card__filename {
@@ -78,7 +78,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin: 0 0 0.5rem;
-  color: #fff;
+  color: #1a1a1a;
 }
 
 .library-card__meta {
@@ -96,7 +96,7 @@
 
 .library-card__meta dd {
   margin: 0;
-  color: #ccc;
+  color: #444;
 }
 
 .library-card__actions {
@@ -142,13 +142,13 @@
 }
 
 .btn--secondary {
-  background: #333;
-  color: #ccc;
-  border: 1px solid #555;
+  background: #e8e8e8;
+  color: #333;
+  border: 1px solid #bbb;
 }
 
 .btn--secondary:hover:not(:disabled) {
-  background: #3a3a3a;
+  background: #d5d5d5;
 }
 
 .btn--danger {
@@ -173,8 +173,8 @@
 }
 
 .library-modal {
-  background: #2a2a2a;
-  border: 1px solid #444;
+  background: #ffffff;
+  border: 1px solid #ddd;
   border-radius: 10px;
   padding: 1.5rem;
   width: min(90vw, 440px);
@@ -186,7 +186,7 @@
   font-size: 1.15rem;
   font-weight: 600;
   margin: 0 0 0.25rem;
-  color: #fff;
+  color: #1a1a1a;
 }
 
 .library-modal__subtitle {
@@ -209,15 +209,15 @@
   flex-direction: column;
   gap: 0.3rem;
   font-size: 0.85rem;
-  color: #aaa;
+  color: #555;
 }
 
 .library-modal__input,
 .library-modal__textarea {
-  background: #1a1a1a;
-  border: 1px solid #444;
+  background: #ffffff;
+  border: 1px solid #ccc;
   border-radius: 5px;
-  color: #e0e0e0;
+  color: #213547;
   padding: 0.45rem 0.6rem;
   font-size: 0.9rem;
   font-family: inherit;

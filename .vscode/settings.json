@@ -31,16 +31,18 @@
   "search.followSymlinks": false,
   "chat.tools.terminal.enableAutoApprove": true,
   "chat.tools.terminal.autoApprove": {
-    "/^uv($|\\s+)/": true,
-    "/^python3?($|\\s+)/": true,
-    "/^git\\s+(status|add|commit)/": true,
-    "/^npm($|\\s+)/": true,
-    "/^npx($|\\s+)/": true,
-    "/^pytest($|\\s+)/": true,
-    "/^cd($|\\s+)/": true,
-    "ls": true,
-    "pwd": true,
-    "wc": true
+      "uv": true,
+      "git\\s+(status|add|commit)/": true,
+      "npm": true,
+      "npx": true,
+      "pytest": true,
+      "cd": true,
+      "ls": true,
+      "pwd": true,
+      "wc": true,
+      "head": true,
+      "tail": true,
+      "grep": true
   },
-  "chat.agent.maxRequests": 50
+  "chat.agent.maxRequests": 25
 }

@@ -17,7 +17,7 @@ mkdir -p "$CLAUDE_CONFIG_DIR"
 
 # Configure Serena MCP server
 echo "Adding Serena MCP server..."
-claude mcp add serena --global -- uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context ide-assistant
+claude mcp add serena -s user -- uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context ide-assistant
 
 # Mark as initialized
 touch "$INIT_FLAG"

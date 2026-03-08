@@ -139,6 +139,11 @@ connect_container() {
             echo 'Initializing firewall rules...'
             sudo /usr/local/bin/init-firewall.sh
         fi
+
+        # Start PostgreSQL if not already running
+        if ! service postgresql status >/dev/null 2>&1; then
+            sudo service postgresql start
+        fi
         
         # Initialize Claude configuration on first run
         /usr/local/bin/init-claude.sh

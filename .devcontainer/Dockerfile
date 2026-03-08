@@ -21,7 +21,16 @@ RUN apt update && apt install -y less \
   aggregate \
   vim \
   socat \
-  jq
+  jq \
+  postgresql \
+  ffmpeg
+
+# Initialize PostgreSQL and create application database
+RUN service postgresql start && \
+  su postgres -c "psql -c \"CREATE USER condor_user WITH PASSWORD 'condor_dev';\"" && \
+  su postgres -c "psql -c \"CREATE DATABASE condor_db OWNER condor_user;\"" && \
+  su postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE condor_db TO condor_user;\"" && \
+  service postgresql stop
 
 # Ensure default node user has access to /usr/local/share
 RUN mkdir -p /usr/local/share/npm-global && \

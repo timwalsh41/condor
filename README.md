@@ -10,9 +10,7 @@ The Condor is an open-source platform for frame-accurate video analysis with dua
 - **Python 3.11+**: For backend API
 - **uv**: Python package manager ([install](https://docs.astral.sh/uv/getting-started/installation/))
 - **npm** or **yarn**: Package management
-- **FFmpeg**: For video processing and test video generation
 - **Playwright Browsers**: For cross-browser testing
-- **PostgreSQL 15+**: Database server
 
 ### Build Dev Container
 
@@ -35,21 +33,6 @@ For detailed instructions on managing the container image, cleaning up disk spac
 # Terminal 1: Backend services
 # Install Python dependencies with uv (one time only)
 uv sync
-
-# Install and start PostgreSQL (one time only)
-sudo apt-get install -y postgresql
-sudo service postgresql start
-
-# Set up PostgreSQL database (one time only)
-sudo -u postgres psql -c "CREATE USER condor_user WITH PASSWORD 'condor_dev';"
-sudo -u postgres psql -c "CREATE DATABASE condor_db OWNER condor_user;"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE condor_db TO condor_user;"
-
-# Verify database connectivity
-uv run python scripts/check_db.py
-
-# Install ffmpeg (one time only)
-sudo apt-get install ffmpeg
 
 # Start backend services
 uv run python -m backend.main
@@ -127,18 +110,6 @@ See `frontend/README.md` for details on running unit and integration tests.
 ```bash
 # Install Python dependencies
 uv sync
-
-# Install and start PostgreSQL (one time only)
-sudo apt-get install -y postgresql
-sudo service postgresql start
-
-# Set up PostgreSQL (one time only)
-sudo -u postgres psql -c "CREATE USER condor_user WITH PASSWORD 'condor_dev';"
-sudo -u postgres psql -c "CREATE DATABASE condor_db OWNER condor_user;"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE condor_db TO condor_user;"
-
-# Verify database connectivity
-uv run python scripts/check_db.py
 
 # Run backend server
 uv run python -m backend.main

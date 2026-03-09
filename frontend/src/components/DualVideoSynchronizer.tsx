@@ -15,6 +15,7 @@ import {
   type PlayheadState,
 } from "../utils/dualVideoPlayback";
 import { VideoUploadWorkflow } from "./VideoUploadWorkflow";
+import { TrimScrubBar } from "./TrimScrubBar";
 import { useVideoStore } from "../store/videoStore";
 import { useAnnotationStore } from "../store/annotationStore";
 import { useTrimStore } from "../store/trimStore";
@@ -81,12 +82,17 @@ export function DualVideoSynchronizer() {
   const isPlayingRef = useRef<boolean>(false);
 
   // Trim state (non-destructive, unified playhead position = Video A frame units)
-  const { trimStart, trimEnd, setTrimStart, setTrimEnd, resetTrim } = useTrimStore();
+  const { trimStart, trimEnd, setTrimStart, setTrimEnd } = useTrimStore();
   // Refs for trim bounds — accessed in playback loop to avoid stale closure
   const trimStartRef = useRef<number | null>(trimStart);
   const trimEndRef = useRef<number | null>(trimEnd);
   useEffect(() => { trimStartRef.current = trimStart; }, [trimStart]);
   useEffect(() => { trimEndRef.current = trimEnd; }, [trimEnd]);
+
+  // Loop mode — when on, playback restarts from trimStart upon reaching an end boundary
+  const [isLooping, setIsLooping] = useState(false);
+  const isLoopingRef = useRef(false);
+  useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
 
   // Keep playhead ref in sync with state
   useEffect(() => {
@@ -408,6 +414,15 @@ export function DualVideoSynchronizer() {
     );
     setPlayheadState(playhead);
 
+    // Initialize trim handles to full range so they are always visible on the bar
+    const range = calculatePlayheadRange(
+      videoA.totalFrames,
+      videoB.totalFrames,
+      playhead.syncOffset
+    );
+    if (trimStart === null) setTrimStart(range.min);
+    if (trimEnd === null) setTrimEnd(range.max);
+
     // Store sync offset and sync points
     setSyncOffset(playhead.syncOffset);
     setSyncPoints({
@@ -527,21 +542,45 @@ export function DualVideoSynchronizer() {
       // Calculate next playhead position
       const nextPosition = advancePlayhead(currentPlayhead, 1);
 
-      // Check if we've reached the boundary (end of video or trim end)
+      // Seek both videos to trimStart and resume the playback loop (loop mode)
+      const restartFromTrimStart = async () => {
+        const seekFrame = trimStartRef.current ?? 0;
+        const newState = { ...currentPlayhead, position: seekFrame };
+        setPlayheadState(newState);
+        playheadStateRef.current = newState;
+        setSliderValueBoth(seekFrame);
+        const loopTargets = calculateTargetFrames(seekFrame, currentPlayhead.syncOffset);
+        await Promise.all([
+          videoARef.current.seekToFrame(loopTargets.frameA),
+          videoBRef.current.seekToFrame(loopTargets.frameB),
+        ]);
+        lastFrameTimeRef.current = 0;
+        playbackLoopRef.current = requestAnimationFrame(playbackLoopBoth);
+      };
+
+      // Check if we've reached the boundary (end of video)
       if (nextPosition === null) {
         console.log(
           `[PLAYBACK] ⛔ STOPPING PLAYBACK - boundary reached at position ${currentPlayhead.position}`
         );
-        stopPlayback();
+        if (isLoopingRef.current) {
+          restartFromTrimStart().catch(stopPlayback);
+        } else {
+          stopPlayback();
+        }
         return;
       }
 
-      // Check trim end — stop when playhead would exceed trimEnd
+      // Check trim end — stop (or loop) when playhead would exceed trimEnd
       if (trimEndRef.current !== null && nextPosition > trimEndRef.current) {
         console.log(
           `[PLAYBACK] ⛔ STOPPING PLAYBACK - trim end reached at position ${trimEndRef.current}`
         );
-        stopPlayback();
+        if (isLoopingRef.current) {
+          restartFromTrimStart().catch(stopPlayback);
+        } else {
+          stopPlayback();
+        }
         return;
       }
 
@@ -618,9 +657,52 @@ export function DualVideoSynchronizer() {
   const handlePlayPauseBoth = () => {
     if (isPlayingBoth) {
       stopPlayback();
-    } else {
-      startPlayback();
+      return;
     }
+    if (!playheadState) return;
+
+    // Snap playhead to trimStart if it is outside the active trim zone
+    const range = calculatePlayheadRange(
+      videoA.totalFrames,
+      videoB.totalFrames,
+      playheadState.syncOffset
+    );
+    const effectiveTrimStart = trimStart ?? range.min;
+    const effectiveTrimEnd = trimEnd ?? range.max;
+    if (playheadState.position < effectiveTrimStart || playheadState.position > effectiveTrimEnd) {
+      const newState = { ...playheadState, position: effectiveTrimStart };
+      setPlayheadState(newState);
+      playheadStateRef.current = newState;
+      setSliderValueBoth(effectiveTrimStart);
+      const targets = calculateTargetFrames(effectiveTrimStart, playheadState.syncOffset);
+      Promise.all([
+        videoA.seekToFrame(targets.frameA),
+        videoB.seekToFrame(targets.frameB),
+      ]).then(startPlayback).catch(console.error);
+      return;
+    }
+
+    startPlayback();
+  };
+
+  const handleReturnToIn = async () => {
+    if (!playheadState) return;
+    if (isPlayingBoth) stopPlayback();
+    const range = calculatePlayheadRange(
+      videoA.totalFrames,
+      videoB.totalFrames,
+      playheadState.syncOffset
+    );
+    const seekFrame = trimStart ?? range.min;
+    const targets = calculateTargetFrames(seekFrame, playheadState.syncOffset);
+    await Promise.all([
+      videoA.seekToFrame(targets.frameA),
+      videoB.seekToFrame(targets.frameB),
+    ]);
+    const newState = { ...playheadState, position: seekFrame };
+    setPlayheadState(newState);
+    playheadStateRef.current = newState;
+    setSliderValueBoth(seekFrame);
   };
 
   const handleSpeedChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -630,18 +712,16 @@ export function DualVideoSynchronizer() {
   };
 
   // PLAYBACK mode - Joint scrub bar handlers
-  const handleSliderChangeBoth = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSliderChangeBoth = (frame: number) => {
     // Update slider visual position immediately (responsive UI)
-    setSliderValueBoth(Number(e.target.value));
+    setSliderValueBoth(frame);
   };
 
-  const handleSliderReleaseBoth = async () => {
+  const handleSliderReleaseBoth = async (frameValue: number) => {
     if (!playheadState) return;
 
     // Stop playback
     if (isPlayingBoth) stopPlayback();
-
-    let newPosition = sliderValueBoth;
 
     // Calculate valid range based on sync offset
     const range = calculatePlayheadRange(
@@ -651,14 +731,14 @@ export function DualVideoSynchronizer() {
     );
 
     // Clamp position to valid range
-    newPosition = Math.max(range.min, Math.min(range.max, newPosition));
+    const newPosition = Math.max(range.min, Math.min(range.max, frameValue));
 
-    if (newPosition !== sliderValueBoth) {
+    if (newPosition !== frameValue) {
       console.log(
-        `[SCRUB] Clamped position ${sliderValueBoth} → ${newPosition} (range: ${range.min}-${range.max})`
+        `[SCRUB] Clamped position ${frameValue} → ${newPosition} (range: ${range.min}-${range.max})`
       );
-      setSliderValueBoth(newPosition); // Update slider to show clamped value
     }
+    setSliderValueBoth(newPosition);
 
     // Calculate target frames
     const targets = calculateTargetFrames(
@@ -2473,7 +2553,7 @@ export function DualVideoSynchronizer() {
                 marginBottom: "15px",
               }}
             >
-              {/* Joint Scrub Bar and Trim Controls */}
+              {/* Unified Trim + Scrub Bar */}
               {playheadState &&
                 (() => {
                   const range = calculatePlayheadRange(
@@ -2484,117 +2564,32 @@ export function DualVideoSynchronizer() {
                   const effectiveTrimStart = trimStart ?? range.min;
                   const effectiveTrimEnd = trimEnd ?? range.max;
                   return (
-                    <>
-                      {/* Playhead scrub bar */}
-                      <div style={{ marginBottom: "10px" }}>
-                        <input
-                          data-testid="scrub-bar-both"
-                          type="range"
-                          min={range.min}
-                          max={range.max}
-                          value={sliderValueBoth}
-                          onChange={handleSliderChangeBoth}
-                          onMouseUp={handleSliderReleaseBoth}
-                          onTouchEnd={handleSliderReleaseBoth}
-                          style={{ width: "100%", height: "30px" }}
-                        />
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#666",
-                            marginTop: "5px",
-                          }}
-                        >
-                          Video A: Frame {sliderValueBoth} / {range.max} | Video
-                          B: Frame {sliderValueBoth + playheadState.syncOffset} /{" "}
-                          {videoB.totalFrames - 1}
-                          {range.min > 0 && ` (min: ${range.min})`}
-                        </div>
-                      </div>
-
-                      {/* Trim Controls */}
-                      <div
-                        data-testid="trim-controls"
-                        style={{
-                          padding: "10px",
-                          backgroundColor: "#fff8e1",
-                          border: "1px solid #ffc107",
-                          borderRadius: "4px",
-                          marginBottom: "10px",
+                    <div style={{ marginBottom: "10px" }}>
+                      <TrimScrubBar
+                        min={range.min}
+                        max={range.max}
+                        trimStart={effectiveTrimStart}
+                        trimEnd={effectiveTrimEnd}
+                        playhead={sliderValueBoth}
+                        isLooping={isLooping}
+                        frameLabel={
+                          `Video A: Frame ${sliderValueBoth} / ${range.max}` +
+                          ` | Video B: Frame ${sliderValueBoth + playheadState.syncOffset}` +
+                          ` / ${videoB.totalFrames - 1}` +
+                          (range.min > 0 ? ` (min: ${range.min})` : "")
+                        }
+                        onPlayheadDrag={handleSliderChangeBoth}
+                        onPlayheadRelease={handleSliderReleaseBoth}
+                        onTrimStartChange={setTrimStart}
+                        onTrimEndChange={setTrimEnd}
+                        onLoopToggle={() => setIsLooping((l) => !l)}
+                        onReturnToIn={handleReturnToIn}
+                        onResetTrim={() => {
+                          setTrimStart(range.min);
+                          setTrimEnd(range.max);
                         }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: "bold",
-                            marginBottom: "8px",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                          }}
-                        >
-                          <span>✂️ Trim</span>
-                          <button
-                            data-testid="trim-reset"
-                            onClick={resetTrim}
-                            style={{
-                              fontSize: "11px",
-                              padding: "2px 8px",
-                              cursor: "pointer",
-                              backgroundColor: "#fff",
-                              border: "1px solid #ccc",
-                              borderRadius: "3px",
-                            }}
-                          >
-                            Reset
-                          </button>
-                        </div>
-
-                        {/* Trim In */}
-                        <label style={{ display: "block", marginBottom: "6px", fontSize: "12px" }}>
-                          In: Frame {effectiveTrimStart}
-                          {trimStart !== null && (
-                            <span style={{ color: "#f57c00", marginLeft: "4px" }}>
-                              (set)
-                            </span>
-                          )}
-                          <input
-                            data-testid="trim-start-slider"
-                            type="range"
-                            min={range.min}
-                            max={range.max}
-                            value={effectiveTrimStart}
-                            onChange={(e) => {
-                              const v = Number(e.target.value);
-                              setTrimStart(v === range.min ? null : v);
-                            }}
-                            style={{ width: "100%", marginTop: "2px" }}
-                          />
-                        </label>
-
-                        {/* Trim Out */}
-                        <label style={{ display: "block", fontSize: "12px" }}>
-                          Out: Frame {effectiveTrimEnd}
-                          {trimEnd !== null && (
-                            <span style={{ color: "#f57c00", marginLeft: "4px" }}>
-                              (set)
-                            </span>
-                          )}
-                          <input
-                            data-testid="trim-end-slider"
-                            type="range"
-                            min={range.min}
-                            max={range.max}
-                            value={effectiveTrimEnd}
-                            onChange={(e) => {
-                              const v = Number(e.target.value);
-                              setTrimEnd(v === range.max ? null : v);
-                            }}
-                            style={{ width: "100%", marginTop: "2px" }}
-                          />
-                        </label>
-                      </div>
-                    </>
+                      />
+                    </div>
                   );
                 })()}
 

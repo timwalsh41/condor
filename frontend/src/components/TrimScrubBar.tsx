@@ -4,20 +4,23 @@ import { useRef } from "react";
  * TrimScrubBar — unified playhead scrubber + trim handles for PLAYBACK mode.
  *
  * Renders a single div-based track with three interactive targets:
- * - Playhead (hidden native <input type="range"> for seek + test compatibility)
- * - In handle (draggable div, orange bracket on left of active zone)
- * - Out handle (draggable div, orange bracket on right of active zone)
+ * - Playhead (blue vertical bar; also backed by a hidden <input> for Playwright)
+ * - In handle (orange bracket, left of active zone)
+ * - Out handle (orange bracket, right of active zone)
  *
- * CSS regions: muted grey rails outside the trim zone, green highlight inside.
- * Trim handles always take visual precedence over the playhead marker.
- *
- * Hit-testing priority: trim handles intercept pointer events via z-index and
- * pointer capture; the underlying native input handles all other track clicks.
+ * Hit-testing priority: playhead is checked first so it wins over trim handles
+ * whenever both are close to the pointer position.  A click anywhere on the
+ * track that misses both handles also resolves to a playhead seek.
  *
  * Validates: REQ-F-TRIM-001, REQ-F-TRIM-002
  */
 
-const HANDLE_WIDTH = 14; // px, visual width of each trim handle
+/** Half-width grab zone in pixels for each draggable target. */
+const GRAB_ZONE = 10;
+/** Visual width of each trim handle in pixels. */
+const HANDLE_WIDTH = 14;
+
+type DragTarget = "playhead" | "in" | "out" | null;
 
 interface TrimScrubBarProps {
   min: number;
@@ -65,7 +68,7 @@ export function TrimScrubBar({
   onResetTrim,
 }: TrimScrubBarProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const activeDragRef = useRef<"in" | "out" | null>(null);
+  const activeDragRef = useRef<DragTarget>(null);
 
   // Convert a frame number to a CSS percentage left offset.
   const toPercent = (frame: number): string => {
@@ -81,36 +84,70 @@ export function TrimScrubBar({
     return Math.round(min + ratio * (max - min));
   };
 
-  // --- Trim handle pointer handlers ---
-
-  const handleTrimPointerDown = (
-    e: React.PointerEvent<HTMLDivElement>,
-    type: "in" | "out"
-  ) => {
-    e.preventDefault();
-    e.stopPropagation(); // prevent the underlying input from receiving this event
-    activeDragRef.current = type;
-    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+  // Pixel position of a frame on the track (relative to viewport).
+  const frameToClientX = (frame: number): number => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || max === min) return 0;
+    return rect.left + ((frame - min) / (max - min)) * rect.width;
   };
 
-  const handleTrimPointerMove = (
-    e: React.PointerEvent<HTMLDivElement>,
-    type: "in" | "out"
-  ) => {
-    if (activeDragRef.current !== type) return;
-    const frame = clientXToFrame(e.clientX);
-    if (type === "in") {
-      // In handle cannot cross Out handle
-      onTrimStartChange(Math.min(frame, trimEnd - 1));
+  // --- Unified track pointer handlers (playhead has priority) ---
+
+  const handleTrackPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+
+    const distPlayhead = Math.abs(e.clientX - frameToClientX(playhead));
+    const distIn = Math.abs(e.clientX - frameToClientX(trimStart));
+    const distOut = Math.abs(e.clientX - frameToClientX(trimEnd));
+
+    // Playhead wins if within grab zone OR if no handle is closer.
+    if (distPlayhead <= GRAB_ZONE) {
+      activeDragRef.current = "playhead";
+    } else if (distIn <= GRAB_ZONE && distIn <= distOut) {
+      activeDragRef.current = "in";
+    } else if (distOut <= GRAB_ZONE) {
+      activeDragRef.current = "out";
     } else {
-      // Out handle cannot cross In handle
-      onTrimEndChange(Math.max(frame, trimStart + 1));
+      // General track click → seek playhead to clicked position
+      activeDragRef.current = "playhead";
+      onPlayheadDrag(clientXToFrame(e.clientX));
+    }
+
+    trackRef.current?.setPointerCapture(e.pointerId);
+  };
+
+  const handleTrackPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!activeDragRef.current) return;
+    const frame = clientXToFrame(e.clientX);
+    switch (activeDragRef.current) {
+      case "playhead":
+        onPlayheadDrag(frame);
+        break;
+      case "in":
+        onTrimStartChange(Math.min(frame, trimEnd - 1));
+        break;
+      case "out":
+        onTrimEndChange(Math.max(frame, trimStart + 1));
+        break;
     }
   };
 
-  const handleTrimPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleTrackPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeDragRef.current === "playhead") {
+      onPlayheadRelease(clientXToFrame(e.clientX));
+    }
     activeDragRef.current = null;
-    (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+    trackRef.current?.releasePointerCapture(e.pointerId);
+  };
+
+  // --- Set In / Set Out from current playhead ---
+
+  const handleSetIn = () => {
+    if (playhead < trimEnd) onTrimStartChange(playhead);
+  };
+
+  const handleSetOut = () => {
+    if (playhead > trimStart) onTrimEndChange(playhead);
   };
 
   // Percentage positions for CSS layout
@@ -123,7 +160,16 @@ export function TrimScrubBar({
       {/* Track */}
       <div
         ref={trackRef}
-        style={{ position: "relative", height: "30px", marginBottom: "6px" }}
+        onPointerDown={handleTrackPointerDown}
+        onPointerMove={handleTrackPointerMove}
+        onPointerUp={handleTrackPointerUp}
+        style={{
+          position: "relative",
+          height: "30px",
+          marginBottom: "6px",
+          cursor: "pointer",
+          touchAction: "none",
+        }}
       >
         {/* Visual track: grey rails + green active zone */}
         <div
@@ -152,9 +198,9 @@ export function TrimScrubBar({
         </div>
 
         {/*
-         * Hidden native range input — carries data-testid for Playwright
-         * compatibility and provides keyboard accessibility.
-         * Positioned to cover the full track; trim handles sit above it (z-index 2).
+         * Hidden native range input — carries data-testid="scrub-bar-both" for
+         * Playwright test compatibility (fill + dispatchEvent). Pointer events
+         * are disabled so all interaction flows through the track container.
          */}
         <input
           data-testid="scrub-bar-both"
@@ -176,18 +222,15 @@ export function TrimScrubBar({
             width: "100%",
             height: "100%",
             opacity: 0,
-            cursor: "pointer",
             margin: 0,
-            zIndex: 1,
+            pointerEvents: "none",
           }}
         />
 
-        {/* In handle */}
+        {/* In handle — decorative; pointer events handled by track container */}
         <div
           data-testid="trim-in-handle"
-          onPointerDown={(e) => handleTrimPointerDown(e, "in")}
-          onPointerMove={(e) => handleTrimPointerMove(e, "in")}
-          onPointerUp={handleTrimPointerUp}
+          aria-hidden="true"
           style={{
             position: "absolute",
             top: "50%",
@@ -198,19 +241,15 @@ export function TrimScrubBar({
             backgroundColor: "#FF9800",
             border: "2px solid #E65100",
             borderRadius: "3px",
-            cursor: "ew-resize",
-            zIndex: 2,
-            touchAction: "none",
+            pointerEvents: "none",
             boxSizing: "border-box",
           }}
         />
 
-        {/* Out handle */}
+        {/* Out handle — decorative; pointer events handled by track container */}
         <div
           data-testid="trim-out-handle"
-          onPointerDown={(e) => handleTrimPointerDown(e, "out")}
-          onPointerMove={(e) => handleTrimPointerMove(e, "out")}
-          onPointerUp={handleTrimPointerUp}
+          aria-hidden="true"
           style={{
             position: "absolute",
             top: "50%",
@@ -221,14 +260,12 @@ export function TrimScrubBar({
             backgroundColor: "#FF9800",
             border: "2px solid #E65100",
             borderRadius: "3px",
-            cursor: "ew-resize",
-            zIndex: 2,
-            touchAction: "none",
+            pointerEvents: "none",
             boxSizing: "border-box",
           }}
         />
 
-        {/* Playhead marker — decorative vertical bar, above handles visually */}
+        {/* Playhead marker — rendered above handles so it is always visible */}
         <div
           aria-hidden="true"
           style={{
@@ -241,7 +278,7 @@ export function TrimScrubBar({
             backgroundColor: "#1565C0",
             borderRadius: "2px",
             pointerEvents: "none",
-            zIndex: 3,
+            zIndex: 1,
           }}
         />
       </div>
@@ -251,7 +288,7 @@ export function TrimScrubBar({
         {frameLabel}
       </div>
 
-      {/* Controls row: In/Out display, Reset, Return to In, Loop toggle */}
+      {/* Controls row */}
       <div
         style={{
           display: "flex",
@@ -264,6 +301,42 @@ export function TrimScrubBar({
           In: {trimStart} &nbsp;|&nbsp; Out: {trimEnd}
         </span>
         <div style={{ display: "flex", gap: "6px" }}>
+          <button
+            data-testid="set-in"
+            onClick={handleSetIn}
+            disabled={playhead >= trimEnd}
+            title="Set In point to current frame"
+            style={{
+              fontSize: "11px",
+              padding: "2px 8px",
+              cursor: playhead >= trimEnd ? "default" : "pointer",
+              backgroundColor: "#fff",
+              border: "1px solid #FF9800",
+              color: "#E65100",
+              borderRadius: "3px",
+              opacity: playhead >= trimEnd ? 0.4 : 1,
+            }}
+          >
+            [ In
+          </button>
+          <button
+            data-testid="set-out"
+            onClick={handleSetOut}
+            disabled={playhead <= trimStart}
+            title="Set Out point to current frame"
+            style={{
+              fontSize: "11px",
+              padding: "2px 8px",
+              cursor: playhead <= trimStart ? "default" : "pointer",
+              backgroundColor: "#fff",
+              border: "1px solid #FF9800",
+              color: "#E65100",
+              borderRadius: "3px",
+              opacity: playhead <= trimStart ? 0.4 : 1,
+            }}
+          >
+            Out ]
+          </button>
           <button
             data-testid="trim-reset"
             onClick={onResetTrim}

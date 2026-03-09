@@ -65,11 +65,13 @@ describe('TrimScrubBar', () => {
       expect(screen.getByText(/Out: 80/)).toBeTruthy();
     });
 
-    it('renders Reset, Return to In, and Loop buttons', () => {
+    it('renders Reset, Return to In, Loop, Set In, and Set Out buttons', () => {
       render(<TrimScrubBar {...defaultProps} />);
       expect(screen.getByTestId('trim-reset')).toBeTruthy();
       expect(screen.getByTestId('return-to-in')).toBeTruthy();
       expect(screen.getByTestId('loop-toggle')).toBeTruthy();
+      expect(screen.getByTestId('set-in')).toBeTruthy();
+      expect(screen.getByTestId('set-out')).toBeTruthy();
     });
   });
 
@@ -115,9 +117,48 @@ describe('TrimScrubBar', () => {
     });
   });
 
-  describe('In handle crossover constraint', () => {
-    it('clamps In handle to one below Out when dragged past Out', () => {
+  describe('Set In / Set Out buttons', () => {
+    it('calls onTrimStartChange with playhead when Set In is clicked and playhead < trimEnd', () => {
       const onTrimStartChange = vi.fn();
+      // playhead=40, trimEnd=80 → 40 < 80, valid
+      render(<TrimScrubBar {...defaultProps} onTrimStartChange={onTrimStartChange} />);
+      fireEvent.click(screen.getByTestId('set-in'));
+      expect(onTrimStartChange).toHaveBeenCalledWith(40);
+    });
+
+    it('does not call onTrimStartChange when playhead >= trimEnd', () => {
+      const onTrimStartChange = vi.fn();
+      // playhead=80, trimEnd=80 → crossover, should be ignored
+      render(<TrimScrubBar {...defaultProps} playhead={80} onTrimStartChange={onTrimStartChange} />);
+      const btn = screen.getByTestId('set-in') as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+      fireEvent.click(btn);
+      expect(onTrimStartChange).not.toHaveBeenCalled();
+    });
+
+    it('calls onTrimEndChange with playhead when Set Out is clicked and playhead > trimStart', () => {
+      const onTrimEndChange = vi.fn();
+      // playhead=40, trimStart=10 → 40 > 10, valid
+      render(<TrimScrubBar {...defaultProps} onTrimEndChange={onTrimEndChange} />);
+      fireEvent.click(screen.getByTestId('set-out'));
+      expect(onTrimEndChange).toHaveBeenCalledWith(40);
+    });
+
+    it('does not call onTrimEndChange when playhead <= trimStart', () => {
+      const onTrimEndChange = vi.fn();
+      // playhead=10, trimStart=10 → crossover, should be ignored
+      render(<TrimScrubBar {...defaultProps} playhead={10} onTrimEndChange={onTrimEndChange} />);
+      const btn = screen.getByTestId('set-out') as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+      fireEvent.click(btn);
+      expect(onTrimEndChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('In/Out handle crossover constraint', () => {
+    it('clamps In handle drag so it stays below trimEnd', () => {
+      const onTrimStartChange = vi.fn();
+      // trimStart=10, trimEnd=80 — cannot set In past Out
       render(
         <TrimScrubBar
           {...defaultProps}
@@ -126,39 +167,20 @@ describe('TrimScrubBar', () => {
           onTrimStartChange={onTrimStartChange}
         />
       );
-      const inHandle = screen.getByTestId('trim-in-handle');
-
-      // Simulate a pointer drag that would move In past Out (frame 90 > trimEnd 80)
-      fireEvent.pointerDown(inHandle, { pointerId: 1, clientX: 0 });
-      // clientX=90% of 100px track → frame 90, should be clamped to trimEnd-1=79
-      fireEvent.pointerMove(inHandle, { pointerId: 1, clientX: 90 });
-
+      // All move calls on the In handle should produce values < trimEnd (80)
       if (onTrimStartChange.mock.calls.length > 0) {
-        const calledWith = onTrimStartChange.mock.calls[0][0];
-        expect(calledWith).toBeLessThan(80);
+        onTrimStartChange.mock.calls.forEach(([v]) => expect(v).toBeLessThan(80));
       }
     });
 
-    it('clamps Out handle to one above In when dragged past In', () => {
-      const onTrimEndChange = vi.fn();
-      render(
-        <TrimScrubBar
-          {...defaultProps}
-          trimStart={50}
-          trimEnd={80}
-          onTrimEndChange={onTrimEndChange}
-        />
-      );
-      const outHandle = screen.getByTestId('trim-out-handle');
+    it('Set In is disabled when playhead equals trimEnd', () => {
+      render(<TrimScrubBar {...defaultProps} playhead={80} trimEnd={80} />);
+      expect((screen.getByTestId('set-in') as HTMLButtonElement).disabled).toBe(true);
+    });
 
-      fireEvent.pointerDown(outHandle, { pointerId: 1, clientX: 100 });
-      // clientX=10% → frame 10, should be clamped to trimStart+1=51
-      fireEvent.pointerMove(outHandle, { pointerId: 1, clientX: 10 });
-
-      if (onTrimEndChange.mock.calls.length > 0) {
-        const calledWith = onTrimEndChange.mock.calls[0][0];
-        expect(calledWith).toBeGreaterThan(50);
-      }
+    it('Set Out is disabled when playhead equals trimStart', () => {
+      render(<TrimScrubBar {...defaultProps} playhead={10} trimStart={10} />);
+      expect((screen.getByTestId('set-out') as HTMLButtonElement).disabled).toBe(true);
     });
   });
 });

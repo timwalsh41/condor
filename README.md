@@ -120,14 +120,14 @@ uv run python -m backend.main
 uv run pytest backend/
 ```
 
-## Docker Deployment (Raspberry Pi 4)
+## Docker Deployment
 
-Condor ships production Docker images for `linux/amd64` and `linux/arm64` (Raspberry Pi 4 OS 64-bit).
+Condor ships production Docker images for `linux/amd64` and `linux/arm64`.
 
 ### Prerequisites
 
 - Docker 24+ and Docker Compose v2
-- 4 GB RAM recommended (Raspberry Pi 4 4 GB or 8 GB model)
+- 4+ GB RAM recommended
 - Sufficient storage for the PostgreSQL data volume and video files
 
 ### Deploy

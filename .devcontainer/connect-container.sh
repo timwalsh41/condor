@@ -231,17 +231,32 @@ if [[ -n "$HOST_CODE_DIR_OVERRIDE" ]]; then
     # Check if we need to enforce this path on an existing container
     if [[ "$ACTION" != "rebuild" && "$ACTION" != "stop" && "$ACTION" != "help" ]]; then
         if container_running; then
-            echo "❌ Error: Container '$CONTAINER_NAME' is already running."
-            echo "   Cannot change host directory on a running container."
-            echo "   To connect to the existing container with host directory mounted as-is, run '$0 connect' without the -p flag."
-            echo "   To connect with a different host directory mount, please stop the container and remove it, or use the 'rebuild' action."
-            echo "   Example: $0 stop && $0 rebuild -p \"$HOST_CODE_DIR_OVERRIDE\""
-            exit 1
+            existing_mount=$(docker inspect --format='{{range .Mounts}}{{if eq .Destination "'"$CONTAINER_CODE_DIR"'"}}{{.Source}}{{end}}{{end}}' "$CONTAINER_NAME" 2>/dev/null)
+            # Docker Desktop on macOS prefixes host paths with /host_mnt — strip it for comparison
+            existing_mount="${existing_mount#/host_mnt}"
+            if [[ -z "$existing_mount" ]]; then
+                echo "⚠️  Warning: Could not detect host directory mount on running container (proceeding anyway)"
+            elif [[ "$existing_mount" != "$HOST_CODE_DIR" ]]; then
+                echo "❌ Error: Container '$CONTAINER_NAME' is already running with a different host directory."
+                echo "   Running with: $existing_mount"
+                echo "   Requested:    $HOST_CODE_DIR"
+                echo "   To connect to the existing container with host directory mounted as-is, run '$0 connect' without the -p flag."
+                echo "   To connect with a different host directory mount, please stop the container and remove it, or use the 'rebuild' action."
+                echo "   Example: $0 stop && $0 rebuild -p \"$HOST_CODE_DIR_OVERRIDE\""
+                exit 1
+            fi
         fi
         
         if container_exists; then
-            echo "⚠️  Removing existing stopped container to apply new host directory..."
-            remove_container
+            existing_mount=$(docker inspect --format='{{range .Mounts}}{{if eq .Destination "'"$CONTAINER_CODE_DIR"'"}}{{.Source}}{{end}}{{end}}' "$CONTAINER_NAME" 2>/dev/null)
+            # Docker Desktop on macOS prefixes host paths with /host_mnt — strip it for comparison
+            existing_mount="${existing_mount#/host_mnt}"
+            if [[ "$existing_mount" == "$HOST_CODE_DIR" ]]; then
+                echo "✅ Existing container already has the requested host directory mounted, keeping it"
+            else
+                echo "⚠️  Removing existing stopped container to apply new host directory..."
+                remove_container
+            fi
         fi
     fi
 fi

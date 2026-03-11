@@ -3,6 +3,7 @@ import {
   navigateToProductionApp,
   uploadVideoProduction,
 } from "./helpers/uploadHelpers";
+import path from 'node:path';
 
 /**
  * Cache Performance Tests for WebCodecs Frame Control
@@ -27,7 +28,10 @@ import {
  */
 
 test.describe("Cache Performance Validation", () => {
-  const testVideo10s = "../tests/fixtures/videos/test_gop30_h264_10s.mp4";
+  // const testVideo10s = "../tests/fixtures/videos/test_gop30_h264_10s.mp4";
+
+  const currentDir = import.meta.dirname; 
+  const testVideo10s = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264_10s.mp4');
 
   test.beforeEach(async ({ page }) => {
     page.on("console", (msg) => {

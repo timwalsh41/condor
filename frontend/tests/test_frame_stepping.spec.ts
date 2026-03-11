@@ -3,6 +3,7 @@ import {
   navigateToProductionApp,
   uploadVideoProduction,
 } from './helpers/uploadHelpers';
+import path from 'node:path';
 
 /**
  * WebCodecs Frame-Accurate Seeking Tests
@@ -26,7 +27,9 @@ import {
  */
 
 test.describe('WebCodecs Frame-Accurate Video Control', () => {
-  const testVideoPath = '../tests/fixtures/videos/test_gop30_h264.mp4';
+  // const testVideoPath = '../tests/fixtures/videos/test_gop30_h264.mp4';
+  const currentDir = import.meta.dirname; 
+  const testVideoPath = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
   test.beforeEach(async ({ page }) => {
     // Listen to console messages for debugging

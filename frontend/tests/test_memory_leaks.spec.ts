@@ -32,7 +32,10 @@ test.describe("Memory Leak Detection", () => {
   // Skip on non-Chrome browsers - requires Chrome DevTools Protocol
   test.skip(({ browserName }) => browserName !== 'chrome', 'Chrome-only tests (CDP required)');
 
-  const testVideoPath = '../tests/fixtures/videos/test_gop30_h264.mp4';
+  // const testVideoPath = '../tests/fixtures/videos/test_gop30_h264.mp4';
+
+  const currentDir = import.meta.dirname; 
+  const testVideoPath = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
   test("should not leak VideoFrames during sequential frame stepping", async ({
     browser,

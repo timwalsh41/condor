@@ -19,7 +19,10 @@ Frontend for dual-video synchronized playback with frame-accurate control and an
 
 ## Development
 
+> All commands must be run from the `frontend/` directory.
+
 ```bash
+cd frontend
 npm install
 npm run dev
 # Opens at http://localhost:5173
@@ -34,6 +37,8 @@ npm run build
 
 ## Testing
 
+> All commands must be run from the `frontend/` directory.
+
 **Unit Tests:**
 
 ```bash
@@ -47,19 +52,18 @@ npm run test:ui       # Interactive UI
 ⚠️ **Backend Required**: Playwright tests require the backend server running at `http://localhost:8000`
 
 ```bash
-# STEP 1: Start backend server (in separate terminal)
-cd ../backend
-python3 -m backend.main
+# STEP 1: Start backend server (in a separate terminal, from project root)
+uv run python3 -m backend.main
 
-# STEP 2: First time setup - install browser binaries
+# STEP 2: First time setup - install browser binaries (from frontend/)
 sudo npx playwright install --with-deps  # as root - install system packages
-npx playwright install firefox webkit.   # as node user - install user copy in /home/node/.cache/ms-playwright
+npx playwright install firefox webkit    # as node user - install user copy in /home/node/.cache/ms-playwright
 
 # Optional - install chrome to run all tests (x86/amd64 only)
 wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 sudo dpkg -i google-chrome-stable_current_amd64.deb
 
-# STEP 3: Run tests
+# STEP 3: Run tests (from frontend/)
 npm run test:e2e              # Headless mode (all browsers)
 npm run test:e2e:headed       # Headed mode (visible browser)
 npm run test:e2e:ui           # Interactive UI mode

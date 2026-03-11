@@ -6,6 +6,7 @@ import {
   verifyAnalyzingProgress,
   cancelRotationModal,
 } from "./helpers/uploadHelpers";
+import path from 'node:path';
 
 /**
  * Video Upload Workflow Tests
@@ -46,7 +47,10 @@ test.describe("Upload Workflow - GOP Detection Progress", () => {
      * Validates: GOP detection correctly identifies optimized videos
      * Acceptance Criteria: GOP=30 videos skip processing phase
      */
-    const videoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+    // const videoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+    const currentDir = import.meta.dirname; 
+    const videoPath = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
     await uploadVideoProduction(page, "file-input-a", videoPath, 0, {
       expectOptimization: false, // GOP=30 should not need optimization
@@ -89,7 +93,10 @@ test.describe("Upload Workflow - GOP Detection Progress", () => {
      * Validates: HEVC videos are converted to H.264
      * Acceptance Criteria: HEVC videos go through processing phase
      */
-    const videoPath = "../tests/fixtures/videos/test_gop30_hevc.mp4";
+    // const videoPath = "../tests/fixtures/videos/test_gop30_hevc.mp4";
+
+    const currentDir = import.meta.dirname; 
+    const videoPath = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_hevc.mp4');
 
     await uploadVideoProduction(page, "file-input-a", videoPath, 0, {
       expectOptimization: true, // HEVC needs transcoding to H.264
@@ -112,7 +119,10 @@ test.describe("Upload Workflow - GOP Detection Progress", () => {
      * Validates: Task 1.3.4 - GOP detection progress reporting
      * Acceptance Criteria: Can observe intermediate progress values during analyzing state
      */
-    const videoPath = "../tests/fixtures/videos/test_gop250_h264.mp4";
+    // const videoPath = "../tests/fixtures/videos/test_gop250_h264.mp4";
+
+    const currentDir = import.meta.dirname; 
+    const videoPath = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
     // Start upload
     const fileInput = page.locator('[data-testid="file-input-a"]');
@@ -143,7 +153,10 @@ test.describe("Upload Workflow - Rotation", () => {
      * Validates: REQ-F-UPLOAD-004 (rotation modal workflow)
      * Acceptance Criteria: Rotation modal appears, can select rotation, and accept
      */
-    const videoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+    // const videoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+    const currentDir = import.meta.dirname; 
+    const videoPath = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
     // Select file
     const fileInput = page.locator('[data-testid="file-input-a"]');
@@ -181,7 +194,10 @@ test.describe("Upload Workflow - Rotation", () => {
      * Validates: REQ-F-UPLOAD-004 (rotation modal can be canceled)
      * Acceptance Criteria: Clicking cancel aborts upload
      */
-    const videoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+    // const videoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+    const currentDir = import.meta.dirname; 
+    const videoPath = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
     // Select file
     const fileInput = page.locator('[data-testid="file-input-a"]');
@@ -204,7 +220,10 @@ test.describe("Upload Workflow - Rotation", () => {
      * Validates: Rotation request triggers processing
      * Acceptance Criteria: GOP=30 video with rotation goes through processing phase
      */
-    const videoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+    // const videoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+    const currentDir = import.meta.dirname; 
+    const videoPath = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
     // Upload with 90° rotation
     await uploadVideoProduction(page, "file-input-a", videoPath, 90, {
@@ -231,8 +250,12 @@ test.describe("Upload Workflow - Dual Video", () => {
      * Validates: Dual video upload workflow
      * Acceptance Criteria: Can upload to both slots A and B
      */
-    const videoPathA = "../tests/fixtures/videos/test_gop30_h264.mp4";
-    const videoPathB = "../tests/fixtures/videos/test_gop30_h264_10s.mp4";
+    // const videoPathA = "../tests/fixtures/videos/test_gop30_h264.mp4";
+    // const videoPathB = "../tests/fixtures/videos/test_gop30_h264_10s.mp4";
+
+    const currentDir = import.meta.dirname; 
+    const videoPathA = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
+    const videoPathB = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264_10s.mp4');
 
     // Upload video A
     await uploadVideoProduction(page, "file-input-a", videoPathA, 0, {

@@ -5,6 +5,7 @@ import {
   getFrameNumber,
   waitForFrame,
 } from "./helpers/uploadHelpers";
+import path from 'node:path';
 
 /**
  * Dual Video Synchronized Playback Tests
@@ -109,7 +110,10 @@ async function stepToFrame(
 }
 
 test.describe("Dual Video Synchronized Playback", () => {
-  const testVideoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+  // const testVideoPath = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+  const currentDir = import.meta.dirname; 
+  const testVideoPath = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
   test.beforeEach(async ({ page }) => {
     // Listen to console messages for debugging

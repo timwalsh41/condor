@@ -3,9 +3,10 @@ import {
   navigateToProductionApp,
   uploadVideoProduction,
 } from "./helpers/uploadHelpers";
+import path from 'node:path';
 
 /**
- * Extend Window interface for Konva global
+ * Extend Window interface for Konva global`
  */
 interface WindowWithKonva extends Window {
   Konva?: {
@@ -538,7 +539,10 @@ async function getErrorMessage(page: Page): Promise<string | null> {
 }
 
 test.describe("Canvas Overlay Alignment", () => {
-  const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+  // const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+  const currentDir = import.meta.dirname; 
+  const TEST_VIDEO_PATH = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
   test("annotation canvas exists over video A", async ({ page }) => {
     await navigateToProductionApp(page);
@@ -742,7 +746,10 @@ test.describe("Canvas Overlay Alignment", () => {
 });
 
 test.describe("Drawing Functionality", () => {
-  const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+  // const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+  const currentDir = import.meta.dirname; 
+  const TEST_VIDEO_PATH = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
   test("freehand tool draws line annotation", async ({ page }) => {
     await navigateToProductionApp(page);
@@ -869,7 +876,10 @@ test.describe("Drawing Functionality", () => {
 });
 
 test.describe("Tool Switching", () => {
-  const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+  // const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+  const currentDir = import.meta.dirname; 
+  const TEST_VIDEO_PATH = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
   test.skip("switching tools creates different annotation types", async ({ page }) => {
     // LIMITATION: Test depends on polyline finalization which fails in headless Playwright
@@ -911,7 +921,10 @@ test.describe("Tool Switching", () => {
 });
 
 test.describe("Dual Video Independence", () => {
-  const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+  // const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+  const currentDir = import.meta.dirname; 
+  const TEST_VIDEO_PATH = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
   test("annotations on Video A and Video B are independent", async ({ page }) => {
     await navigateToProductionApp(page);
@@ -946,7 +959,10 @@ test.describe("Dual Video Independence", () => {
 });
 
 test.describe("Playback Integration", () => {
-  const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+  // const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
+
+  const currentDir = import.meta.dirname; 
+  const TEST_VIDEO_PATH = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
 
   test("annotations remain visible during video playback", async ({ page }) => {
     await navigateToProductionApp(page);
@@ -1023,11 +1039,15 @@ test.describe("HEVC Codec Blocking", () => {
   }
 
   test("shows HEVC codec warning with graceful degradation (fast-start)", async ({ page }) => {
+    const currentDir = import.meta.dirname; 
+    const TEST_VIDEO_PATH = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
+
     await navigateToProductionApp(page);
 
     // Upload HEVC video (fast-start - moov at beginning)
     const fileInputA = page.locator('[data-testid="file-input-a"]');
-    await fileInputA.setInputFiles("../tests/fixtures/videos/test_gop30_hevc.mp4");
+    // await fileInputA.setInputFiles("../tests/fixtures/videos/test_gop30_hevc.mp4");
+    await fileInputA.setInputFiles(TEST_VIDEO_PATH);
 
     // Wait for rotation modal to appear
     await page.waitForSelector('[data-testid="rotation-modal-content"]', { timeout: 5000 });
@@ -1094,12 +1114,16 @@ test.describe("HEVC Codec Blocking", () => {
   });
 
   test("shows HEVC codec warning for different video files", async ({ page }) => {
+    const currentDir = import.meta.dirname; 
+    const TEST_VIDEO_PATH = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
+
     await navigateToProductionApp(page);
 
     // Upload different HEVC video
     // Using test_30fps_10s_hevc.mp4 which is a different HEVC file
     const fileInputA = page.locator('[data-testid="file-input-a"]');
-    await fileInputA.setInputFiles("../tests/fixtures/videos/test_30fps_10s_hevc.mp4");
+    // await fileInputA.setInputFiles("../tests/fixtures/videos/test_30fps_10s_hevc.mp4");
+    await fileInputA.setInputFiles(TEST_VIDEO_PATH);
 
     // Wait for rotation modal to appear
     await page.waitForSelector('[data-testid="rotation-modal-content"]', { timeout: 5000 });
@@ -1160,11 +1184,15 @@ test.describe("HEVC Codec Blocking", () => {
   });
 
   test("HEVC warning mentions H.264 transcoding", async ({ page }) => {
+    const currentDir = import.meta.dirname; 
+    const TEST_VIDEO_PATH = path.resolve(currentDir, '../../tests/fixtures/videos', 'test_gop30_h264.mp4');
+    
     await navigateToProductionApp(page);
 
     // Upload any HEVC video
     const fileInputA = page.locator('[data-testid="file-input-a"]');
-    await fileInputA.setInputFiles("../tests/fixtures/videos/test_gop30_hevc.mp4");
+    // await fileInputA.setInputFiles("../tests/fixtures/videos/test_gop30_hevc.mp4");
+    await fileInputA.setInputFiles(TEST_VIDEO_PATH);
 
     // Wait for rotation modal
     await page.waitForSelector('[data-testid="rotation-modal-content"]', { timeout: 5000 });

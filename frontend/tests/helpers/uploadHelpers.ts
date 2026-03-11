@@ -7,6 +7,7 @@
  */
 
 import { type Page, expect } from "@playwright/test";
+import path from 'node:path';
 
 /**
  * Upload video using production workflow (VideoUploadWorkflow component).
@@ -34,6 +35,9 @@ export async function uploadVideoProduction(
     timeout?: number; // Max wait time (default 60s)
   }
 ): Promise<void> {
+  const currentDir = import.meta.dirname; 
+  const TEST_VIDEO_PATH = path.resolve(currentDir, '../../../tests/fixtures/videos', 'test_gop30_h264.mp4');
+
   const timeout = options?.timeout ?? 60000; // 60 seconds default
   const videoSlot = testId.includes("a") ? "A" : "B";
 
@@ -43,7 +47,8 @@ export async function uploadVideoProduction(
 
   // Step 1: Select file
   const fileInput = page.locator(`[data-testid="${testId}"]`);
-  await fileInput.setInputFiles(videoPath);
+  // await fileInput.setInputFiles(videoPath);
+  await fileInput.setInputFiles(TEST_VIDEO_PATH);
 
   // Step 2: Wait for rotation modal to appear
   await page.waitForSelector('[data-testid="rotation-modal-content"]', {

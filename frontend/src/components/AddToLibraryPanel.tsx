@@ -34,7 +34,7 @@ const emptyForm = (): SaveFormState => ({
 });
 
 export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
-  const { videoA, videoB } = useVideoStore();
+  const { videoA, videoB, setVideoA, setVideoB } = useVideoStore();
   const { addVideo } = useLibraryStore();
 
   const [savingSlot, setSavingSlot] = useState<Slot | null>(null);
@@ -71,7 +71,14 @@ export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
     };
 
     try {
-      await addVideo(payload);
+      const libraryVideo = await addVideo(payload);
+      // Update the metadata.video_id in videoStore to the library_videos.id so
+      // that subsequent session saves use the correct FK value.
+      if (savingSlot === "A" && videoA?.metadata) {
+        setVideoA({ ...videoA, metadata: { ...videoA.metadata, video_id: libraryVideo.id } });
+      } else if (savingSlot === "B" && videoB?.metadata) {
+        setVideoB({ ...videoB, metadata: { ...videoB.metadata, video_id: libraryVideo.id } });
+      }
       setSavedSlots((prev) => new Set(prev).add(savingSlot!));
       closeSave();
     } catch (err) {

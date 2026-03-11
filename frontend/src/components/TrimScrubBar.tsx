@@ -169,6 +169,7 @@ export function TrimScrubBar({
           marginBottom: "6px",
           cursor: "pointer",
           touchAction: "none",
+          overflow: "hidden",
         }}
       >
         {/* Visual track: grey rails + green active zone */}

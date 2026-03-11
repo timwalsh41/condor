@@ -292,11 +292,17 @@ export function DualVideoSynchronizer() {
       setSessionId(metadata.session_id);
     }
 
+    // Clear annotations for this channel before loading the new video
+    clearAllA();
+
     // Store video A metadata and blob
     setVideoA({ metadata, blob });
   };
 
   const handleVideoBUploadComplete = (metadata: VideoMetadata, blob: Blob) => {
+    // Clear annotations for this channel before loading the new video
+    clearAllB();
+
     // Store video B metadata and blob
     setVideoB({ metadata, blob });
   };
@@ -941,19 +947,7 @@ export function DualVideoSynchronizer() {
     };
   }, []);
 
-  // Clear annotations when Video A is loaded or changed
-  useEffect(() => {
-    if (videoA.isReady) {
-      clearAllA();
-    }
-  }, [videoA.isReady, clearAllA]);
 
-  // Clear annotations when Video B is loaded or changed
-  useEffect(() => {
-    if (videoB.isReady) {
-      clearAllB();
-    }
-  }, [videoB.isReady, clearAllB]);
 
   if (!support.isSupported) {
     return (

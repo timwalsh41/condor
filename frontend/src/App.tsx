@@ -49,14 +49,15 @@ function App() {
       </nav>
 
       {/* ── Page content ────────────────────────────────────────────────── */}
-      {view === "analyze" && (
-        <>
-          <AddToLibraryPanel>
-            <SaveSessionPanel />
-          </AddToLibraryPanel>
-          <DualVideoSynchronizer />
-        </>
-      )}
+
+      {/* Analyze view is always mounted to preserve decoder/annotation state
+          across navigation; display:none hides it when another view is active. */}
+      <div style={{ display: view === "analyze" ? "block" : "none" }}>
+        <AddToLibraryPanel>
+          <SaveSessionPanel />
+        </AddToLibraryPanel>
+        <DualVideoSynchronizer />
+      </div>
 
       {view === "library" && (
         <LibraryView onNavigateToAnalyze={() => setView("analyze")} />

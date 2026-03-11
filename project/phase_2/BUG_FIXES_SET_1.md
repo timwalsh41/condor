@@ -30,7 +30,8 @@ Four bugs identified in the Phase 2 MVP implementation. All fixes are concentrat
 |-----|------|------|
 | Replace conditional rendering with always-mounted + `display: none` | `App.tsx` | Low |
 | Move `clearAllA/clearAllB` calls into `handleVideoAUploadComplete` / `handleVideoBUploadComplete`; remove the `isReady` `useEffect` blocks | `DualVideoSynchronizer.tsx` | Low |
-| Clamp Out handle position: add `overflow: hidden` to track container or use `min(${trimEndPct}, calc(100% - ${HANDLE_WIDTH/2}px))` | `TrimScrubBar.tsx` | Low |
+| Add `clearAnnotationsA`/`clearAnnotationsB` calls in `handleLoad` when loading a library video into slot A/B (the `isReady` effects previously handled this path; removing them would leave library-loaded annotations uncleared) | `LibraryView.tsx` | Low |
+| Clamp Out handle position: add `overflow: hidden` to track container | `TrimScrubBar.tsx` | Low |
 
 ---
 

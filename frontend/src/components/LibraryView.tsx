@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import { useLibraryStore } from '../store/libraryStore';
 import { useVideoStore } from '../store/videoStore';
+import { useAnnotationStore } from '../store/annotationStore';
 import { fetchLibraryVideoBlob } from '../services/api';
 import type { LibraryVideo, LibraryVideoUpdate } from '../types/api';
 import type { VideoMetadata } from '../types/api';
@@ -215,6 +216,7 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
   const { videos, loading, error, fetchVideos, updateVideo, removeVideo, clearError } =
     useLibraryStore();
   const { setVideoA, setVideoB, setSessionId, sessionId } = useVideoStore();
+  const { setAnnotationsA, setAnnotationsB } = useAnnotationStore();
 
   const [editTarget, setEditTarget] = useState<LibraryVideo | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LibraryVideo | null>(null);
@@ -271,8 +273,10 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
       }
 
       if (slot === 'A') {
+        setAnnotationsA([]);
         setVideoA({ metadata, blob });
       } else {
+        setAnnotationsB([]);
         setVideoB({ metadata, blob });
       }
 

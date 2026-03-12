@@ -58,6 +58,7 @@ export interface UseVideoAnnotationsResult {
   scale: number;
   handlers: AnnotationHandlers;
   clearAll: () => void;
+  updateAnnotationText: (id: string, text: string) => void;
   isDraggingAnnotation: boolean;
   isReshapingAnnotation: boolean;
   // Undo/redo
@@ -296,8 +297,8 @@ export function useVideoAnnotations(
       const point = getPoint(e);
       if (!point) return;
 
-      // Update polyline preview cursor position
-      if (manager.isPolylineActive()) {
+      // Update cursor position for preview (polyline and angle rubber-band)
+      if (manager.isPolylineActive() || manager.isAngleActive()) {
         setPolylineMousePos(point);
         return;
       }
@@ -469,6 +470,18 @@ export function useVideoAnnotations(
     }
   }, [manager, videoId, pushHistory]);
 
+  // Update text content of a text annotation
+  const updateAnnotationText = useCallback(
+    (id: string, text: string) => {
+      if (manager.updateAnnotationText(id, text)) {
+        const current = manager.getAnnotations();
+        setAnnotations(current);
+        pushHistory(current);
+      }
+    },
+    [manager, pushHistory]
+  );
+
   // ========================================
   // Drag Handlers (Subtask 0.5.10)
   // ========================================
@@ -630,6 +643,7 @@ export function useVideoAnnotations(
       handleStageMouseUp,
     },
     clearAll,
+    updateAnnotationText,
     isDraggingAnnotation,
     isReshapingAnnotation,
     undo,

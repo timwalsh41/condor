@@ -507,6 +507,19 @@ export class AnnotationManager {
   }
 
   /**
+   * Update the text content of a text annotation by ID.
+   * Returns true if the annotation was found and updated.
+   */
+  updateAnnotationText(id: string, text: string): boolean {
+    const annotation = this.annotations.find((a) => a.id === id);
+    if (annotation && annotation.type === "text") {
+      annotation.text = text;
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Start dragging operation for selected annotations.
    * Stores original positions for all selected annotations.
    * @param primaryId - ID of the annotation that was clicked to start the drag
@@ -612,6 +625,17 @@ export class AnnotationManager {
       case "arrow":
       case "polyline": {
         // Direct vertex manipulation - update the point at controlIndex
+        if (controlIndex >= 0 && controlIndex < annotation.points.length) {
+          const newPoints = annotation.points.map((p, i) =>
+            i === controlIndex ? { ...newPosition } : { ...p }
+          );
+          this.updateAnnotationPoints(annotation.id, newPoints);
+        }
+        break;
+      }
+
+      case "angle": {
+        // Direct vertex manipulation for all 3 points (vertex, arm1-end, arm2-end)
         if (controlIndex >= 0 && controlIndex < annotation.points.length) {
           const newPoints = annotation.points.map((p, i) =>
             i === controlIndex ? { ...newPosition } : { ...p }

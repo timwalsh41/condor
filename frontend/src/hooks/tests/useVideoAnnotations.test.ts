@@ -349,6 +349,101 @@ describe("useVideoAnnotations", () => {
 
       expect(result.current.polylineMousePos).toBeNull();
     });
+
+    it("should track cursor position during angle-active drawing", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Start angle drawing (sets angle-active state)
+      act(() => {
+        result.current.manager.setTool("angle");
+        result.current.manager.startDrawing({ x: 100, y: 100 });
+      });
+
+      expect(result.current.manager.isAngleActive()).toBe(true);
+
+      // Move mouse - should update polylineMousePos
+      const moveEvent = {
+        target: {
+          getStage: () => ({
+            getPointerPosition: () => ({ x: 150, y: 80 }),
+          }),
+        },
+      } as unknown as Konva.KonvaEventObject<MouseEvent>;
+
+      act(() => {
+        result.current.handlers.handleMouseMove(moveEvent);
+      });
+
+      expect(result.current.polylineMousePos).toEqual({ x: 150, y: 80 });
+    });
+  });
+
+  describe("updateAnnotationText", () => {
+    it("should expose updateAnnotationText function", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      expect(result.current.updateAnnotationText).toBeTypeOf("function");
+    });
+
+    it("should update text annotation content and sync state", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create a text annotation directly via manager
+      let textAnn: ReturnType<typeof result.current.manager.createAndAddText>;
+      act(() => {
+        textAnn = result.current.manager.createAndAddText({ x: 50, y: 50 }, "Original");
+        // Sync annotations state by triggering a re-render via clearAll/restore path
+        // Instead, call updateAnnotationText to trigger the state sync
+      });
+
+      // Ensure annotation is reflected
+      act(() => {
+        result.current.manager.createAndAddText({ x: 10, y: 10 }, "First");
+      });
+
+      // Update via the hook's exposed function
+      const annotations = result.current.manager.getAnnotations();
+      const textAnnotation = annotations.find((a) => a.type === "text");
+
+      if (textAnnotation) {
+        act(() => {
+          result.current.updateAnnotationText(textAnnotation.id, "Edited");
+        });
+
+        const updated = result.current.manager.getAnnotationById(textAnnotation.id);
+        expect(updated?.text).toBe("Edited");
+      }
+    });
+
+    it("should push history entry when text is updated", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Disable undo initially
+      expect(result.current.canUndo).toBe(false);
+
+      // Create a text annotation and update it
+      act(() => {
+        result.current.manager.createAndAddText({ x: 20, y: 20 }, "Before");
+      });
+
+      const annotations = result.current.manager.getAnnotations();
+      if (annotations.length > 0) {
+        act(() => {
+          result.current.updateAnnotationText(annotations[0].id, "After");
+        });
+
+        // Undo should now be available
+        expect(result.current.canUndo).toBe(true);
+      }
+    });
   });
 
   describe("keyboard shortcuts", () => {

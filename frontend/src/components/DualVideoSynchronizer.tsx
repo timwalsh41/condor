@@ -131,6 +131,7 @@ export function DualVideoSynchronizer() {
     scale: annotationScaleA,
     handlers: handlersA,
     clearAll: clearAllA,
+    updateAnnotationText: updateAnnotationTextA,
     isDraggingAnnotation: isDraggingAnnotationA,
     isReshapingAnnotation: isReshapingAnnotationA,
     undo: undoA,
@@ -157,6 +158,7 @@ export function DualVideoSynchronizer() {
     scale: annotationScaleB,
     handlers: handlersB,
     clearAll: clearAllB,
+    updateAnnotationText: updateAnnotationTextB,
     isDraggingAnnotation: isDraggingAnnotationB,
     isReshapingAnnotation: isReshapingAnnotationB,
     undo: undoB,
@@ -248,8 +250,11 @@ export function DualVideoSynchronizer() {
         // For polyline and arrow, show all points (vertices)
         return annotation.points;
 
+      case "angle":
+        // For angle, control points are all 3 defining points: vertex, arm1-end, arm2-end
+        return annotation.points;
+
       case "oval": {
-        // For oval, show 8 points: 4 corners + 4 midpoints
         const start = annotation.points[0];
         const end = annotation.points[1];
         const minX = Math.min(start.x, end.x);
@@ -1487,7 +1492,7 @@ export function DualVideoSynchronizer() {
                                               x={annotation.points[0].x}
                                               y={annotation.points[0].y}
                                               text={annotation.text ?? ""}
-                                              fontSize={18}
+                                              fontSize={20}
                                               fill={annotation.color}
                                               stroke={isSelected ? "#2196F3" : undefined}
                                               strokeWidth={isSelected ? 1 : 0}
@@ -1495,6 +1500,12 @@ export function DualVideoSynchronizer() {
                                               onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)}
                                               onMouseDown={(e) => {
                                                 if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e);
+                                              }}
+                                              onDblClick={() => {
+                                                const newText = window.prompt("Edit annotation text:", annotation.text ?? "");
+                                                if (newText !== null && newText.trim()) {
+                                                  updateAnnotationTextA(annotation.id, newText.trim());
+                                                }
                                               }}
                                             />
                                           ) : null;
@@ -1506,11 +1517,34 @@ export function DualVideoSynchronizer() {
                                           const angleDeg = Math.round(
                                             Math.abs(Math.atan2(dx1 * dy2 - dy1 * dx2, dx1 * dx2 + dy1 * dy2) * 180 / Math.PI)
                                           );
+                                          const lblText = `${angleDeg}°`;
+                                          const lblWidth = lblText.length * 10 + 8;
                                           return (
                                             <>
-                                              <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} />
-                                              <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} />
-                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 6} y={vx.y - 20} text={`${angleDeg}°`} fontSize={14} fill={annotation.color} fontStyle="bold" listening={false} />
+                                              <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
+                                              <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
+                                              <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
+                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={16} fill="#111" fontStyle="bold" listening={false} />
+                                              {/* Render control points if selected */}
+                                              {isSelected &&
+                                                getControlPoints(annotation).map((point, idx) => (
+                                                  <Rect
+                                                    key={`cp-${annotation.id}-${idx}`}
+                                                    x={point.x - CONTROL_POINT_SIZE / 2}
+                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    width={CONTROL_POINT_SIZE}
+                                                    height={CONTROL_POINT_SIZE}
+                                                    fill="white"
+                                                    stroke="black"
+                                                    strokeWidth={1}
+                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    cursor="pointer"
+                                                    onClick={(e) => { e.cancelBubble = true; }}
+                                                    onMouseDown={(e) => {
+                                                      handlersA.handleControlPointMouseDown(annotation.id, idx, e);
+                                                    }}
+                                                  />
+                                                ))}
                                             </>
                                           );
                                         }
@@ -1623,6 +1657,44 @@ export function DualVideoSynchronizer() {
                                           opacity={0.6}
                                           listening={false}
                                         />
+                                      )}
+
+                                    {/* Render angle annotation in progress */}
+                                    {drawingStateA.mode === "angle-active" &&
+                                      drawingStateA.points.length >= 1 && (
+                                        <>
+                                          {/* Fixed arm-1 after 2nd click */}
+                                          {drawingStateA.points.length >= 2 && (
+                                            <Line
+                                              points={[
+                                                drawingStateA.points[0].x,
+                                                drawingStateA.points[0].y,
+                                                drawingStateA.points[1].x,
+                                                drawingStateA.points[1].y,
+                                              ]}
+                                              stroke="#FF0000"
+                                              strokeWidth={6}
+                                              lineCap="round"
+                                              listening={false}
+                                            />
+                                          )}
+                                          {/* Rubber-band arm from vertex to cursor */}
+                                          {polylineMousePosA && (
+                                            <Line
+                                              points={[
+                                                drawingStateA.points[0].x,
+                                                drawingStateA.points[0].y,
+                                                polylineMousePosA.x,
+                                                polylineMousePosA.y,
+                                              ]}
+                                              stroke="#FF0000"
+                                              strokeWidth={6}
+                                              lineCap="round"
+                                              opacity={0.6}
+                                              listening={false}
+                                            />
+                                          )}
+                                        </>
                                       )}
                                   </Layer>
                                 </Stage>
@@ -2018,7 +2090,7 @@ export function DualVideoSynchronizer() {
                                               x={annotation.points[0].x}
                                               y={annotation.points[0].y}
                                               text={annotation.text ?? ""}
-                                              fontSize={18}
+                                              fontSize={20}
                                               fill={annotation.color}
                                               stroke={isSelected ? "#2196F3" : undefined}
                                               strokeWidth={isSelected ? 1 : 0}
@@ -2026,6 +2098,12 @@ export function DualVideoSynchronizer() {
                                               onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)}
                                               onMouseDown={(e) => {
                                                 if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e);
+                                              }}
+                                              onDblClick={() => {
+                                                const newText = window.prompt("Edit annotation text:", annotation.text ?? "");
+                                                if (newText !== null && newText.trim()) {
+                                                  updateAnnotationTextB(annotation.id, newText.trim());
+                                                }
                                               }}
                                             />
                                           ) : null;
@@ -2037,11 +2115,34 @@ export function DualVideoSynchronizer() {
                                           const angleDeg = Math.round(
                                             Math.abs(Math.atan2(dx1 * dy2 - dy1 * dx2, dx1 * dx2 + dy1 * dy2) * 180 / Math.PI)
                                           );
+                                          const lblText = `${angleDeg}°`;
+                                          const lblWidth = lblText.length * 10 + 8;
                                           return (
                                             <>
-                                              <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} />
-                                              <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} />
-                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 6} y={vx.y - 20} text={`${angleDeg}°`} fontSize={14} fill={annotation.color} fontStyle="bold" listening={false} />
+                                              <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
+                                              <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
+                                              <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
+                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={16} fill="#111" fontStyle="bold" listening={false} />
+                                              {/* Render control points if selected */}
+                                              {isSelected &&
+                                                getControlPoints(annotation).map((point, idx) => (
+                                                  <Rect
+                                                    key={`cp-${annotation.id}-${idx}`}
+                                                    x={point.x - CONTROL_POINT_SIZE / 2}
+                                                    y={point.y - CONTROL_POINT_SIZE / 2}
+                                                    width={CONTROL_POINT_SIZE}
+                                                    height={CONTROL_POINT_SIZE}
+                                                    fill="white"
+                                                    stroke="black"
+                                                    strokeWidth={1}
+                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                    cursor="pointer"
+                                                    onClick={(e) => { e.cancelBubble = true; }}
+                                                    onMouseDown={(e) => {
+                                                      handlersB.handleControlPointMouseDown(annotation.id, idx, e);
+                                                    }}
+                                                  />
+                                                ))}
                                             </>
                                           );
                                         }
@@ -2154,6 +2255,44 @@ export function DualVideoSynchronizer() {
                                           opacity={0.6}
                                           listening={false}
                                         />
+                                      )}
+
+                                    {/* Render angle annotation in progress */}
+                                    {drawingStateB.mode === "angle-active" &&
+                                      drawingStateB.points.length >= 1 && (
+                                        <>
+                                          {/* Fixed arm-1 after 2nd click */}
+                                          {drawingStateB.points.length >= 2 && (
+                                            <Line
+                                              points={[
+                                                drawingStateB.points[0].x,
+                                                drawingStateB.points[0].y,
+                                                drawingStateB.points[1].x,
+                                                drawingStateB.points[1].y,
+                                              ]}
+                                              stroke="#FF0000"
+                                              strokeWidth={6}
+                                              lineCap="round"
+                                              listening={false}
+                                            />
+                                          )}
+                                          {/* Rubber-band arm from vertex to cursor */}
+                                          {polylineMousePosB && (
+                                            <Line
+                                              points={[
+                                                drawingStateB.points[0].x,
+                                                drawingStateB.points[0].y,
+                                                polylineMousePosB.x,
+                                                polylineMousePosB.y,
+                                              ]}
+                                              stroke="#FF0000"
+                                              strokeWidth={6}
+                                              lineCap="round"
+                                              opacity={0.6}
+                                              listening={false}
+                                            />
+                                          )}
+                                        </>
                                       )}
                                   </Layer>
                                 </Stage>

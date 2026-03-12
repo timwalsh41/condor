@@ -347,6 +347,56 @@ describe("AnnotationManager", () => {
         ).toBe(true);
       });
     });
+
+    describe("angle validation", () => {
+      it("should accept exactly 3 points for angle (vertex, arm1-end, arm2-end)", () => {
+        expect(
+          AnnotationManager.validatePoints("angle", [
+            { x: 100, y: 100 },
+            { x: 150, y: 50 },
+            { x: 150, y: 150 },
+          ])
+        ).toBe(true);
+      });
+
+      it("should reject angle with wrong number of points", () => {
+        expect(
+          AnnotationManager.validatePoints("angle", [{ x: 10, y: 20 }])
+        ).toBe(false);
+        expect(
+          AnnotationManager.validatePoints("angle", [
+            { x: 10, y: 20 },
+            { x: 30, y: 40 },
+          ])
+        ).toBe(false);
+        expect(
+          AnnotationManager.validatePoints("angle", [
+            { x: 10, y: 20 },
+            { x: 30, y: 40 },
+            { x: 50, y: 60 },
+            { x: 70, y: 80 },
+          ])
+        ).toBe(false);
+      });
+    });
+
+    describe("text validation", () => {
+      it("should accept exactly 1 point for text (placement position)", () => {
+        expect(
+          AnnotationManager.validatePoints("text", [{ x: 50, y: 50 }])
+        ).toBe(true);
+      });
+
+      it("should reject text with wrong number of points", () => {
+        expect(AnnotationManager.validatePoints("text", [])).toBe(false);
+        expect(
+          AnnotationManager.validatePoints("text", [
+            { x: 10, y: 20 },
+            { x: 30, y: 40 },
+          ])
+        ).toBe(false);
+      });
+    });
   });
 
   describe("createAndAddAnnotation", () => {
@@ -505,6 +555,17 @@ describe("AnnotationManager", () => {
           expect(state.points).toEqual([{ x: 30, y: 40 }]);
         }
       });
+
+      it("should initialize angle-active state for angle tool", () => {
+        manager.setTool("angle");
+        manager.startDrawing({ x: 100, y: 100 });
+
+        const state = manager.getDrawingState();
+        expect(state.mode).toBe("angle-active");
+        if (state.mode === "angle-active") {
+          expect(state.points).toEqual([{ x: 100, y: 100 }]);
+        }
+      });
     });
 
     describe("continueDrawing", () => {
@@ -661,6 +722,86 @@ describe("AnnotationManager", () => {
           { x: 40, y: 40 },
           { x: 50, y: 50 },
         ]);
+      });
+    });
+
+    describe("addAngleVertex and isAngleActive", () => {
+      it("should return false for isAngleActive initially", () => {
+        expect(manager.isAngleActive()).toBe(false);
+      });
+
+      it("should become angle-active after startDrawing with angle tool", () => {
+        manager.setTool("angle");
+        manager.startDrawing({ x: 100, y: 100 });
+        expect(manager.isAngleActive()).toBe(true);
+      });
+
+      it("should add second vertex without finalizing", () => {
+        manager.setTool("angle");
+        manager.startDrawing({ x: 100, y: 100 });
+        const result = manager.addAngleVertex({ x: 150, y: 50 });
+
+        expect(result).toBeNull(); // Not finalized yet
+        expect(manager.isAngleActive()).toBe(true);
+        expect(manager.getCount()).toBe(0);
+
+        const state = manager.getDrawingState();
+        expect(state.mode).toBe("angle-active");
+        if (state.mode === "angle-active") {
+          expect(state.points).toHaveLength(2);
+        }
+      });
+
+      it("should finalize angle annotation on third vertex", () => {
+        manager.setTool("angle");
+        manager.startDrawing({ x: 100, y: 100 });
+        manager.addAngleVertex({ x: 150, y: 50 });
+        const annotation = manager.addAngleVertex({ x: 150, y: 150 });
+
+        expect(annotation).not.toBeNull();
+        expect(annotation?.type).toBe("angle");
+        expect(annotation?.points).toEqual([
+          { x: 100, y: 100 },
+          { x: 150, y: 50 },
+          { x: 150, y: 150 },
+        ]);
+        expect(manager.isAngleActive()).toBe(false);
+        expect(manager.getDrawingState().mode).toBe("idle");
+        expect(manager.getCount()).toBe(1);
+      });
+
+      it("should return null from addAngleVertex when not angle-active", () => {
+        const result = manager.addAngleVertex({ x: 100, y: 100 });
+        expect(result).toBeNull();
+      });
+
+      it("should return null from finishDrawing when angle-active (use addAngleVertex instead)", () => {
+        manager.setTool("angle");
+        manager.startDrawing({ x: 100, y: 100 });
+        const result = manager.finishDrawing();
+        expect(result).toBeNull();
+        expect(manager.isAngleActive()).toBe(true); // Still active
+      });
+    });
+
+    describe("createAndAddText", () => {
+      it("should create a text annotation at the given position", () => {
+        const annotation = manager.createAndAddText({ x: 50, y: 80 }, "Hello");
+
+        expect(annotation).not.toBeNull();
+        expect(annotation.type).toBe("text");
+        expect(annotation.text).toBe("Hello");
+        expect(annotation.points).toEqual([{ x: 50, y: 80 }]);
+        expect(manager.getCount()).toBe(1);
+      });
+
+      it("should apply custom style when provided", () => {
+        const annotation = manager.createAndAddText(
+          { x: 10, y: 10 },
+          "Styled",
+          { color: "#00FF00", strokeWidth: 3 }
+        );
+        expect(annotation.color).toBe("#00FF00");
       });
     });
 
@@ -1203,6 +1344,40 @@ describe("AnnotationManager", () => {
       });
     });
 
+    describe("updateAnnotationText", () => {
+      it("should update text content of a text annotation", () => {
+        const textAnn = manager.createAndAddText({ x: 50, y: 50 }, "Original");
+        const result = manager.updateAnnotationText(textAnn.id, "Updated");
+
+        expect(result).toBe(true);
+        const updated = manager.getAnnotationById(textAnn.id);
+        expect(updated?.text).toBe("Updated");
+      });
+
+      it("should return false for non-existent annotation", () => {
+        const result = manager.updateAnnotationText("non-existent-id", "Hello");
+        expect(result).toBe(false);
+      });
+
+      it("should return false for non-text annotation type", () => {
+        const arrow = manager.createAndAddAnnotation("arrow", [
+          { x: 10, y: 10 },
+          { x: 50, y: 50 },
+        ]);
+        const result = manager.updateAnnotationText(arrow!.id, "Hello");
+        expect(result).toBe(false);
+      });
+
+      it("should not affect annotation points or other fields", () => {
+        const textAnn = manager.createAndAddText({ x: 30, y: 40 }, "Before");
+        manager.updateAnnotationText(textAnn.id, "After");
+
+        const updated = manager.getAnnotationById(textAnn.id);
+        expect(updated?.points).toEqual([{ x: 30, y: 40 }]);
+        expect(updated?.type).toBe("text");
+      });
+    });
+
     describe("startDrag", () => {
       it("should initialize drag state with primary annotation", () => {
         manager.toggleSelection(annotation1!.id, false);
@@ -1671,6 +1846,58 @@ describe("AnnotationManager", () => {
         expect(updated).toBeDefined();
         expect(updated!.type).toBe("oval");
         expect(updated!.points.length).toBe(2);
+      });
+    });
+
+    describe("updateReshape - Angle", () => {
+      let angleAnnotation: Annotation;
+
+      beforeEach(() => {
+        angleAnnotation = manager.createAnnotation("angle", [
+          { x: 100, y: 100 }, // vertex
+          { x: 150, y: 50 },  // arm1-end
+          { x: 150, y: 150 }, // arm2-end
+        ]);
+        manager.addAnnotation(angleAnnotation);
+      });
+
+      it("should update vertex (index 0)", () => {
+        manager.startReshape(angleAnnotation.id, 0);
+        manager.updateReshape({ x: 110, y: 110 });
+
+        const updated = manager.getAnnotationById(angleAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 110, y: 110 });
+        expect(updated!.points[1]).toEqual({ x: 150, y: 50 });  // unchanged
+        expect(updated!.points[2]).toEqual({ x: 150, y: 150 }); // unchanged
+      });
+
+      it("should update arm1-end (index 1)", () => {
+        manager.startReshape(angleAnnotation.id, 1);
+        manager.updateReshape({ x: 200, y: 30 });
+
+        const updated = manager.getAnnotationById(angleAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 100, y: 100 }); // unchanged
+        expect(updated!.points[1]).toEqual({ x: 200, y: 30 });
+        expect(updated!.points[2]).toEqual({ x: 150, y: 150 }); // unchanged
+      });
+
+      it("should update arm2-end (index 2)", () => {
+        manager.startReshape(angleAnnotation.id, 2);
+        manager.updateReshape({ x: 180, y: 200 });
+
+        const updated = manager.getAnnotationById(angleAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 100, y: 100 }); // unchanged
+        expect(updated!.points[1]).toEqual({ x: 150, y: 50 });  // unchanged
+        expect(updated!.points[2]).toEqual({ x: 180, y: 200 });
+      });
+
+      it("should allow multiple updates during reshape", () => {
+        manager.startReshape(angleAnnotation.id, 0);
+        manager.updateReshape({ x: 105, y: 105 });
+        manager.updateReshape({ x: 115, y: 115 });
+
+        const updated = manager.getAnnotationById(angleAnnotation.id);
+        expect(updated!.points[0]).toEqual({ x: 115, y: 115 });
       });
     });
 

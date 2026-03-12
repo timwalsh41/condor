@@ -46,6 +46,15 @@ describe('TrimScrubBar', () => {
       expect(Number(input.value)).toBe(40);
     });
 
+    it('track container has overflow:hidden to prevent Out handle extending beyond right edge', () => {
+      // Bug 1 fix: when trimEnd == range.max (100%), the Out handle was rendered with
+      // left:100% + transform:translate(-50%) which clipped outside the container.
+      // overflow:hidden on the track container clips the overflowing half of the handle.
+      render(<TrimScrubBar {...defaultProps} trimEnd={100} />);
+      const trackContainer = screen.getByTestId('trim-out-handle').parentElement!;
+      expect(trackContainer.style.overflow).toBe('hidden');
+    });
+
     it('renders In and Out handles', () => {
       render(<TrimScrubBar {...defaultProps} />);
       expect(screen.getByTestId('trim-in-handle')).toBeTruthy();

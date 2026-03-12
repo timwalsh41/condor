@@ -59,6 +59,11 @@ export interface UseVideoAnnotationsResult {
   handlers: AnnotationHandlers;
   clearAll: () => void;
   updateAnnotationText: (id: string, text: string) => void;
+  /**
+   * Hydrate annotations from an external source (e.g., session restore).
+   * Replaces all current annotations, resets undo/redo history, and clears selection.
+   */
+  hydrateAnnotations: (annotations: Annotation[]) => void;
   isDraggingAnnotation: boolean;
   isReshapingAnnotation: boolean;
   // Undo/redo
@@ -482,6 +487,25 @@ export function useVideoAnnotations(
     [manager, pushHistory]
   );
 
+  /**
+   * Hydrate annotations from an external source (e.g., session restore).
+   * Replaces internal manager state and React state, then resets undo/redo
+   * history so the loaded annotations become the new clean baseline.
+   */
+  const hydrateAnnotations = useCallback(
+    (incomingAnnotations: Annotation[]) => {
+      manager.setAnnotations([...incomingAnnotations]);
+      const current = manager.getAnnotations();
+      setAnnotations(current);
+      setSelectedIds(new Set());
+      // Reset history: loaded state is the baseline, no undo path back to empty
+      setUndoStack([[...current]]);
+      setRedoStack([]);
+      console.log(`Video ${videoId}: Hydrated ${current.length} annotation(s) from session restore`);
+    },
+    [manager, videoId]
+  );
+
   // ========================================
   // Drag Handlers (Subtask 0.5.10)
   // ========================================
@@ -644,6 +668,7 @@ export function useVideoAnnotations(
     },
     clearAll,
     updateAnnotationText,
+    hydrateAnnotations,
     isDraggingAnnotation,
     isReshapingAnnotation,
     undo,

@@ -18,6 +18,7 @@ import { VideoUploadWorkflow } from "./VideoUploadWorkflow";
 import { TrimScrubBar } from "./TrimScrubBar";
 import { useVideoStore } from "../store/videoStore";
 import { useAnnotationStore } from "../store/annotationStore";
+import { useSessionStore } from "../store/sessionStore";
 import { useTrimStore } from "../store/trimStore";
 import type { VideoMetadata } from "../types/api";
 
@@ -132,6 +133,7 @@ export function DualVideoSynchronizer() {
     handlers: handlersA,
     clearAll: clearAllA,
     updateAnnotationText: updateAnnotationTextA,
+    hydrateAnnotations: hydrateAnnotationsA,
     isDraggingAnnotation: isDraggingAnnotationA,
     isReshapingAnnotation: isReshapingAnnotationA,
     undo: undoA,
@@ -159,6 +161,7 @@ export function DualVideoSynchronizer() {
     handlers: handlersB,
     clearAll: clearAllB,
     updateAnnotationText: updateAnnotationTextB,
+    hydrateAnnotations: hydrateAnnotationsB,
     isDraggingAnnotation: isDraggingAnnotationB,
     isReshapingAnnotation: isReshapingAnnotationB,
     undo: undoB,
@@ -175,6 +178,31 @@ export function DualVideoSynchronizer() {
   useEffect(() => {
     useAnnotationStore.getState().setAnnotationsB(annotationsB);
   }, [annotationsB]);
+
+  // Session annotation hydration
+  // When a session is loaded, annotations are written to annotationStore by restoreSessionState.
+  // Once the video decoder becomes ready we seed the annotation hook's internal state from
+  // the store.  Per-channel refs prevent re-hydration on subsequent isReady cycles for the
+  // same session (e.g., resize, navigation with Bug-1 display:none fix).
+  const activeSessionId = useSessionStore((state) => state.activeSessionId);
+  const hydratedSessionIdRefA = useRef<string | null>(null);
+  const hydratedSessionIdRefB = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === hydratedSessionIdRefA.current) return;
+    if (!videoA.isReady) return;
+    const { annotationsA: storedA } = useAnnotationStore.getState();
+    hydrateAnnotationsA(storedA);
+    hydratedSessionIdRefA.current = activeSessionId;
+  }, [videoA.isReady, activeSessionId, hydrateAnnotationsA]);
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === hydratedSessionIdRefB.current) return;
+    if (!videoB.isReady) return;
+    const { annotationsB: storedB } = useAnnotationStore.getState();
+    hydrateAnnotationsB(storedB);
+    hydratedSessionIdRefB.current = activeSessionId;
+  }, [videoB.isReady, activeSessionId, hydrateAnnotationsB]);
 
   // Video height slider configuration
   const videoHeightConfig = useMemo(() => {

@@ -36,12 +36,19 @@ test = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest==7.2.1",
     "pytest-asyncio==0.21.1",
     "httpx==0.25.0",
+    "ruff>=0.4",
 ]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # pycodestyle errors, pyflakes, isort
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

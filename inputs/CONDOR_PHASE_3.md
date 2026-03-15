@@ -15,10 +15,6 @@ We'll spec out new features and assess the approach for one or more technical sp
 
 Based on our initial review of the level of effort and risk on these new feature requests, we will likely include one or more technical spikes in Phase 3.
 
-## Other new features
-
-- iCloud integration
-
 # Documentation updates
 
 - Technical spike documentation - capture background and additional detail beyond what is contained in the project plan:

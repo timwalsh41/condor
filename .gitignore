@@ -24,3 +24,10 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Video storage volume
+video_storage
+
+# opencode workspace content
+/.oc-config
+.opencode/

@@ -1,0 +1,15 @@
+## Codebase Patterns
+- Use `grep -n` to find specific line numbers for targeted edits
+- Use `replaceAll` when the same value appears in multiple places that need updating
+- All four fontSize values in DualVideoSynchronizer.tsx (video A and B for both text and angle) need updating together
+
+## [Date/Time] - bug-fixes-set-2 Task 1.1: Fix Text Annotation Font Size
+- Updated text annotation fontSize from 20 to 24 (strokeWidth * 4) for both video A and B
+- Updated angle label fontSize from 16 to 18 for both video A and B
+- Subtasks completed: 1.1.1, 1.1.2
+- Files changed: /workspace/frontend/src/components/DualVideoSynchronizer.tsx
+- Tests added/updated: None required (UI font sizing, verified by manual test 1.1.3)
+- **Learnings for future iterations:**
+  - DualVideoSynchronizer.tsx renders annotations for both Video A and B in separate code sections - remember to update both
+  - Font sizes use `replaceAll=true` pattern since same values appear multiple times
+---

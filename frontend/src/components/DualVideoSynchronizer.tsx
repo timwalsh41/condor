@@ -1520,7 +1520,7 @@ export function DualVideoSynchronizer() {
                                               x={annotation.points[0].x}
                                               y={annotation.points[0].y}
                                               text={annotation.text ?? ""}
-                                              fontSize={20}
+                                              fontSize={24}
                                               fill={annotation.color}
                                               stroke={isSelected ? "#2196F3" : undefined}
                                               strokeWidth={isSelected ? 1 : 0}
@@ -1552,7 +1552,7 @@ export function DualVideoSynchronizer() {
                                               <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
-                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={16} fill="#111" fontStyle="bold" listening={false} />
+                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={18} fill="#111" fontStyle="bold" listening={false} />
                                               {/* Render control points if selected */}
                                               {isSelected &&
                                                 getControlPoints(annotation).map((point, idx) => (
@@ -2118,7 +2118,7 @@ export function DualVideoSynchronizer() {
                                               x={annotation.points[0].x}
                                               y={annotation.points[0].y}
                                               text={annotation.text ?? ""}
-                                              fontSize={20}
+                                              fontSize={24}
                                               fill={annotation.color}
                                               stroke={isSelected ? "#2196F3" : undefined}
                                               strokeWidth={isSelected ? 1 : 0}
@@ -2150,7 +2150,7 @@ export function DualVideoSynchronizer() {
                                               <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
-                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={16} fill="#111" fontStyle="bold" listening={false} />
+                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={18} fill="#111" fontStyle="bold" listening={false} />
                                               {/* Render control points if selected */}
                                               {isSelected &&
                                                 getControlPoints(annotation).map((point, idx) => (

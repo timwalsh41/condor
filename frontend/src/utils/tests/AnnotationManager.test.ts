@@ -782,6 +782,55 @@ describe("AnnotationManager", () => {
         expect(result).toBeNull();
         expect(manager.isAngleActive()).toBe(true); // Still active
       });
+
+      it("should store points in correct order: vertex, arm1-end, arm2-end", () => {
+        manager.setTool("angle");
+        // Click 1: vertex at (100, 100)
+        manager.startDrawing({ x: 100, y: 100 });
+        let state = manager.getDrawingState();
+        expect(state.mode).toBe("angle-active");
+        if (state.mode === "angle-active") {
+          expect(state.points).toHaveLength(1);
+          expect(state.points[0]).toEqual({ x: 100, y: 100 });
+        }
+
+        // Click 2: arm1-end at (200, 100) - horizontal right
+        manager.addAngleVertex({ x: 200, y: 100 });
+        state = manager.getDrawingState();
+        expect(state.mode).toBe("angle-active");
+        if (state.mode === "angle-active") {
+          expect(state.points).toHaveLength(2);
+          expect(state.points[0]).toEqual({ x: 100, y: 100 }); // vertex
+          expect(state.points[1]).toEqual({ x: 200, y: 100 }); // arm1-end
+        }
+
+        // Click 3: arm2-end at (150, 50) - 45 degrees up
+        const annotation = manager.addAngleVertex({ x: 150, y: 50 });
+        
+        expect(annotation).not.toBeNull();
+        expect(annotation?.points).toEqual([
+          { x: 100, y: 100 }, // vertex (point 0)
+          { x: 200, y: 100 }, // arm1-end (point 1)
+          { x: 150, y: 50 },  // arm2-end (point 2)
+        ]);
+      });
+
+      it("should calculate 90-degree angle correctly", () => {
+        manager.setTool("angle");
+        // Create a right angle: vertex at origin, arm1 along x-axis, arm2 along y-axis
+        manager.startDrawing({ x: 0, y: 0 }); // vertex
+        manager.addAngleVertex({ x: 100, y: 0 }); // arm1-end (right)
+        const annotation = manager.addAngleVertex({ x: 0, y: 100 }); // arm2-end (up)
+
+        expect(annotation).not.toBeNull();
+        expect(annotation?.points).toHaveLength(3);
+        
+        // Verify point order: vertex, arm1, arm2
+        const [vertex, arm1, arm2] = annotation!.points;
+        expect(vertex).toEqual({ x: 0, y: 0 });
+        expect(arm1).toEqual({ x: 100, y: 0 });
+        expect(arm2).toEqual({ x: 0, y: 100 });
+      });
     });
 
     describe("createAndAddText", () => {

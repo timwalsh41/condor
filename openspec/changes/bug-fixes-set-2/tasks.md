@@ -6,10 +6,10 @@
 - [ ] 1.1.3 Verify text is readable relative to 6px stroke width on test videos
 
 ### 1.2 Fix Angle Annotation Drawing Logic
-- [ ] 1.2.1 Locate angle-active preview rendering in DualVideoSynchronizer.tsx (around line 1710)
-- [ ] 1.2.2 Change rubber-band connection from points[0] to points[points.length - 1]
-- [ ] 1.2.3 Test angle drawing: Click 1 → vertex, Click 2 → arm1-end, verify preview extends from arm1-end
-- [ ] 1.2.4 Verify angle 1-2-3 is measured correctly (not 2-1-3)
+- [x] 1.2.1 Locate angle-active preview rendering in DualVideoSynchronizer.tsx (around line 1710)
+- [x] 1.2.2 Change rubber-band connection from points[0] to points[points.length - 1]
+- [x] 1.2.3 Test angle drawing: Click 1 → vertex, Click 2 → arm1-end, verify preview extends from arm1-end
+- [x] 1.2.4 Verify angle 1-2-3 is measured correctly (not 2-1-3)
 
 ### 1.3 Fix Keyboard Delete for Mac
 - [ ] 1.3.1 Update useVideoAnnotations.ts line 238 to handle both "Delete" and "Backspace" keys

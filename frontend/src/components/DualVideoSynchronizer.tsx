@@ -1706,12 +1706,12 @@ export function DualVideoSynchronizer() {
                                               listening={false}
                                             />
                                           )}
-                                          {/* Rubber-band arm from vertex to cursor */}
+                                          {/* Rubber-band arm from arm1-end to cursor */}
                                           {polylineMousePosA && (
                                             <Line
                                               points={[
-                                                drawingStateA.points[0].x,
-                                                drawingStateA.points[0].y,
+                                                drawingStateA.points[drawingStateA.points.length - 1].x,
+                                                drawingStateA.points[drawingStateA.points.length - 1].y,
                                                 polylineMousePosA.x,
                                                 polylineMousePosA.y,
                                               ]}
@@ -2304,12 +2304,12 @@ export function DualVideoSynchronizer() {
                                               listening={false}
                                             />
                                           )}
-                                          {/* Rubber-band arm from vertex to cursor */}
+                                          {/* Rubber-band arm from arm1-end to cursor */}
                                           {polylineMousePosB && (
                                             <Line
                                               points={[
-                                                drawingStateB.points[0].x,
-                                                drawingStateB.points[0].y,
+                                                drawingStateB.points[drawingStateB.points.length - 1].x,
+                                                drawingStateB.points[drawingStateB.points.length - 1].y,
                                                 polylineMousePosB.x,
                                                 polylineMousePosB.y,
                                               ]}

@@ -2,6 +2,7 @@
 - Use `grep -n` to find specific line numbers for targeted edits
 - Use `replaceAll` when the same value appears in multiple places that need updating
 - All four fontSize values in DualVideoSynchronizer.tsx (video A and B for both text and angle) need updating together
+- Angle annotation rubber-band preview lines exist in both Video A (line ~1710) and Video B (line ~2308) sections
 
 ## [Date/Time] - bug-fixes-set-2 Task 1.1: Fix Text Annotation Font Size
 - Updated text annotation fontSize from 20 to 24 (strokeWidth * 4) for both video A and B
@@ -12,4 +13,20 @@
 - **Learnings for future iterations:**
   - DualVideoSynchronizer.tsx renders annotations for both Video A and B in separate code sections - remember to update both
   - Font sizes use `replaceAll=true` pattern since same values appear multiple times
+---
+
+## [Date/Time] - bug-fixes-set-2 Task 1.2: Fix Angle Annotation Drawing Logic
+- Fixed rubber-band preview line for angle annotations to extend from arm1-end (points[points.length - 1]) instead of vertex (points[0])
+- Applied fix to both Video A (line 1710) and Video B (line 2308) rendering sections
+- Updated comment from "Rubber-band arm from vertex to cursor" to "Rubber-band arm from arm1-end to cursor"
+- Added unit tests to verify angle drawing point order (vertex → arm1 → arm2)
+- Added unit test to verify 90-degree angle calculation with correct point ordering
+- Subtasks completed: 1.2.1, 1.2.2, 1.2.3, 1.2.4
+- Files changed: /workspace/frontend/src/components/DualVideoSynchronizer.tsx, /workspace/frontend/src/utils/tests/AnnotationManager.test.ts
+- Tests added/updated: 2 new tests in AnnotationManager.test.ts for angle point ordering and calculation
+- **Learnings for future iterations:**
+  - Angle annotation drawing flow: Click 1=vertex, Click 2=arm1-end, Click 3=arm2-end
+  - Points stored in order: [vertex, arm1-end, arm2-end] - calculation at DualVideoSynchronizer.tsx:1542-1546
+  - Rubber-band preview must connect from the last placed point (arm1-end) to cursor for proper UX
+  - Both Video A and B sections in DualVideoSynchronizer.tsx must always be updated together
 ---

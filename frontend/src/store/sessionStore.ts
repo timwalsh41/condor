@@ -90,7 +90,7 @@ function buildSessionPayload(name: string, notes?: string): AnalysisSessionCreat
 async function restoreSessionState(session: AnalysisSessionResponse): Promise<void> {
   const { setVideoA, setVideoB, setSessionId } = useVideoStore.getState();
   const { setAnnotationsA, setAnnotationsB } = useAnnotationStore.getState();
-  const { addSyncPoint, clearSyncPoints } = useSyncStore.getState();
+  const { addSyncPoint, clearSyncPoints, setTemporalOffset, setMode, setTargetSyncFrames } = useSyncStore.getState();
   const { setPlaybackRate } = usePlaybackStore.getState();
   const { setTrimStart, setTrimEnd } = useTrimStore.getState();
 
@@ -101,10 +101,14 @@ async function restoreSessionState(session: AnalysisSessionResponse): Promise<vo
   setTrimStart(session.trim_start_a ?? null);
   setTrimEnd(session.trim_end_a ?? null);
 
-  // Restore sync points
+  // Restore sync points and calculate temporal offset
   clearSyncPoints();
   if (session.sync_frame_a !== null && session.sync_frame_b !== null) {
     addSyncPoint({ frameA: session.sync_frame_a, frameB: session.sync_frame_b });
+    // Calculate temporal offset: frameB = frameA + offset → offset = frameB - frameA
+    setTemporalOffset(session.sync_frame_b - session.sync_frame_a);
+  } else {
+    setTemporalOffset(null);
   }
 
   // Restore annotations
@@ -118,6 +122,16 @@ async function restoreSessionState(session: AnalysisSessionResponse): Promise<vo
 
   // Set session context
   setSessionId('library');
+
+  // Set mode to PLAYBACK for session viewing
+  setMode('PLAYBACK');
+
+  // Store target sync frames for seeking after video load
+  if (session.sync_frame_a !== null && session.sync_frame_b !== null) {
+    setTargetSyncFrames(session.sync_frame_a, session.sync_frame_b);
+  } else {
+    setTargetSyncFrames(null, null);
+  }
 
   // Load library videos if referenced
   async function loadLibraryVideoSlot(

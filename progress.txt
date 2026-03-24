@@ -61,3 +61,19 @@
   - resetSyncState() automatically handles mode reset to "SYNC", no separate setMode call needed
   - DualVideoSynchronizer.tsx line 113-136: New useEffect detects video changes and resets state
 ---
+---
+
+## 2026-03-24 - bug-fixes-set-2 Task 2.2: Fix Session Load State Restoration
+- Updated restoreSessionState() in sessionStore.ts to set mode to PLAYBACK after session load
+- Added temporal offset calculation (sync_frame_b - sync_frame_a) during session restore
+- Added targetSyncFrameA/targetSyncFrameB state to syncStore for seeking after video load
+- Added setTargetSyncFrames() and clearTargetSyncFrames() actions to syncStore
+- Subtasks completed: 2.2.1, 2.2.2, 2.2.3, 2.2.4, 2.2.5
+- Files changed: /workspace/frontend/src/store/sessionStore.ts, /workspace/frontend/src/store/syncStore.ts
+- Tests added/updated: /workspace/frontend/src/store/tests/sessionStore.test.ts (new file, 15 tests)
+- **Learnings for future iterations:**
+  - Session restore pattern: set mode → calculate sync offset → set target frames → load videos
+  - Temporal offset formula: offset = frameB - frameA (enables frameB = frameA + offset calculation)
+  - Store video target frames in syncStore, let DualVideoSynchronizer read and seek when videos loaded
+  - All 555 frontend tests pass; 2 pre-existing backend integration test failures (unrelated to changes)
+---

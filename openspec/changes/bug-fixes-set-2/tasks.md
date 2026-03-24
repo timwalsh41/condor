@@ -28,11 +28,11 @@
 - [x] 2.1.6 Test: Load video A, set sync point, load new video A, verify sync cleared
 
 ### 2.2 Fix Session Load State Restoration
-- [ ] 2.2.1 Update restoreSessionState() in sessionStore.ts to call setMode("PLAYBACK")
-- [ ] 2.2.2 Calculate syncOffset from session.sync_frame_a and session.sync_frame_b
-- [ ] 2.2.3 After videos load, seek to sync frame positions (not frame 0)
-- [ ] 2.2.4 Test session save and load: verify mode is PLAYBACK, videos are synchronized
-- [ ] 2.2.5 Test: Load session, verify videos start at correct sync frames
+- [x] 2.2.1 Update restoreSessionState() in sessionStore.ts to call setMode("PLAYBACK")
+- [x] 2.2.2 Calculate syncOffset from session.sync_frame_a and session.sync_frame_b
+- [x] 2.2.3 After videos load, seek to sync frame positions (not frame 0)
+- [x] 2.2.4 Test session save and load: verify mode is PLAYBACK, videos are synchronized
+- [x] 2.2.5 Test: Load session, verify videos start at correct sync frames
 
 ### 2.3 Fix Library Video Save Button State
 - [ ] 2.3.1 Modify AddToLibraryPanel to check libraryStore for video membership

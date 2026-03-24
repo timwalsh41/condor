@@ -36,12 +36,18 @@ interface SyncStoreState {
   // Null until sync points are established
   temporalOffset: number | null;
 
+  // Target sync frames for seeking after session load
+  targetSyncFrameA: number | null;
+  targetSyncFrameB: number | null;
+
   // Actions
   setMode: (mode: PlaybackMode) => void;
   addSyncPoint: (syncPoint: SyncPoint) => void;
   removeSyncPoint: (index: number) => void;
   clearSyncPoints: () => void;
   setTemporalOffset: (offset: number | null) => void;
+  setTargetSyncFrames: (frameA: number | null, frameB: number | null) => void;
+  clearTargetSyncFrames: () => void;
   reset: () => void;
   resetSyncState: () => void;
 }
@@ -53,6 +59,8 @@ const initialState = {
   mode: 'SYNC' as PlaybackMode,
   syncPoints: [],
   temporalOffset: null,
+  targetSyncFrameA: null,
+  targetSyncFrameB: null,
 };
 
 /**
@@ -76,6 +84,31 @@ export const useSyncStore = create<SyncStoreState>((set) => ({
   clearSyncPoints: () => set({ syncPoints: [], temporalOffset: null }),
 
   setTemporalOffset: (offset) => set({ temporalOffset: offset }),
+
+  /**
+   * Set target sync frames for seeking after session load.
+   *
+   * **Use Case**: Called by restoreSessionState() to store the sync frames
+   * that videos should seek to after loading.
+   *
+   * **Side Effects**:
+   * - Stores target frames for both videos
+   *
+   * **Integration**: DualVideoSynchronizer reads these and seeks after videos load.
+   */
+  setTargetSyncFrames: (frameA, frameB) =>
+    set({ targetSyncFrameA: frameA, targetSyncFrameB: frameB }),
+
+  /**
+   * Clear target sync frames after successful seek.
+   *
+   * **Use Case**: Called after videos have seeked to target positions.
+   *
+   * **Side Effects**:
+   * - Resets target frames to null
+   */
+  clearTargetSyncFrames: () =>
+    set({ targetSyncFrameA: null, targetSyncFrameB: null }),
 
   /**
    * Reset store to initial state.

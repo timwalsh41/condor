@@ -1,10 +1,7 @@
 ## Codebase Patterns
-- Use `grep -n` to find specific line numbers for targeted edits
-- Use `replaceAll` when the same value appears in multiple places that need updating
-- All four fontSize values in DualVideoSynchronizer.tsx (video A and B for both text and angle) need updating together
-- Angle annotation rubber-band preview lines exist in both Video A (line ~1710) and Video B (line ~2308) sections
 
-## [Date/Time] - bug-fixes-set-2 Task 1.1: Fix Text Annotation Font Size
+
+## 2023-03-18 - bug-fixes-set-2 Task 1.1: Fix Text Annotation Font Size
 - Updated text annotation fontSize from 20 to 24 (strokeWidth * 4) for both video A and B
 - Updated angle label fontSize from 16 to 18 for both video A and B
 - Subtasks completed: 1.1.1, 1.1.2
@@ -15,7 +12,7 @@
   - Font sizes use `replaceAll=true` pattern since same values appear multiple times
 ---
 
-## [Date/Time] - bug-fixes-set-2 Task 1.2: Fix Angle Annotation Drawing Logic
+## 2023-03-18 - bug-fixes-set-2 Task 1.2: Fix Angle Annotation Drawing Logic
 - Fixed rubber-band preview line for angle annotations to extend from arm1-end (points[points.length - 1]) instead of vertex (points[0])
 - Applied fix to both Video A (line 1710) and Video B (line 2308) rendering sections
 - Updated comment from "Rubber-band arm from vertex to cursor" to "Rubber-band arm from arm1-end to cursor"
@@ -29,4 +26,17 @@
   - Points stored in order: [vertex, arm1-end, arm2-end] - calculation at DualVideoSynchronizer.tsx:1542-1546
   - Rubber-band preview must connect from the last placed point (arm1-end) to cursor for proper UX
   - Both Video A and B sections in DualVideoSynchronizer.tsx must always be updated together
+---
+
+## 2026-03-24 - bug-fixes-set-2 Task 1.3: Fix Keyboard Delete for Mac
+- Updated useVideoAnnotations.ts line 238 to handle both "Delete" and "Backspace" keys
+- Added comprehensive tests for Backspace key deletion and safety checks
+- Subtasks completed: 1.3.1, 1.3.2, 1.3.3, 1.3.4
+- Files changed: /workspace/frontend/src/hooks/useVideoAnnotations.ts
+- Tests added/updated: 2 new tests in useVideoAnnotations.test.ts for Backspace key handling and input element safety
+- **Learnings for future iterations:**
+  - Mac uses "Backspace" key while Windows/Linux use "Delete" key for deletion
+  - Both keys should be handled with the same logic: `e.key === "Delete" || e.key === "Backspace"`
+  - Input/textarea safety check prevents both Delete and Backspace from deleting annotations while typing
+  - This pattern can be reused for other keyboard shortcuts that need cross-platform compatibility
 ---

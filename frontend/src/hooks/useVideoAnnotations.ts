@@ -226,7 +226,7 @@ export function useVideoAnnotations(
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeVideo, videoId, manager, pushHistory]);
 
-  // Delete key handler for removing selected annotations
+  // Delete/Backspace key handler for removing selected annotations
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in input/textarea (safety check)
@@ -235,7 +235,7 @@ export function useVideoAnnotations(
         return;
       }
 
-      if (e.key === "Delete") {
+      if (e.key === "Delete" || e.key === "Backspace") {
         const count = manager.deleteSelected();
         if (count > 0) {
           console.log(

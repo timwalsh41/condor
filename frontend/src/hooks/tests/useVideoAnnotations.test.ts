@@ -761,6 +761,49 @@ describe("useVideoAnnotations", () => {
       expect(result.current.selectedIds.size).toBe(0);
     });
 
+    it("should delete selected annotations on Backspace key (Mac compatibility)", () => {
+      const { result, rerender } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create two annotations and trigger state update
+      let annotationId1: string = "";
+      let annotationId2: string = "";
+      act(() => {
+        const ann1 = result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+        const ann2 = result.current.manager.createAndAddAnnotation("oval", [
+          { x: 50, y: 60 },
+          { x: 100, y: 100 },
+        ]);
+        annotationId1 = ann1!.id;
+        annotationId2 = ann2!.id;
+      });
+
+      // Force hook to sync with manager state
+      rerender();
+
+      expect(result.current.manager.getCount()).toBe(2);
+
+      // Select second annotation
+      act(() => {
+        result.current.manager.toggleSelection(annotationId2, false);
+      });
+
+      // Simulate Backspace key press (Mac compatibility)
+      act(() => {
+        const event = new KeyboardEvent("keydown", { key: "Backspace" });
+        window.dispatchEvent(event);
+      });
+
+      // Second annotation should be deleted
+      expect(result.current.annotations.length).toBe(1);
+      expect(result.current.annotations[0].id).toBe(annotationId1);
+      expect(result.current.selectedIds.size).toBe(0);
+    });
+
     it("should clear all annotations", () => {
       const { result, rerender } = renderHook(() =>
         useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
@@ -825,6 +868,45 @@ describe("useVideoAnnotations", () => {
         });
         window.dispatchEvent(event);
         document.body.removeChild(input);
+      });
+
+      // Annotation should NOT be deleted
+      expect(result.current.manager.getCount()).toBe(1);
+    });
+
+    it("should not delete when Backspace key pressed on input element", () => {
+      const { result, rerender } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create and select annotation
+      act(() => {
+        const ann = result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+        result.current.manager.toggleSelection(ann!.id, false);
+      });
+
+      // Force hook to sync with manager state
+      rerender();
+
+      expect(result.current.manager.getCount()).toBe(1);
+
+      // Simulate Backspace key from textarea element
+      act(() => {
+        const textarea = document.createElement("textarea");
+        document.body.appendChild(textarea);
+        const event = new KeyboardEvent("keydown", {
+          key: "Backspace",
+          bubbles: true,
+        });
+        Object.defineProperty(event, "target", {
+          value: textarea,
+          enumerable: true,
+        });
+        window.dispatchEvent(event);
+        document.body.removeChild(textarea);
       });
 
       // Annotation should NOT be deleted

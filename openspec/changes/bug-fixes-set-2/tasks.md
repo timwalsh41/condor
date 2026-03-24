@@ -12,10 +12,10 @@
 - [x] 1.2.4 Verify angle 1-2-3 is measured correctly (not 2-1-3)
 
 ### 1.3 Fix Keyboard Delete for Mac
-- [ ] 1.3.1 Update useVideoAnnotations.ts line 238 to handle both "Delete" and "Backspace" keys
-- [ ] 1.3.2 Test on Mac: Verify Backspace key deletes selected annotations
-- [ ] 1.3.3 Test on Windows/Linux: Verify Delete key still works
-- [ ] 1.3.4 Ensure input/textarea safety check still prevents accidental deletion while typing
+- [x] 1.3.1 Update useVideoAnnotations.ts line 238 to handle both "Delete" and "Backspace" keys
+- [x] 1.3.2 Test on Mac: Verify Backspace key deletes selected annotations
+- [x] 1.3.3 Test on Windows/Linux: Verify Delete key still works
+- [x] 1.3.4 Ensure input/textarea safety check still prevents accidental deletion while typing
 
 ## 2. State Management Bug Fixes
 

@@ -20,12 +20,12 @@
 ## 2. State Management Bug Fixes
 
 ### 2.1 Fix Video Load State Reset
-- [ ] 2.1.1 Add resetSyncState() action to syncStore
-- [ ] 2.1.2 Add resetTrimState() action to trimStore  
-- [ ] 2.1.3 Modify DualVideoSynchronizer to detect video metadata changes
-- [ ] 2.1.4 On video change, call syncStore.clearSyncPoints() and trimStore.reset()
-- [ ] 2.1.5 Set mode to "SYNC" when new video loaded
-- [ ] 2.1.6 Test: Load video A, set sync point, load new video A, verify sync cleared
+- [x] 2.1.1 Add resetSyncState() action to syncStore
+- [x] 2.1.2 Add resetTrimState() action to trimStore  
+- [x] 2.1.3 Modify DualVideoSynchronizer to detect video metadata changes
+- [x] 2.1.4 On video change, call syncStore.clearSyncPoints() and trimStore.reset()
+- [x] 2.1.5 Set mode to "SYNC" when new video loaded
+- [x] 2.1.6 Test: Load video A, set sync point, load new video A, verify sync cleared
 
 ### 2.2 Fix Session Load State Restoration
 - [ ] 2.2.1 Update restoreSessionState() in sessionStore.ts to call setMode("PLAYBACK")

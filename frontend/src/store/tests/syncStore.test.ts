@@ -136,5 +136,42 @@ describe('syncStore', () => {
       expect(state.syncPoints).toEqual([]);
       expect(state.temporalOffset).toBeNull();
     });
+
+    it('should reset store to initial state using resetSyncState alias', () => {
+      // Set some state
+      useSyncStore.getState().setMode('PLAYBACK');
+      useSyncStore.getState().addSyncPoint({ frameA: 30, frameB: 40 });
+      useSyncStore.getState().setTemporalOffset(20);
+
+      // Reset using alias
+      useSyncStore.getState().resetSyncState();
+
+      // Verify reset
+      const state = useSyncStore.getState();
+      expect(state.mode).toBe('SYNC');
+      expect(state.syncPoints).toEqual([]);
+      expect(state.temporalOffset).toBeNull();
+    });
+
+    it('reset and resetSyncState should have identical behavior', () => {
+      // Set state and reset with reset()
+      useSyncStore.getState().setMode('PLAYBACK');
+      useSyncStore.getState().addSyncPoint({ frameA: 10, frameB: 20 });
+      useSyncStore.getState().setTemporalOffset(10);
+      useSyncStore.getState().reset();
+      const stateAfterReset = useSyncStore.getState();
+
+      // Set state again and reset with resetSyncState()
+      useSyncStore.getState().setMode('PLAYBACK');
+      useSyncStore.getState().addSyncPoint({ frameA: 10, frameB: 20 });
+      useSyncStore.getState().setTemporalOffset(10);
+      useSyncStore.getState().resetSyncState();
+      const stateAfterResetSyncState = useSyncStore.getState();
+
+      // Both should produce identical states
+      expect(stateAfterReset.mode).toBe(stateAfterResetSyncState.mode);
+      expect(stateAfterReset.syncPoints).toEqual(stateAfterResetSyncState.syncPoints);
+      expect(stateAfterReset.temporalOffset).toBe(stateAfterResetSyncState.temporalOffset);
+    });
   });
 });

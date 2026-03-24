@@ -43,6 +43,7 @@ interface SyncStoreState {
   clearSyncPoints: () => void;
   setTemporalOffset: (offset: number | null) => void;
   reset: () => void;
+  resetSyncState: () => void;
 }
 
 /**
@@ -89,4 +90,16 @@ export const useSyncStore = create<SyncStoreState>((set) => ({
    * **Integration**: Should be called when loading new videos or resetting sync state.
    */
   reset: () => set(initialState),
+
+  /**
+   * Alias for reset() - resets sync state to initial values.
+   *
+   * **Use Case**: Called when loading new videos to clear previous sync configuration.
+   *
+   * **Side Effects**:
+   * - Same as reset(): clears sync points and resets to SYNC mode
+   *
+   * **Integration**: Used by video change detection in DualVideoSynchronizer.
+   */
+  resetSyncState: () => set(initialState),
 }));

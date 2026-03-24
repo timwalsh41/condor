@@ -20,6 +20,7 @@ import { useVideoStore } from "../store/videoStore";
 import { useAnnotationStore } from "../store/annotationStore";
 import { useSessionStore } from "../store/sessionStore";
 import { useTrimStore } from "../store/trimStore";
+import { useSyncStore } from "../store/syncStore";
 import type { VideoMetadata } from "../types/api";
 
 /**
@@ -58,8 +59,9 @@ export function DualVideoSynchronizer() {
     [videoBStore]
   );
 
-  // Mode state
-  const [mode, setMode] = useState<"SYNC" | "PLAYBACK">("SYNC");
+  // Mode state from syncStore (synced with global state for video change detection)
+  const { mode, setMode, resetSyncState } = useSyncStore();
+  const { resetTrimState } = useTrimStore();
   const [syncOffset, setSyncOffset] = useState<number | null>(null);
   const [syncPoints, setSyncPoints] = useState<{
     frameA: number;
@@ -107,6 +109,36 @@ export function DualVideoSynchronizer() {
   // Refs to always access latest decoder state (avoid stale closures in playback loop)
   const videoARef = useRef(videoA);
   const videoBRef = useRef(videoB);
+
+  // Track previous video IDs to detect when videos change
+  const prevVideoAIdRef = useRef<string | null>(null);
+  const prevVideoBIdRef = useRef<string | null>(null);
+
+  // Detect video changes and reset sync/trim state when new videos are loaded
+  useEffect(() => {
+    const currentVideoAId = videoAStore?.metadata?.video_id ?? null;
+    const currentVideoBId = videoBStore?.metadata?.video_id ?? null;
+
+    // Check if Video A changed
+    if (currentVideoAId !== prevVideoAIdRef.current) {
+      prevVideoAIdRef.current = currentVideoAId;
+      // Reset sync and trim state when video changes
+      if (currentVideoAId !== null) {
+        resetSyncState();
+        resetTrimState();
+      }
+    }
+
+    // Check if Video B changed
+    if (currentVideoBId !== prevVideoBIdRef.current) {
+      prevVideoBIdRef.current = currentVideoBId;
+      // Reset sync and trim state when video changes
+      if (currentVideoBId !== null) {
+        resetSyncState();
+        resetTrimState();
+      }
+    }
+  }, [videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id, resetSyncState, resetTrimState]);
 
   // Track which video is active for keyboard shortcuts (used by annotation hooks for keyboard handling)
   const [activeVideo, setActiveVideo] = useState<"A" | "B" | null>(null);
@@ -1520,7 +1552,7 @@ export function DualVideoSynchronizer() {
                                               x={annotation.points[0].x}
                                               y={annotation.points[0].y}
                                               text={annotation.text ?? ""}
-                                              fontSize={24}
+                                              fontSize={36}
                                               fill={annotation.color}
                                               stroke={isSelected ? "#2196F3" : undefined}
                                               strokeWidth={isSelected ? 1 : 0}
@@ -2150,7 +2182,7 @@ export function DualVideoSynchronizer() {
                                               <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
-                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={18} fill="#111" fontStyle="bold" listening={false} />
+                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={48} fill="#111" fontStyle="bold" listening={false} />
                                               {/* Render control points if selected */}
                                               {isSelected &&
                                                 getControlPoints(annotation).map((point, idx) => (

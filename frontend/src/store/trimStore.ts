@@ -21,6 +21,8 @@ interface TrimStoreState {
   setTrimEnd: (frame: number | null) => void;
   /** Reset both bounds to null (full playback range). */
   resetTrim: () => void;
+  /** Alias for resetTrim() - resets trim bounds to null. */
+  resetTrimState: () => void;
 }
 
 export const useTrimStore = create<TrimStoreState>((set) => ({
@@ -30,4 +32,5 @@ export const useTrimStore = create<TrimStoreState>((set) => ({
   setTrimStart: (frame) => set({ trimStart: frame }),
   setTrimEnd: (frame) => set({ trimEnd: frame }),
   resetTrim: () => set({ trimStart: null, trimEnd: null }),
+  resetTrimState: () => set({ trimStart: null, trimEnd: null }),
 }));

@@ -82,11 +82,15 @@ Switch from sync mode to playback mode:
 
 ![alt text](image/playback-mode.png)
 
+**Saving Sessions**: To save a session, both videos must first be saved to your video library. The session save button will be disabled with a tooltip message until both videos are saved. This ensures that session data can be properly restored when loading the session later.
+
+**Library**: Use the Library panel to save videos for future use. Once a video is saved, it can be loaded into any session. Videos must be in the library before the session can be saved.
+
 **Annotations** (both modes): Use the annotation tools to draw shapes representing key positions, angles, and checkpoints in the swing. For the polyline tool, each click-and-release creates a vertex; a double click places the final vertex and ends the line. All other tool drawing takes place with a single click and drag.
 
 ![alt text](image/annotations.png)
 
-Annotations can be selected (ctrl-click to select multiple). White control points appear when selected. Click on the annotation body (not on a control point) and drag to move selected annotations. Click and drag on a control point to edit (resize/adjust) the annotation itself. Press delete to remove all selected annotations.
+Annotations can be selected (ctrl-click to select multiple). White control points appear when selected. Click on the annotation body (not on a control point) and drag to move selected annotations. Click and drag on a control point to edit (resize/adjust) the annotation itself. Press **Delete** (Windows/Linux) or **Backspace** (Mac) to remove all selected annotations.
 
 ## Developer Setup
 

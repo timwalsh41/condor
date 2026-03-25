@@ -96,6 +96,6 @@
 ## 6. Documentation Update
 
 ### 6.1 Update README
-- [ ] 6.1.1 Document new requirement: videos must be in library before session save
-- [ ] 6.1.2 Update user instructions for annotation keyboard shortcuts (include Backspace)
-- [ ] 6.1.3 Verify all user-facing instructions are current
+- [x] 6.1.1 Document new requirement: videos must be in library before session save
+- [x] 6.1.2 Update user instructions for annotation keyboard shortcuts (include Backspace)
+- [x] 6.1.3 Verify all user-facing instructions are current

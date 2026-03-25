@@ -1,4 +1,20 @@
-## 2026-03-25 02:15:30 - bug-fixes-set-2 Task 5.3: Manual Testing Checklist
+## 2026-03-25 02:18:45 - bug-fixes-set-2 Task 6.1: Update README Documentation
+- Updated /workspace/README.md with user-facing documentation for bug fixes:
+  - 6.1.1: Added "Saving Sessions" section explaining library prerequisite requirement
+  - 6.1.1: Added "Library" section describing video library feature and session save dependency
+  - 6.1.2: Updated annotation instructions to include both Delete (Windows/Linux) and Backspace (Mac)
+  - 6.1.3: Verified all user-facing instructions are current and accurate
+- Files changed: /workspace/openspec/changes/bug-fixes-set-2/tasks.md, /workspace/README.md
+- Documentation updated: 3 README sections updated, 2 new sections added
+- All user-facing instructions now include Mac Backspace key support
+- Session save prerequisite (library save) clearly documented for users
+- **Learnings for future iterations:**
+  - README updates should be done alongside feature implementation, not after
+  - Cross-platform keyboard shortcuts need explicit documentation (Delete vs Backspace)
+  - Workflow prerequisites (library before session) need prominent user documentation
+  - User-facing changes should be highlighted in README "Instructions for Use" section
+  - Keep documentation in sync with implementation to avoid user confusion
+---
 - Created comprehensive manual testing guide in /workspace/docs/MANUAL_TESTING.md
 - Documented 8 manual testing scenarios with detailed steps:
   - 5.3.1: Mac Backspace key deletion with safety checks

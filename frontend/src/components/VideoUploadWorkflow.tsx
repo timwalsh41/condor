@@ -8,7 +8,7 @@
  * Phase: Phase 1 Task 1.2 (Backend Integration + Upload Workflow)
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { uploadVideo, getUploadStatus, fetchVideoBlob } from '../services/api';
 import type { VideoMetadata } from '../types/api';
 import type { RotationAngle } from '../types/rotation';
@@ -24,6 +24,12 @@ interface VideoUploadWorkflowProps {
 
   /** Callback when upload completes successfully */
   onUploadComplete: (metadata: VideoMetadata, blob: Blob) => void;
+
+  /** External video loaded from library/session (optional) */
+  externalVideo?: {
+    metadata: VideoMetadata;
+    blob: Blob;
+  };
 }
 
 /**
@@ -48,6 +54,7 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
   videoSlot,
   sessionId,
   onUploadComplete,
+  externalVideo,
 }) => {
   const [state, setState] = useState<UploadState>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -63,6 +70,18 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingIntervalRef = useRef<number | null>(null);
+
+  /**
+   * Handle external video loaded from library/session.
+   * When externalVideo prop changes, automatically complete the workflow.
+   */
+  useEffect(() => {
+    if (externalVideo) {
+      setUploadedMetadata(externalVideo.metadata);
+      setState('complete');
+      onUploadComplete(externalVideo.metadata, externalVideo.blob);
+    }
+  }, [externalVideo, onUploadComplete]);
 
   /**
    * Handle file selection with validation.
@@ -335,11 +354,35 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
           state === 'complete' ? 'complete' : ''
         }`}
       >
-        {/* Idle state - empty */}
-        {state === 'idle' && (
+        {/* Idle state - empty or show external video metadata */}
+        {state === 'idle' && !externalVideo && (
           <p style={{ color: '#999', textAlign: 'center', margin: 0 }}>
             No video uploaded
           </p>
+        )}
+
+        {/* External video metadata display (when loaded from library/session) */}
+        {state === 'idle' && externalVideo && (
+          <div
+            style={{ fontSize: '13px', fontFamily: 'monospace' }}
+            data-testid={`video-metadata-external-${videoSlot.toLowerCase()}`}
+          >
+            <div style={{ marginBottom: '5px' }}>
+              <strong>✓ {externalVideo.metadata.filename}</strong>
+            </div>
+            <div style={{ color: '#555' }}>
+              Codec: {externalVideo.metadata.codec}
+            </div>
+            <div style={{ color: '#555' }}>
+              Resolution: {externalVideo.metadata.width}×{externalVideo.metadata.height}
+            </div>
+            <div style={{ color: '#555' }}>
+              Duration: {externalVideo.metadata.duration.toFixed(1)}s
+            </div>
+            <div style={{ color: '#555' }}>
+              Framerate: {externalVideo.metadata.framerate.toFixed(2)} fps
+            </div>
+          </div>
         )}
 
         {/* Upload progress */}

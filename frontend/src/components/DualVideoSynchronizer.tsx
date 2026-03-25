@@ -1126,12 +1126,20 @@ export function DualVideoSynchronizer() {
           videoSlot="A"
           sessionId={sessionId || undefined}
           onUploadComplete={handleVideoAUploadComplete}
+          externalVideo={videoAStore?.metadata && videoAStore?.blob ? {
+            metadata: videoAStore.metadata,
+            blob: videoAStore.blob
+          } : undefined}
         />
         <VideoUploadWorkflow
           key="video-b"
           videoSlot="B"
           sessionId={sessionId || undefined}
           onUploadComplete={handleVideoBUploadComplete}
+          externalVideo={videoBStore?.metadata && videoBStore?.blob ? {
+            metadata: videoBStore.metadata,
+            blob: videoBStore.blob
+          } : undefined}
         />
       </div>
 

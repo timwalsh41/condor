@@ -884,4 +884,111 @@ describe('VideoUploadWorkflow', () => {
       }, { timeout: 2000 });
     });
   });
+
+  describe('External Video Loading', () => {
+    it('should display metadata when externalVideo is provided', () => {
+      const externalMetadata: VideoMetadata = {
+        video_id: 'library-video-1',
+        session_id: 'test-session',
+        filename: 'library-video.mp4',
+        framerate: 29.97,
+        duration: 120.5,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+          externalVideo={{
+            metadata: externalMetadata,
+            blob: new Blob(['video content']),
+          }}
+        />
+      );
+
+      // Should show metadata display instead of "No video uploaded"
+      // Note: useEffect sets state to 'complete' immediately, so it uses video-metadata-a testid
+      expect(screen.getByTestId('video-metadata-a')).toBeTruthy();
+      expect(screen.getByText(/library-video.mp4/)).toBeTruthy();
+      expect(screen.getByText(/1920×1080/)).toBeTruthy();
+      expect(screen.getByText(/h264/)).toBeTruthy();
+      expect(screen.getByText(/120.5s/)).toBeTruthy();
+    });
+
+    it('should show "No video uploaded" when no externalVideo and idle', () => {
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+        />
+      );
+
+      expect(screen.getByText(/No video uploaded/i)).toBeTruthy();
+    });
+
+    it('should call onUploadComplete when externalVideo is provided', async () => {
+      const externalMetadata: VideoMetadata = {
+        video_id: 'library-video-1',
+        session_id: 'test-session',
+        filename: 'library-video.mp4',
+        framerate: 29.97,
+        duration: 120.5,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+      const externalBlob = new Blob(['video content']);
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="A"
+          onUploadComplete={mockOnUploadComplete}
+          externalVideo={{
+            metadata: externalMetadata,
+            blob: externalBlob,
+          }}
+        />
+      );
+
+      await waitFor(() => {
+        expect(mockOnUploadComplete).toHaveBeenCalledWith(externalMetadata, externalBlob);
+      });
+    });
+
+    it('should work with slot B as well', () => {
+      const externalMetadata: VideoMetadata = {
+        video_id: 'library-video-2',
+        session_id: 'test-session',
+        filename: 'slot-b-video.mp4',
+        framerate: 30,
+        duration: 60,
+        width: 1280,
+        height: 720,
+        codec: 'h265',
+        gop_size: 60,
+      };
+
+      render(
+        <VideoUploadWorkflow
+          videoSlot="B"
+          onUploadComplete={mockOnUploadComplete}
+          externalVideo={{
+            metadata: externalMetadata,
+            blob: new Blob(['video content']),
+          }}
+        />
+      );
+
+      // Should show metadata for slot B
+      // Note: useEffect sets state to 'complete' immediately, so it uses video-metadata-b testid
+      expect(screen.getByTestId('video-metadata-b')).toBeTruthy();
+      expect(screen.getByText(/slot-b-video.mp4/)).toBeTruthy();
+      expect(screen.getByText(/1280×720/)).toBeTruthy();
+    });
+  });
 });

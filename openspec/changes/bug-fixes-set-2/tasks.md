@@ -54,9 +54,9 @@
 - [x] 3.1.4 Test: Verify green playback range aligns correctly with handles
 
 ### 3.2 Fix "No Video Uploaded" Banner on Library Load
-- [ ] 3.2.1 Add isExternallyLoaded prop or context to VideoUploadWorkflow
-- [ ] 3.2.2 When video loaded from library/session, show metadata display instead of "No video uploaded"
-- [ ] 3.2.3 Test: Load session with library videos, verify no "No video uploaded" banner shown
+- [x] 3.2.1 Add isExternallyLoaded prop or context to VideoUploadWorkflow
+- [x] 3.2.2 When video loaded from library/session, show metadata display instead of "No video uploaded"
+- [x] 3.2.3 Test: Load session with library videos, verify no "No video uploaded" banner shown
 
 ## 4. Workflow Constraint Implementation
 

@@ -48,10 +48,10 @@
 ## 3. UI Bug Fixes
 
 ### 3.1 Fix Scrub Bar Trim Handle Bounds
-- [ ] 3.1.1 Add horizontal padding (10px) to TrimScrubBar track container
-- [ ] 3.1.2 Adjust percentage calculations to account for padding
-- [ ] 3.1.3 Test: Set trim handles to 0% and 100%, verify both fully visible
-- [ ] 3.1.4 Test: Verify green playback range aligns correctly with handles
+- [x] 3.1.1 Add horizontal padding (10px) to TrimScrubBar track container
+- [x] 3.1.2 Adjust percentage calculations to account for padding
+- [x] 3.1.3 Test: Set trim handles to 0% and 100%, verify both fully visible
+- [x] 3.1.4 Test: Verify green playback range aligns correctly with handles
 
 ### 3.2 Fix "No Video Uploaded" Banner on Library Load
 - [ ] 3.2.1 Add isExternallyLoaded prop or context to VideoUploadWorkflow

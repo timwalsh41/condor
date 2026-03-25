@@ -77,18 +77,22 @@ export function TrimScrubBar({
   };
 
   // Convert a client X coordinate to a frame number clamped to [min, max].
+  // Accounts for the 10px horizontal padding on the track container.
   const clientXToFrame = (clientX: number): number => {
     const rect = trackRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0) return min;
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    if (!rect || rect.width <= 20) return min;
+    const innerWidth = rect.width - 20; // Subtract 10px padding on each side
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left - 10) / innerWidth));
     return Math.round(min + ratio * (max - min));
   };
 
   // Pixel position of a frame on the track (relative to viewport).
+  // Accounts for the 10px horizontal padding on the track container.
   const frameToClientX = (frame: number): number => {
     const rect = trackRef.current?.getBoundingClientRect();
     if (!rect || max === min) return 0;
-    return rect.left + ((frame - min) / (max - min)) * rect.width;
+    const innerWidth = rect.width - 20; // Subtract 10px padding on each side
+    return rect.left + 10 + ((frame - min) / (max - min)) * innerWidth;
   };
 
   // --- Unified track pointer handlers (playhead has priority) ---
@@ -170,6 +174,7 @@ export function TrimScrubBar({
           cursor: "pointer",
           touchAction: "none",
           overflow: "hidden",
+          padding: "0 10px",
         }}
       >
         {/* Visual track: grey rails + green active zone */}

@@ -308,6 +308,11 @@ describe('AddToLibraryPanel', () => {
   });
 
   describe('Library video save button state', () => {
+    beforeEach(() => {
+      // Reset the mock before each test in this describe block
+      mockIsVideoInLibrary.mockReturnValue(false);
+    });
+
     it('disables save button and shows "saved" when video is already in library', async () => {
       // Create metadata for a video loaded from library (has library ID as video_id)
       const libraryMetadataA: VideoMetadata = {
@@ -321,6 +326,9 @@ describe('AddToLibraryPanel', () => {
         codec: 'h264',
         gop_size: 30,
       };
+
+      // Mock isVideoInLibrary to return true for the library video
+      mockIsVideoInLibrary.mockImplementation((videoId: string) => videoId === 'library-uuid-a');
 
       vi.mocked(useVideoStore).mockReturnValue({
         videoA: { metadata: libraryMetadataA, blob: new Blob() },
@@ -337,7 +345,7 @@ describe('AddToLibraryPanel', () => {
         fetchVideos: vi.fn(),
         updateVideo: vi.fn(),
         removeVideo: vi.fn(),
-        isVideoInLibrary: vi.fn(),
+        isVideoInLibrary: mockIsVideoInLibrary,
         clearError: vi.fn(),
       });
 
@@ -394,6 +402,9 @@ describe('AddToLibraryPanel', () => {
         gop_size: 30,
       };
 
+      // Mock isVideoInLibrary to return true only for video A
+      mockIsVideoInLibrary.mockImplementation((videoId: string) => videoId === 'library-uuid-a');
+
       vi.mocked(useVideoStore).mockReturnValue({
         videoA: { metadata: libraryMetadataA, blob: new Blob() },
         videoB: { metadata: uploadMetadataB, blob: new Blob() },
@@ -409,7 +420,7 @@ describe('AddToLibraryPanel', () => {
         fetchVideos: vi.fn(),
         updateVideo: vi.fn(),
         removeVideo: vi.fn(),
-        isVideoInLibrary: vi.fn(),
+        isVideoInLibrary: mockIsVideoInLibrary,
         clearError: vi.fn(),
       });
 

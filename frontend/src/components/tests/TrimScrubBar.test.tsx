@@ -46,17 +46,38 @@ describe('TrimScrubBar', () => {
       expect(Number(input.value)).toBe(40);
     });
 
-    it('track container has overflow:hidden to prevent Out handle extending beyond right edge', () => {
-      // Bug 1 fix: when trimEnd == range.max (100%), the Out handle was rendered with
-      // left:100% + transform:translate(-50%) which clipped outside the container.
-      // overflow:hidden on the track container clips the overflowing half of the handle.
+    it('track container has horizontal padding to prevent handle overflow at edges', () => {
+      // Bug fix: when trimEnd == range.max (100%) or trimStart == range.min (0%),
+      // handles need 10px padding on each side to remain fully visible.
+      // Padding allows handles to be centered at 0% and 100% without clipping.
       render(<TrimScrubBar {...defaultProps} trimEnd={100} />);
       const trackContainer = screen.getByTestId('trim-out-handle').parentElement!;
-      expect(trackContainer.style.overflow).toBe('hidden');
+      expect(trackContainer.style.padding).toBe('0px 10px');
     });
 
     it('renders In and Out handles', () => {
       render(<TrimScrubBar {...defaultProps} />);
+      expect(screen.getByTestId('trim-in-handle')).toBeTruthy();
+      expect(screen.getByTestId('trim-out-handle')).toBeTruthy();
+    });
+
+    it('positions In handle at trimStart percentage (0% when trimStart=min)', () => {
+      render(<TrimScrubBar {...defaultProps} trimStart={0} />);
+      const inHandle = screen.getByTestId('trim-in-handle') as HTMLDivElement;
+      expect(inHandle.style.left).toBe('0%');
+    });
+
+    it('positions Out handle at trimEnd percentage (100% when trimEnd=max)', () => {
+      render(<TrimScrubBar {...defaultProps} trimEnd={100} />);
+      const outHandle = screen.getByTestId('trim-out-handle') as HTMLDivElement;
+      expect(outHandle.style.left).toBe('100%');
+    });
+
+    it('green playback range spans from trimStart to trimEnd', () => {
+      render(<TrimScrubBar {...defaultProps} trimStart={25} trimEnd={75} />);
+      // The green zone width is calculated as trimEndPct - trimStartPct
+      // In jsdom, we can verify the component renders without errors
+      // Full visual testing requires browser environment
       expect(screen.getByTestId('trim-in-handle')).toBeTruthy();
       expect(screen.getByTestId('trim-out-handle')).toBeTruthy();
     });

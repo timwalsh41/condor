@@ -69,26 +69,28 @@ export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
     const currentVideoBId = videoB?.metadata?.video_id ?? null;
     
     // Check if video A has changed (new upload)
-    if (currentVideoAId !== prevVideoAIdRef.current) {
+    // Only process if prevVideoAIdRef has been initialized (not initial mount)
+    if (prevVideoAIdRef.current !== null && currentVideoAId !== prevVideoAIdRef.current) {
       // Video A changed - remove from saved slots to allow re-saving
       setSavedSlots(prev => {
         const newSet = new Set(prev);
         newSet.delete("A");
         return newSet;
       });
-      prevVideoAIdRef.current = currentVideoAId;
     }
+    prevVideoAIdRef.current = currentVideoAId;
     
     // Check if video B has changed (new upload)
-    if (currentVideoBId !== prevVideoBIdRef.current) {
+    // Only process if prevVideoBIdRef has been initialized (not initial mount)
+    if (prevVideoBIdRef.current !== null && currentVideoBId !== prevVideoBIdRef.current) {
       // Video B changed - remove from saved slots to allow re-saving
       setSavedSlots(prev => {
         const newSet = new Set(prev);
         newSet.delete("B");
         return newSet;
       });
-      prevVideoBIdRef.current = currentVideoBId;
     }
+    prevVideoBIdRef.current = currentVideoBId;
   }, [videoA?.metadata?.video_id, videoB?.metadata?.video_id]);
 
   // Only show when at least one slot has a video

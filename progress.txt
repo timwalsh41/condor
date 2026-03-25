@@ -15,7 +15,23 @@
   - All 4 unit test subtasks are now complete in the 5.1 Frontend Unit Tests section
 ---
 
-## Codebase Patterns
+## 2026-03-25 02:10:15 - bug-fixes-set-2 Task 5.2: Integration Tests
+- Created comprehensive Playwright E2E integration tests in /workspace/frontend/tests/test_bug_fixes_integration.spec.ts
+- Test 5.2.1: Full annotation workflow testing angle drawing, measurement calculation, and Backspace deletion
+- Test 5.2.2: Video reload flow testing sync reset when new video uploaded
+- Test 5.2.3: Session lifecycle testing save/load with state restoration (PLAYBACK mode, sync frames)
+- Test 5.2.4: Library workflow testing save button state transitions and external video display
+- Tests validate: REQ-F-ANNOT-001, REQ-F-SYNC-003, REQ-F-PLAY-001, REQ-F-LIB-001, REQ-F-SES-001
+- Files changed: /workspace/openspec/changes/bug-fixes-set-2/tasks.md, /workspace/frontend/tests/test_bug_fixes_integration.spec.ts (new file)
+- Tests added: 4 integration tests covering all workflow scenarios
+- All 124 backend tests pass, all 609 frontend unit tests pass
+- **Learnings for future iterations:**
+  - Integration tests should validate end-to-end workflows, not just individual features
+  - Playwright E2E tests use data-testid selectors for reliable element targeting
+  - Test helpers pattern: create reusable functions for common operations (uploadVideos, stepToFrame, clickCanvas)
+  - Integration tests validate the interaction between multiple bug fixes
+  - Tests should cover both happy path and state transitions (reset, restore, reload)
+---
 - When adding padding to interactive tracks, must update BOTH clientXToFrame() AND frameToClientX() calculations
 - useEffect race conditions: If one useEffect derives state and another modifies it, ensure the second doesn't run on initial mount
 - Pattern: Check `ref.current !== null` before applying state changes in change-detection useEffects

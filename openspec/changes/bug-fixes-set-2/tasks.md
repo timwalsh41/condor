@@ -78,10 +78,10 @@
 - [x] 5.1.4 Add tests for session save validation logic
 
 ### 5.2 Integration Tests
-- [ ] 5.2.1 Test full annotation workflow: draw angle, verify correct measurement
-- [ ] 5.2.2 Test video reload flow: sync → upload new → verify reset
-- [ ] 5.2.3 Test session lifecycle: save → load → verify state restoration
-- [ ] 5.2.4 Test library workflow: upload → save → upload new → verify reset
+- [x] 5.2.1 Test full annotation workflow: draw angle, verify correct measurement
+- [x] 5.2.2 Test video reload flow: sync → upload new → verify reset
+- [x] 5.2.3 Test session lifecycle: save → load → verify state restoration
+- [x] 5.2.4 Test library workflow: upload → save → upload new → verify reset
 
 ### 5.3 Manual Testing Checklist
 - [ ] 5.3.1 Mac: Delete selected annotations with Backspace key

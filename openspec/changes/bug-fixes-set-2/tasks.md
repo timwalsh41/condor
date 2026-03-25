@@ -72,10 +72,10 @@
 ## 5. Testing and Validation
 
 ### 5.1 Frontend Unit Tests
-- [ ] 5.1.1 Add test for Backspace key in useVideoAnnotations.test.ts
-- [ ] 5.1.2 Add test for font size scaling in annotations
-- [ ] 5.1.3 Update TrimScrubBar tests for new padding behavior
-- [ ] 5.1.4 Add tests for session save validation logic
+- [x] 5.1.1 Add test for Backspace key in useVideoAnnotations.test.ts
+- [x] 5.1.2 Add test for font size scaling in annotations
+- [x] 5.1.3 Update TrimScrubBar tests for new padding behavior
+- [x] 5.1.4 Add tests for session save validation logic
 
 ### 5.2 Integration Tests
 - [ ] 5.2.1 Test full annotation workflow: draw angle, verify correct measurement

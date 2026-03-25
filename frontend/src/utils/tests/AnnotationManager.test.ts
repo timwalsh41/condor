@@ -852,6 +852,42 @@ describe("AnnotationManager", () => {
         );
         expect(annotation.color).toBe("#00FF00");
       });
+
+      it("should use strokeWidth for font size scaling (fontSize = strokeWidth * 4)", () => {
+        // Test with default strokeWidth (6px)
+        const annotation1 = manager.createAndAddText(
+          { x: 10, y: 10 },
+          "Default Size"
+        );
+        expect(annotation1.strokeWidth).toBe(6);
+        // Font size should be proportional: 6 * 4 = 24px
+        const expectedFontSize1 = annotation1.strokeWidth * 4;
+        expect(expectedFontSize1).toBe(24);
+
+        // Test with custom strokeWidth (8px)
+        const manager2 = new AnnotationManager();
+        const annotation2 = manager2.createAndAddText(
+          { x: 20, y: 20 },
+          "Larger Size",
+          { strokeWidth: 8 }
+        );
+        expect(annotation2.strokeWidth).toBe(8);
+        // Font size should be: 8 * 4 = 32px
+        const expectedFontSize2 = annotation2.strokeWidth * 4;
+        expect(expectedFontSize2).toBe(32);
+
+        // Test with smaller strokeWidth (4px)
+        const manager3 = new AnnotationManager();
+        const annotation3 = manager3.createAndAddText(
+          { x: 30, y: 30 },
+          "Smaller Size",
+          { strokeWidth: 4 }
+        );
+        expect(annotation3.strokeWidth).toBe(4);
+        // Font size should be: 4 * 4 = 16px
+        const expectedFontSize3 = annotation3.strokeWidth * 4;
+        expect(expectedFontSize3).toBe(16);
+      });
     });
 
     describe("finishDrawing", () => {

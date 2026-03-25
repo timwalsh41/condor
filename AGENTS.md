@@ -76,6 +76,8 @@ Linting:
 
 # Documentation
 
+General technical documentation is available in `docs/SYSTEM_ARCHITECTURE.md`, `docs/BACKEND_DESIGN.md`, `docs/FRONTEND_DESIGN.md`, and `docs/UX_WORKFLOW_SPEC.md`. Please refer to those as needed, and keep them up to date while making changes in the codebase.
+
 Guidance on producing technical documentation is provided in `.claude/style-guides/TECHNICAL_DOCUMENTATION.md`. Refer to `.claude/style-guides/MARKDOWN.md` for markdown style.
 
 # File Operations

@@ -41,9 +41,9 @@
 - [x] 2.3.4 Test: Load video from library, verify save button is disabled
 
 ### 2.4 Fix Upload New Video on Same Channel
-- [ ] 2.4.1 Add useEffect in AddToLibraryPanel to watch video metadata changes
-- [ ] 2.4.2 When video_id changes for a channel, remove that channel from savedSlots
-- [ ] 2.4.3 Test: Upload video A, save to library, upload new video A, verify button shows "+ Video A"
+- [x] 2.4.1 Add useEffect in AddToLibraryPanel to watch video metadata changes
+- [x] 2.4.2 When video_id changes for a channel, remove that channel from savedSlots
+- [x] 2.4.3 Test: Upload video A, save to library, upload new video A, verify button shows "+ Video A"
 
 ## 3. UI Bug Fixes
 

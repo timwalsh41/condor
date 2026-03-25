@@ -429,4 +429,5 @@ describe('AddToLibraryPanel', () => {
       expect(buttonB.hasAttribute('disabled')).toBe(false);
     });
   });
+
 });

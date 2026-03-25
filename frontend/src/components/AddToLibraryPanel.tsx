@@ -9,7 +9,7 @@
  * Validates: REQ-P2-LIB-001
  */
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useVideoStore } from "../store/videoStore";
 import { useLibraryStore } from "../store/libraryStore";
 import type { LibraryVideoCreate } from "../types/api";
@@ -35,12 +35,16 @@ const emptyForm = (): SaveFormState => ({
 
 export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
   const { videoA, videoB, setVideoA, setVideoB } = useVideoStore();
-  const { addVideo, isVideoInLibrary, videos } = useLibraryStore();
+  const { addVideo, videos } = useLibraryStore();
 
   const [savingSlot, setSavingSlot] = useState<Slot | null>(null);
   const [formState, setFormState] = useState<SaveFormState>(emptyForm());
   const [savedSlots, setSavedSlots] = useState<Set<Slot>>(new Set());
   const [error, setError] = useState<string | null>(null);
+
+  // Refs to track previous video IDs for change detection
+  const prevVideoAIdRef = useRef<string | null>(null);
+  const prevVideoBIdRef = useRef<string | null>(null);
 
   // Derive saved state from library membership - handles both initial load
   // from library and component remount scenarios
@@ -58,6 +62,34 @@ export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
     
     setSavedSlots(newSavedSlots);
   }, [videoA, videoB, videos]);
+
+  // Detect video changes and reset saved state when new video uploaded to same channel
+  useEffect(() => {
+    const currentVideoAId = videoA?.metadata?.video_id ?? null;
+    const currentVideoBId = videoB?.metadata?.video_id ?? null;
+    
+    // Check if video A has changed (new upload)
+    if (currentVideoAId !== prevVideoAIdRef.current) {
+      // Video A changed - remove from saved slots to allow re-saving
+      setSavedSlots(prev => {
+        const newSet = new Set(prev);
+        newSet.delete("A");
+        return newSet;
+      });
+      prevVideoAIdRef.current = currentVideoAId;
+    }
+    
+    // Check if video B has changed (new upload)
+    if (currentVideoBId !== prevVideoBIdRef.current) {
+      // Video B changed - remove from saved slots to allow re-saving
+      setSavedSlots(prev => {
+        const newSet = new Set(prev);
+        newSet.delete("B");
+        return newSet;
+      });
+      prevVideoBIdRef.current = currentVideoBId;
+    }
+  }, [videoA?.metadata?.video_id, videoB?.metadata?.video_id]);
 
   // Only show when at least one slot has a video
   if (!videoA && !videoB) return null;

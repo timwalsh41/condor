@@ -6,7 +6,8 @@
 - Prefer existing dependencies over adding new ones when possible
 - Use keyword arguments instead of positional arguments when calling functions and methods
 - Do not put `import` statements inside functions unless necessary to prevent circular imports
-- Imports must be at the top of the file.
+- Imports must be at the top of the file
+- Use pytest for test framework
 
 # Logging
 

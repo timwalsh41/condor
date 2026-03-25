@@ -77,3 +77,23 @@
   - Store video target frames in syncStore, let DualVideoSynchronizer read and seek when videos loaded
   - All 555 frontend tests pass; 2 pre-existing backend integration test failures (unrelated to changes)
 ---
+
+---
+
+## 2026-03-25 - bug-fixes-set-2 Task 2.3: Fix Library Video Save Button State
+- Added `isVideoInLibrary(videoId)` helper function to libraryStore for checking video membership
+- Modified AddToLibraryPanel to derive saved state from libraryStore.videos array using useEffect
+- Save buttons now show "✓ Video X saved" and are disabled when video is already in library
+- Added disabled prop and title tooltip to buttons for better UX
+- Added comprehensive tests: 3 new tests in AddToLibraryPanel.test.tsx, 16 new tests in libraryStore.test.ts
+- All 574 frontend tests pass (9 in AddToLibraryPanel.test.tsx, 16 in libraryStore.test.ts)
+- Subtasks completed: 2.3.1, 2.3.2, 2.3.3, 2.3.4
+- Files changed: /workspace/frontend/src/store/libraryStore.ts, /workspace/frontend/src/components/AddToLibraryPanel.tsx
+- Tests added/updated: /workspace/frontend/src/components/tests/AddToLibraryPanel.test.tsx (3 new tests), /workspace/frontend/src/store/tests/libraryStore.test.ts (new file, 16 tests)
+- **Learnings for future iterations:**
+  - Library membership check pattern: Use `videos.some(v => v.id === videoId)` to check if video is in library
+  - For component state derived from store, use useEffect watching store state + local state pattern
+  - When testing useEffect state updates, ensure mocked metadata has correct structure (video_id not id)
+  - waitFor() is needed when testing state that updates via useEffect after initial render
+  - The isVideoInLibrary helper is useful for other components that need to check membership outside React render cycle
+---

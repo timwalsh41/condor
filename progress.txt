@@ -1,3 +1,26 @@
+## 2026-03-25 02:15:30 - bug-fixes-set-2 Task 5.3: Manual Testing Checklist
+- Created comprehensive manual testing guide in /workspace/docs/MANUAL_TESTING.md
+- Documented 8 manual testing scenarios with detailed steps:
+  - 5.3.1: Mac Backspace key deletion with safety checks
+  - 5.3.2: Windows/Linux Delete key functionality
+  - 5.3.3: Text readability verification on 1080p (24px font, 18px angle labels)
+  - 5.3.4: Angle annotation 3-click flow and measurement accuracy
+  - 5.3.5: Trim handle visibility at 0% and 100% positions
+  - 5.3.6: Session save blocking with library save prerequisite
+  - 5.3.7: Session load in PLAYBACK mode with sync restoration
+  - 5.3.8: Automated test suite validation commands
+- Each test includes: objective, detailed steps, expected results, and sign-off criteria
+- Files changed: /workspace/openspec/changes/bug-fixes-set-2/tasks.md, /workspace/docs/MANUAL_TESTING.md (new file)
+- All tests documented: 8 manual test scenarios with prerequisites and test data requirements
+- **Learnings for future iterations:**
+  - Manual testing documentation should mirror automated test coverage for completeness
+  - Include OS-specific instructions (Mac vs Windows/Linux) for keyboard shortcuts
+  - Document visual tests with specific criteria (e.g., "24px font", "fully visible handles")
+  - Manual tests complement but don't replace automated E2E tests
+  - Include test data requirements and environment specifications
+  - Sign-off checklist provides clear completion criteria for QA
+---
+
 ## 2026-03-25 02:08:36 - bug-fixes-set-2 Task 5.1: Frontend Unit Tests
 - Added comprehensive font size scaling test to AnnotationManager.test.ts
 - Test verifies fontSize = strokeWidth * 4 formula (24px for default 6px stroke)

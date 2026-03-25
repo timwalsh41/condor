@@ -84,14 +84,14 @@
 - [x] 5.2.4 Test library workflow: upload → save → upload new → verify reset
 
 ### 5.3 Manual Testing Checklist
-- [ ] 5.3.1 Mac: Delete selected annotations with Backspace key
-- [ ] 5.3.2 Windows/Linux: Delete key still works
-- [ ] 5.3.3 Text size readable on 1080p video
-- [ ] 5.3.4 Angle annotation: 3-click flow produces correct angle measurement
-- [ ] 5.3.5 Trim handles never go off-screen
-- [ ] 5.3.6 Session save blocked until library save complete
-- [ ] 5.3.7 Session loads in PLAYBACK mode with videos synchronized
-- [ ] 5.3.8 All existing tests pass (run npm test and uv run pytest)
+- [x] 5.3.1 Mac: Delete selected annotations with Backspace key
+- [x] 5.3.2 Windows/Linux: Delete key still works
+- [x] 5.3.3 Text size readable on 1080p video
+- [x] 5.3.4 Angle annotation: 3-click flow produces correct angle measurement
+- [x] 5.3.5 Trim handles never go off-screen
+- [x] 5.3.6 Session save blocked until library save complete
+- [x] 5.3.7 Session loads in PLAYBACK mode with videos synchronized
+- [x] 5.3.8 All existing tests pass (run npm test and uv run pytest)
 
 ## 6. Documentation Update
 

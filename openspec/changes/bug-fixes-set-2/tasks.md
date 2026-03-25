@@ -3,7 +3,7 @@
 ### 1.1 Fix Text Annotation Font Size
 - [x] 1.1.1 Update text annotation fontSize from 20 to 24 (strokeWidth * 4) in DualVideoSynchronizer.tsx line 1523
 - [x] 1.1.2 Update angle label fontSize from 16 to 18 in DualVideoSynchronizer.tsx line 1555
-- [ ] 1.1.3 Verify text is readable relative to 6px stroke width on test videos
+- [x] 1.1.3 Verify text is readable relative to 6px stroke width on test videos
 
 ### 1.2 Fix Angle Annotation Drawing Logic
 - [x] 1.2.1 Locate angle-active preview rendering in DualVideoSynchronizer.tsx (around line 1710)
@@ -35,10 +35,10 @@
 - [x] 2.2.5 Test: Load session, verify videos start at correct sync frames
 
 ### 2.3 Fix Library Video Save Button State
-- [ ] 2.3.1 Modify AddToLibraryPanel to check libraryStore for video membership
-- [ ] 2.3.2 Pre-populate savedSlots based on library video IDs
-- [ ] 2.3.3 When loading from library, save buttons should show "Video X saved" and be disabled
-- [ ] 2.3.4 Test: Load video from library, verify save button is disabled
+- [x] 2.3.1 Modify AddToLibraryPanel to check libraryStore for video membership
+- [x] 2.3.2 Pre-populate savedSlots based on library video IDs
+- [x] 2.3.3 When loading from library, save buttons should show "Video X saved" and be disabled
+- [x] 2.3.4 Test: Load video from library, verify save button is disabled
 
 ### 2.4 Fix Upload New Video on Same Channel
 - [ ] 2.4.1 Add useEffect in AddToLibraryPanel to watch video metadata changes

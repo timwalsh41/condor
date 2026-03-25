@@ -84,9 +84,11 @@ describe('AddToLibraryPanel', () => {
   const mockSetVideoA = vi.fn();
   const mockSetVideoB = vi.fn();
   const mockAddVideo = vi.fn();
+  const mockIsVideoInLibrary = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsVideoInLibrary.mockReturnValue(false);
   });
 
   describe('Video ID update after successful save', () => {
@@ -108,6 +110,7 @@ describe('AddToLibraryPanel', () => {
         fetchVideos: vi.fn(),
         updateVideo: vi.fn(),
         removeVideo: vi.fn(),
+        isVideoInLibrary: mockIsVideoInLibrary,
         clearError: vi.fn(),
       });
 
@@ -152,6 +155,7 @@ describe('AddToLibraryPanel', () => {
         fetchVideos: vi.fn(),
         updateVideo: vi.fn(),
         removeVideo: vi.fn(),
+        isVideoInLibrary: mockIsVideoInLibrary,
         clearError: vi.fn(),
       });
 
@@ -188,6 +192,7 @@ describe('AddToLibraryPanel', () => {
         fetchVideos: vi.fn(),
         updateVideo: vi.fn(),
         removeVideo: vi.fn(),
+        isVideoInLibrary: mockIsVideoInLibrary,
         clearError: vi.fn(),
       });
 
@@ -231,6 +236,7 @@ describe('AddToLibraryPanel', () => {
         fetchVideos: vi.fn(),
         updateVideo: vi.fn(),
         removeVideo: vi.fn(),
+        isVideoInLibrary: mockIsVideoInLibrary,
         clearError: vi.fn(),
       });
 
@@ -266,6 +272,7 @@ describe('AddToLibraryPanel', () => {
         fetchVideos: vi.fn(),
         updateVideo: vi.fn(),
         removeVideo: vi.fn(),
+        isVideoInLibrary: mockIsVideoInLibrary,
         clearError: vi.fn(),
       });
 
@@ -289,6 +296,7 @@ describe('AddToLibraryPanel', () => {
         fetchVideos: vi.fn(),
         updateVideo: vi.fn(),
         removeVideo: vi.fn(),
+        isVideoInLibrary: mockIsVideoInLibrary,
         clearError: vi.fn(),
       });
 
@@ -296,6 +304,129 @@ describe('AddToLibraryPanel', () => {
 
       expect(screen.getByRole('button', { name: /video a/i })).toBeTruthy();
       expect(screen.queryByRole('button', { name: /video b/i })).toBeNull();
+    });
+  });
+
+  describe('Library video save button state', () => {
+    it('disables save button and shows "saved" when video is already in library', async () => {
+      // Create metadata for a video loaded from library (has library ID as video_id)
+      const libraryMetadataA: VideoMetadata = {
+        video_id: 'library-uuid-a', // This matches libraryVideoA.id
+        session_id: 'session-1',
+        filename: 'swing_a.mp4',
+        framerate: 30,
+        duration: 5.0,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      vi.mocked(useVideoStore).mockReturnValue({
+        videoA: { metadata: libraryMetadataA, blob: new Blob() },
+        videoB: null,
+        setVideoA: mockSetVideoA,
+        setVideoB: mockSetVideoB,
+      } as ReturnType<typeof useVideoStore>);
+
+      vi.mocked(useLibraryStore).mockReturnValue({
+        addVideo: mockAddVideo,
+        videos: [libraryVideoA], // Video A is in library
+        loading: false,
+        error: null,
+        fetchVideos: vi.fn(),
+        updateVideo: vi.fn(),
+        removeVideo: vi.fn(),
+        isVideoInLibrary: vi.fn(),
+        clearError: vi.fn(),
+      });
+
+      render(<AddToLibraryPanel />);
+
+      // Wait for useEffect to run and update savedSlots state
+      await waitFor(() => {
+        // Button should show "saved" and be disabled
+        const button = screen.getByText(/✓ Video A saved/);
+        expect(button).toBeTruthy();
+        expect(button.hasAttribute('disabled')).toBe(true);
+      });
+    });
+
+    it('shows enabled "+ Video A" button when video is not in library', () => {
+      vi.mocked(useVideoStore).mockReturnValue({
+        videoA: { metadata: uploadMetadataA, blob: new Blob() },
+        videoB: null,
+        setVideoA: mockSetVideoA,
+        setVideoB: mockSetVideoB,
+      } as ReturnType<typeof useVideoStore>);
+
+      vi.mocked(useLibraryStore).mockReturnValue({
+        addVideo: mockAddVideo,
+        videos: [], // Empty library
+        loading: false,
+        error: null,
+        fetchVideos: vi.fn(),
+        updateVideo: vi.fn(),
+        removeVideo: vi.fn(),
+        isVideoInLibrary: vi.fn(),
+        clearError: vi.fn(),
+      });
+
+      render(<AddToLibraryPanel />);
+
+      // Button should show "+ Video A" and be enabled
+      const button = screen.getByText(/＋ Video A/);
+      expect(button).toBeTruthy();
+      expect(button.hasAttribute('disabled')).toBe(false);
+    });
+
+    it('correctly handles both slots with mixed library status', async () => {
+      // Create metadata for video loaded from library and video not in library
+      const libraryMetadataA: VideoMetadata = {
+        video_id: 'library-uuid-a', // This matches libraryVideoA.id
+        session_id: 'session-1',
+        filename: 'swing_a.mp4',
+        framerate: 30,
+        duration: 5.0,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+      };
+
+      vi.mocked(useVideoStore).mockReturnValue({
+        videoA: { metadata: libraryMetadataA, blob: new Blob() },
+        videoB: { metadata: uploadMetadataB, blob: new Blob() },
+        setVideoA: mockSetVideoA,
+        setVideoB: mockSetVideoB,
+      } as ReturnType<typeof useVideoStore>);
+
+      vi.mocked(useLibraryStore).mockReturnValue({
+        addVideo: mockAddVideo,
+        videos: [libraryVideoA], // Only video A is in library
+        loading: false,
+        error: null,
+        fetchVideos: vi.fn(),
+        updateVideo: vi.fn(),
+        removeVideo: vi.fn(),
+        isVideoInLibrary: vi.fn(),
+        clearError: vi.fn(),
+      });
+
+      render(<AddToLibraryPanel />);
+
+      // Wait for useEffect to run and update savedSlots state
+      await waitFor(() => {
+        // Video A button should be disabled and show "saved"
+        const buttonA = screen.getByText(/✓ Video A saved/);
+        expect(buttonA).toBeTruthy();
+        expect(buttonA.hasAttribute('disabled')).toBe(true);
+      });
+
+      // Video B button should be enabled and show "+"
+      const buttonB = screen.getByText(/＋ Video B/);
+      expect(buttonB).toBeTruthy();
+      expect(buttonB.hasAttribute('disabled')).toBe(false);
     });
   });
 });

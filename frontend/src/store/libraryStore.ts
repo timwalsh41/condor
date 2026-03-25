@@ -35,6 +35,8 @@ interface LibraryStoreState {
   updateVideo: (videoId: string, updates: LibraryVideoUpdate) => Promise<void>;
   /** Delete a library video. */
   removeVideo: (videoId: string) => Promise<void>;
+  /** Check if a video is in the library by ID. */
+  isVideoInLibrary: (videoId: string) => boolean;
   /** Clear any stored error. */
   clearError: () => void;
 }
@@ -76,6 +78,11 @@ export const useLibraryStore = create<LibraryStoreState>((set) => ({
     set((state) => ({
       videos: state.videos.filter((v) => v.id !== videoId),
     }));
+  },
+
+  isVideoInLibrary: (videoId: string) => {
+    const { videos } = useLibraryStore.getState();
+    return videos.some((v) => v.id === videoId);
   },
 
   clearError: () => set({ error: null }),

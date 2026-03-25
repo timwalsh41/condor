@@ -9,7 +9,7 @@
  * Validates: REQ-P2-LIB-001
  */
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useVideoStore } from "../store/videoStore";
 import { useLibraryStore } from "../store/libraryStore";
 import type { LibraryVideoCreate } from "../types/api";
@@ -35,12 +35,29 @@ const emptyForm = (): SaveFormState => ({
 
 export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
   const { videoA, videoB, setVideoA, setVideoB } = useVideoStore();
-  const { addVideo } = useLibraryStore();
+  const { addVideo, isVideoInLibrary, videos } = useLibraryStore();
 
   const [savingSlot, setSavingSlot] = useState<Slot | null>(null);
   const [formState, setFormState] = useState<SaveFormState>(emptyForm());
   const [savedSlots, setSavedSlots] = useState<Set<Slot>>(new Set());
   const [error, setError] = useState<string | null>(null);
+
+  // Derive saved state from library membership - handles both initial load
+  // from library and component remount scenarios
+  useEffect(() => {
+    const newSavedSlots = new Set<Slot>();
+    
+    // Check if video IDs are in the library videos array
+    if (videoA?.metadata?.video_id && videos.some(v => v.id === videoA.metadata.video_id)) {
+      newSavedSlots.add("A");
+    }
+    
+    if (videoB?.metadata?.video_id && videos.some(v => v.id === videoB.metadata.video_id)) {
+      newSavedSlots.add("B");
+    }
+    
+    setSavedSlots(newSavedSlots);
+  }, [videoA, videoB, videos]);
 
   // Only show when at least one slot has a video
   if (!videoA && !videoB) return null;
@@ -93,6 +110,8 @@ export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
         <button
           className={`btn btn--sm ${savedSlots.has("A") ? "btn--secondary" : "btn--primary"}`}
           onClick={() => openSave("A")}
+          disabled={savedSlots.has("A")}
+          title={savedSlots.has("A") ? "Video A is already in library" : "Save Video A to library"}
         >
           {savedSlots.has("A") ? "✓ Video A saved" : "＋ Video A"}
         </button>
@@ -101,6 +120,8 @@ export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
         <button
           className={`btn btn--sm ${savedSlots.has("B") ? "btn--secondary" : "btn--primary"}`}
           onClick={() => openSave("B")}
+          disabled={savedSlots.has("B")}
+          title={savedSlots.has("B") ? "Video B is already in library" : "Save Video B to library"}
         >
           {savedSlots.has("B") ? "✓ Video B saved" : "＋ Video B"}
         </button>

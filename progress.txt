@@ -8,6 +8,27 @@
 - **External Video Pattern**: Pass external video via `externalVideo` prop with {metadata, blob} structure
 - **DualVideoSynchronizer Integration**: Pass videoStore state as externalVideo prop to VideoUploadWorkflow
 
+## 2026-03-25 - bug-fixes-set-2 Task 4.1: Enforce Library Save Before Session Save
+- Modified SaveSessionPanel to check video library status before enabling session save
+- Used existing isVideoInLibrary() helper from libraryStore (already implemented in task 2.3)
+- Added disabled state with tooltip: "Save both videos to library before saving session"
+- Added orange warning inline message in save modal when videos need saving
+- Added CSS highlight animation (btn--highlight) for library save buttons via highlightUnsaved prop
+- Updated App.tsx to coordinate videosNeedSaving state between SaveSessionPanel and AddToLibraryPanel
+- Added comprehensive tests: 27 tests in SaveSessionPanel.test.tsx covering all subtasks
+- Subtasks completed: 4.1.1, 4.1.2, 4.1.3, 4.1.4, 4.1.5, 4.1.6, 4.1.7
+- Files changed: /workspace/frontend/src/components/SaveSessionPanel.tsx, /workspace/frontend/src/components/AddToLibraryPanel.tsx, /workspace/frontend/src/components/LibraryView.css, /workspace/frontend/src/App.tsx
+- Tests added/updated: /workspace/frontend/src/components/tests/SaveSessionPanel.test.tsx (new file, 27 tests)
+- All 608 frontend tests pass, all 124 backend tests pass
+- **Learnings for future iterations:**
+  - Pattern: Parent component (App.tsx) calculates shared state (videosNeedSaving) and passes to children
+  - Prop passing: SaveSessionPanel accepts videosNeedSaving prop; AddToLibraryPanel accepts highlightUnsaved prop
+  - CSS animation: @keyframes pulse-orange for attention-drawing highlights without JavaScript
+  - isVideoInLibrary helper already existed from Task 2.3 - check for existing utilities before adding
+  - Button disabled state with title attribute provides both UX and accessibility
+  - Inline warning message should use consistent styling (orange #ed8936) with border for visibility
+---
+
 ## 2023-03-18 - bug-fixes-set-2 Task 1.1: Fix Text Annotation Font Size
 - Updated text annotation fontSize from 20 to 24 (strokeWidth * 4) for both video A and B
 - Updated angle label fontSize from 16 to 18 for both video A and B

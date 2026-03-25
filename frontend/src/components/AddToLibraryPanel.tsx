@@ -17,6 +17,11 @@ import "./LibraryView.css"; // Reuse shared button + modal styles
 
 type Slot = "A" | "B";
 
+interface AddToLibraryPanelProps {
+  children?: ReactNode;
+  highlightUnsaved?: boolean;
+}
+
 interface SaveFormState {
   golferName: string;
   club: string;
@@ -33,7 +38,7 @@ const emptyForm = (): SaveFormState => ({
   qualityScore: "",
 });
 
-export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
+export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToLibraryPanelProps) {
   const { videoA, videoB, setVideoA, setVideoB } = useVideoStore();
   const { addVideo, videos } = useLibraryStore();
 
@@ -142,7 +147,7 @@ export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
       <span className="add-to-library-panel__label">Save to Library:</span>
       {videoA && (
         <button
-          className={`btn btn--sm ${savedSlots.has("A") ? "btn--secondary" : "btn--primary"}`}
+          className={`btn btn--sm ${savedSlots.has("A") ? "btn--secondary" : "btn--primary"} ${highlightUnsaved && !savedSlots.has("A") ? "btn--highlight" : ""}`}
           onClick={() => openSave("A")}
           disabled={savedSlots.has("A")}
           title={savedSlots.has("A") ? "Video A is already in library" : "Save Video A to library"}
@@ -152,7 +157,7 @@ export function AddToLibraryPanel({ children }: { children?: ReactNode }) {
       )}
       {videoB && (
         <button
-          className={`btn btn--sm ${savedSlots.has("B") ? "btn--secondary" : "btn--primary"}`}
+          className={`btn btn--sm ${savedSlots.has("B") ? "btn--secondary" : "btn--primary"} ${highlightUnsaved && !savedSlots.has("B") ? "btn--highlight" : ""}`}
           onClick={() => openSave("B")}
           disabled={savedSlots.has("B")}
           title={savedSlots.has("B") ? "Video B is already in library" : "Save Video B to library"}

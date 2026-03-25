@@ -160,6 +160,23 @@
   background: #e53e3e;
 }
 
+/* ─── Highlighted Button (for library save prompt) ───────────────────────────── */
+
+.btn--highlight {
+  animation: pulse-orange 1.5s ease-in-out infinite;
+  border: 2px solid #ed8936 !important;
+  box-shadow: 0 0 0 3px rgba(237, 137, 54, 0.3);
+}
+
+@keyframes pulse-orange {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(237, 137, 54, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(237, 137, 54, 0.5);
+  }
+}
+
 /* ─── Modal ─────────────────────────────────────────────────────────────────── */
 
 .library-modal-backdrop {

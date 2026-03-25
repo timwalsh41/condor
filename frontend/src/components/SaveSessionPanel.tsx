@@ -11,11 +11,17 @@
 import { useState } from 'react';
 import { useVideoStore } from '../store/videoStore';
 import { useSessionStore } from '../store/sessionStore';
+import { useLibraryStore } from '../store/libraryStore';
 import './LibraryView.css'; // Shared button / modal styles
 
-export function SaveSessionPanel() {
+interface SaveSessionPanelProps {
+  videosNeedSaving?: boolean;
+}
+
+export function SaveSessionPanel({ videosNeedSaving = false }: SaveSessionPanelProps) {
   const { videoA, videoB } = useVideoStore();
   const { saveSession } = useSessionStore();
+  const { isVideoInLibrary } = useLibraryStore();
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -23,6 +29,16 @@ export function SaveSessionPanel() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  // Check if videos are in library
+  const hasVideoA = !!videoA?.metadata;
+  const hasVideoB = !!videoB?.metadata;
+  const videoAInLibrary = hasVideoA && videoA?.metadata?.video_id ? isVideoInLibrary(videoA.metadata.video_id) : false;
+  const videoBInLibrary = hasVideoB && videoB?.metadata?.video_id ? isVideoInLibrary(videoB.metadata.video_id) : false;
+  
+  // Session save is blocked if any video exists but isn't in library
+  const internalVideosNeedSaving = (hasVideoA && !videoAInLibrary) || (hasVideoB && !videoBInLibrary);
+  const canSaveSession = !(videosNeedSaving || internalVideosNeedSaving);
 
   // Only show when at least one video is loaded
   if (!videoA && !videoB) return null;
@@ -53,7 +69,12 @@ export function SaveSessionPanel() {
 
   return (
     <>
-      <button className="btn btn--sm btn--secondary" onClick={openModal}>
+      <button 
+        className="btn btn--sm btn--secondary" 
+        onClick={openModal}
+        disabled={!canSaveSession}
+        title={!canSaveSession ? "Save both videos to library before saving session" : "Save current analysis session"}
+      >
         💾 Save Session
       </button>
 
@@ -64,6 +85,11 @@ export function SaveSessionPanel() {
             <p className="library-modal__subtitle">
               Current sync points, annotations, and video references will be saved.
             </p>
+            {(videosNeedSaving || internalVideosNeedSaving) && (
+              <p style={{ color: '#ed8936', fontSize: '0.85rem', margin: '0 0 0.75rem', padding: '0.5rem', background: '#fffaf0', border: '1px solid #ed8936', borderRadius: '4px' }}>
+                Save both videos to library before saving session
+              </p>
+            )}
             {error && (
               <p style={{ color: '#fc8181', fontSize: '0.85rem', margin: '0 0 0.5rem' }}>
                 {error}
@@ -102,7 +128,7 @@ export function SaveSessionPanel() {
                   <button type="button" className="btn btn--secondary" onClick={() => setOpen(false)}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn--primary" disabled={saving || !name.trim()}>
+                  <button type="submit" className="btn btn--primary" disabled={saving || !name.trim() || videosNeedSaving || internalVideosNeedSaving}>
                     {saving ? 'Saving…' : 'Save'}
                   </button>
                 </div>

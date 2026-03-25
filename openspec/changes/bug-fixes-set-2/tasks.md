@@ -61,13 +61,13 @@
 ## 4. Workflow Constraint Implementation
 
 ### 4.1 Enforce Library Save Before Session Save
-- [ ] 4.1.1 Modify SaveSessionPanel to check video library status
-- [ ] 4.1.2 Create helper function isVideoInLibrary(videoId) in libraryStore
-- [ ] 4.1.3 Disable save button with tooltip if videos not in library
-- [ ] 4.1.4 Add inline message: "Save both videos to library before saving session"
-- [ ] 4.1.5 Highlight library save buttons when session save is blocked
-- [ ] 4.1.6 Test: Upload videos without saving to library, verify session save is disabled
-- [ ] 4.1.7 Test: Save videos to library, verify session save becomes enabled
+- [x] 4.1.1 Modify SaveSessionPanel to check video library status
+- [x] 4.1.2 Create helper function isVideoInLibrary(videoId) in libraryStore
+- [x] 4.1.3 Disable save button with tooltip if videos not in library
+- [x] 4.1.4 Add inline message: "Save both videos to library before saving session"
+- [x] 4.1.5 Highlight library save buttons when session save is blocked
+- [x] 4.1.6 Test: Upload videos without saving to library, verify session save is disabled
+- [x] 4.1.7 Test: Save videos to library, verify session save becomes enabled
 
 ## 5. Testing and Validation
 

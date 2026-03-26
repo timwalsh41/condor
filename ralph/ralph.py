@@ -10,11 +10,13 @@ Run directly or via the ralph.sh wrapper.
 """
 
 import argparse
+import contextlib
 import json
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 # Assumed context window size when the model doesn't report one explicitly.
@@ -26,18 +28,23 @@ CONTEXT_WINDOW_DEFAULT = 200_000
 @dataclass
 class IterationStats:
     iteration: int
-    input_tokens: int = 0
-    output_tokens: int = 0
-    cost_usd: float = 0.0
+    max_input_tokens: int = 0
+    max_output_tokens: int = 0
+    max_cost_usd: float = 0.0
+    sum_input_tokens: int = 0
+    sum_output_tokens: int = 0
+    sum_cost_usd: float = 0.0
+
     context_window: int = CONTEXT_WINDOW_DEFAULT
+
     completed: bool = False   # saw <promise>COMPLETE</promise>
     duration_s: float = 0.0
 
     @property
     def context_pct(self) -> float | None:
-        if not self.input_tokens:
+        if not self.sum_input_tokens:
             return None
-        return (self.input_tokens / self.context_window) * 100
+        return (self.sum_input_tokens / self.context_window) * 100
 
 
 # ── JSON event helpers ────────────────────────────────────────────────────────
@@ -68,15 +75,15 @@ def extract_usage(event: dict) -> tuple[int, int, float, int]:
     Any field not found returns 0/0.0.
     """
     part   = event.get("part") if isinstance(event.get("part"), dict) else {}
-    tokens = part.get("tokens") if isinstance(part.get("tokens"), dict) else {}
+    tokens = part.get("tokens") if isinstance(part.get("tokens"), dict) else {} # type: ignore
 
-    inp  = (tokens.get("input")
+    inp  = (tokens.get("input") # type: ignore
             or _find_field(event, "input_tokens", "inputTokens", "prompt_tokens", "promptTokens")
             or 0)
-    out  = (tokens.get("output")
+    out  = (tokens.get("output") # type: ignore
             or _find_field(event, "output_tokens", "outputTokens", "completion_tokens", "completionTokens")
             or 0)
-    cost = (part.get("cost")
+    cost = (part.get("cost") # type: ignore
             or _find_field(event, "cost", "totalCost", "total_cost", "costUsd", "cost_usd")
             or 0.0)
     ctx  = _find_field(event, "context_window", "contextWindow", "context_length", "max_tokens", "maxTokens") or 0
@@ -120,6 +127,7 @@ def run_iteration(
     prompt: str,
     model: str,
     max_iters: int,
+    log_fh=None,
 ) -> IterationStats:
     stats = IterationStats(iteration=iteration)
     t_start = time.monotonic()
@@ -144,7 +152,12 @@ def run_iteration(
             bufsize=1,
         )
 
-        for raw_line in proc.stdout:
+        input_sum: int = 0
+        output_sum: int = 0
+        cost_sum: float = 0.
+        ctx_sum: int = 0
+
+        for raw_line in proc.stdout: # type: ignore
             raw_line = raw_line.rstrip("\n")
             if not raw_line:
                 continue
@@ -157,6 +170,11 @@ def run_iteration(
                 text_chunks.append(raw_line)
                 continue
 
+            # Log only valid JSON events (not plain-text model output)
+            if log_fh is not None:
+                log_fh.write(raw_line + "\n")
+                log_fh.flush()
+
             # Stream visible text so the user sees agent output in real-time
             text = _text_from_event(event)
             if text:
@@ -167,10 +185,18 @@ def run_iteration(
             # We take the max across events because many tools emit cumulative
             # running totals (later events have higher numbers).
             inp, out, cost, ctx = extract_usage(event)
-            if inp:  stats.input_tokens  = max(stats.input_tokens,  inp)
-            if out:  stats.output_tokens = max(stats.output_tokens, out)
-            if cost: stats.cost_usd      = max(stats.cost_usd,      cost)
-            if ctx:  stats.context_window = ctx
+            if inp:
+                stats.max_input_tokens  = max(stats.max_input_tokens,  inp)
+                stats.sum_input_tokens += inp
+            if out:
+                stats.max_output_tokens = max(stats.max_output_tokens, out)
+                stats.sum_output_tokens += out
+            if cost:
+                stats.max_cost_usd      = max(stats.max_cost_usd,      cost)
+                stats.sum_cost_usd += cost
+            if ctx:
+                stats.context_window = ctx
+                ctx_sum += ctx
 
         proc.wait()
 
@@ -196,7 +222,7 @@ def _fmt_duration(seconds: float) -> str:
 
 
 def print_summary(all_stats: list[IterationStats], change_id: str) -> None:
-    has_tokens = any(s.input_tokens or s.output_tokens for s in all_stats)
+    has_tokens = any(s.sum_input_tokens or s.sum_output_tokens for s in all_stats)
 
     W = dict(iter=4, inp=12, out=12, cost=9, ctx=7, time=8)
 
@@ -217,6 +243,7 @@ def print_summary(all_stats: list[IterationStats], change_id: str) -> None:
     print(header)
     print(sep)
 
+    # totals over all iterations
     total_inp = total_out = 0
     total_cost = 0.0
     total_time = 0.0
@@ -224,9 +251,9 @@ def print_summary(all_stats: list[IterationStats], change_id: str) -> None:
     for s in all_stats:
         status   = "COMPLETE" if s.completed else "—"
         ctx_str  = f"{s.context_pct:.1f}%" if s.context_pct is not None else "—"
-        cost_str = f"${s.cost_usd:.4f}"    if s.cost_usd   else "—"
-        inp_str  = f"{s.input_tokens:,}"   if s.input_tokens  else "—"
-        out_str  = f"{s.output_tokens:,}"  if s.output_tokens else "—"
+        cost_str = f"${s.sum_cost_usd:.4f}"    if s.sum_cost_usd   else "—"
+        inp_str  = f"{s.sum_input_tokens:,}"   if s.sum_input_tokens  else "—"
+        out_str  = f"{s.sum_output_tokens:,}"  if s.sum_output_tokens else "—"
         time_str = _fmt_duration(s.duration_s)
         print(
             f"{s.iteration:>{W['iter']}}  "
@@ -237,9 +264,9 @@ def print_summary(all_stats: list[IterationStats], change_id: str) -> None:
             f"{time_str:>{W['time']}}  "
             f"{status}"
         )
-        total_inp  += s.input_tokens
-        total_out  += s.output_tokens
-        total_cost += s.cost_usd
+        total_inp  += s.sum_input_tokens
+        total_out  += s.sum_output_tokens
+        total_cost += s.sum_cost_usd
         total_time += s.duration_s
 
     print(sep)
@@ -270,8 +297,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
         epilog="""
 examples:
   ralph.sh auth-refactor
+  ralph.sh auth-refactor -l
   ralph.sh auth-refactor -m anthropic/claude-sonnet-4-6
-  ralph.sh auth-refactor -m anthropic/claude-sonnet-4-6 10
+  ralph.sh auth-refactor -m anthropic/claude-sonnet-4-6 -l 10
 """,
     )
     parser.add_argument(
@@ -283,6 +311,12 @@ examples:
         "-m", "--model",
         default="",
         help="Model to use (e.g. anthropic/claude-sonnet-4-6)",
+    )
+    parser.add_argument(
+        "-l", "--log",
+        action="store_true",
+        default=False,
+        help="Write opencode JSON output to a timestamped log file",
     )
     parser.add_argument(
         "max_iterations",
@@ -316,18 +350,31 @@ def main() -> int:
     all_stats: list[IterationStats] = []
     completed = False
 
-    for i in range(1, args.max_iterations + 1):
-        stats = run_iteration(i, prompt, args.model, args.max_iterations)
-        all_stats.append(stats)
+    if args.log:
+        log_filename = datetime.now().strftime("%Y-%m-%d %H.%M.%S") + f" {args.change_id}.json"
+        log_path = Path(log_filename)
+        print(f"Logging opencode output to: {log_path}")
+        log_fh_ctx = log_path.open("w", encoding="utf-8")
+    else:
+        log_fh_ctx = None
 
-        if stats.completed:
-            print(f"\nRalph completed all tasks for change: {args.change_id}")
-            print(f"Finished at iteration {i} of {args.max_iterations}")
-            completed = True
-            break
+    with contextlib.ExitStack() as stack:
+        log_fh = stack.enter_context(log_fh_ctx) if log_fh_ctx is not None else None
+        for i in range(1, args.max_iterations + 1):
+            stats = run_iteration(i, prompt, args.model, args.max_iterations, log_fh)
+            all_stats.append(stats)
 
-        print(f"Iteration {i} complete. Continuing...")
-        time.sleep(2)
+            print(f"Iteration {i} complete. Elapsed time: {stats.duration_s:.2f}s. Context usage: {(stats.context_pct or 0):.2f}%.")
+
+            if stats.completed:
+                print(f"\nRalph completed all tasks for change: {args.change_id}")
+                print(f"Finished at iteration {i} of {args.max_iterations}")
+                completed = True
+                break
+            else:
+                print("Continuing...\n\n")
+
+            time.sleep(0.5)  # brief pause between iterations for readability
 
     if not completed:
         print(

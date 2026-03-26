@@ -9,8 +9,8 @@ Using the `/opsx-apply` command, implement ONLY the next pending incomplete task
 3. Add or update tests as needed to cover every change made
 4. Run **ALL** project tests (not just new or changed tests) using the project's existing test runner
 5. Update `AGENTS.md` and other relevant documentation files if you discover reusable patterns (see below)
-6. Once ALL tests pass, commit ALL changes with message: `Completed {{CHANGE_ID}} task #<ID> - <short ~5-15 word summary of task>`
-7. Append your progress to `progress.txt` (see below)
+6. Once ALL tests pass, append your progress to `progress.txt` (see below)
+7. Commit ALL changes with message: `Completed {{CHANGE_ID}} task #<ID> - <short ~5-15 word summary of task>`
 8. Check whether all tasks in `tasks.md` are complete
 
 ## Task Selection and Execution

@@ -2,7 +2,7 @@
 # ralph.sh — thin wrapper around ralph.py
 #
 # Usage:
-#   ./ralph.sh <change-id> [-m <model>] [max_iterations]
+#   ./ralph.sh <change-id> [-m <model>] [-l] [max_iterations]
 #
 # See ralph.py for full documentation and argument details.
 

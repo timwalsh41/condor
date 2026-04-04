@@ -7,6 +7,7 @@
 - Use keyword arguments instead of positional arguments when calling functions and methods
 - Do not put `import` statements inside functions unless necessary to prevent circular imports
 - Imports must be at the top of the file
+- Use uv for Python project and package management
 - Use pytest for test framework
 
 # Logging

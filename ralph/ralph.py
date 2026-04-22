@@ -12,6 +12,7 @@ Run directly or via the ralph.sh wrapper.
 import argparse
 import contextlib
 import json
+import select
 import subprocess
 import sys
 import time
@@ -21,6 +22,9 @@ from pathlib import Path
 
 # Assumed context window size when the model doesn't report one explicitly.
 CONTEXT_WINDOW_DEFAULT = 200_000
+
+# Maximum wall-clock seconds allowed for a single iteration.
+ITERATION_TIMEOUT_S = 60 * 60  # 60 minutes
 
 
 # ── Data ──────────────────────────────────────────────────────────────────────
@@ -44,7 +48,7 @@ class IterationStats:
     def context_pct(self) -> float | None:
         if not self.sum_input_tokens:
             return None
-        return (self.sum_input_tokens / self.context_window) * 100
+        return ((self.max_input_tokens + self.max_output_tokens) / self.context_window) * 100
 
 
 # ── JSON event helpers ────────────────────────────────────────────────────────
@@ -157,7 +161,32 @@ def run_iteration(
         cost_sum: float = 0.
         ctx_sum: int = 0
 
-        for raw_line in proc.stdout: # type: ignore
+        deadline = time.monotonic() + ITERATION_TIMEOUT_S
+
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                msg = (
+                    f"[ralph] Iteration {iteration} exceeded the "
+                    f"{ITERATION_TIMEOUT_S // 60}-minute timeout. Aborting."
+                )
+                print(f"\n{msg}", file=sys.stderr, flush=True)
+                if log_fh is not None:
+                    log_fh.write(json.dumps({"ralph_error": msg}) + "\n")
+                    log_fh.flush()
+                proc.kill()
+                proc.wait()
+                sys.exit(1)
+
+            ready, _, _ = select.select([proc.stdout], [], [], remaining)
+            if not ready:
+                # select timed out (shouldn't normally reach here given the
+                # deadline check above, but guard anyway)
+                continue
+
+            raw_line = proc.stdout.readline()
+            if not raw_line:  # EOF
+                break
             raw_line = raw_line.rstrip("\n")
             if not raw_line:
                 continue

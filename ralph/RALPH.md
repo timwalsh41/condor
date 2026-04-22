@@ -93,9 +93,7 @@ Only update `AGENTS.md` or other technical documents if you have **genuinely reu
 
 ## Stop Condition
 
-After completing a task, check if **all tasks** in `tasks.md` for `{{CHANGE_ID}}` are marked complete (`[x]`).
-
-If ALL tasks are complete, reply with:
+After completing a task, read `tasks.md` for `{{CHANGE_ID}}`. If ALL tasks are fully complete (all items marked with `[x]`), then reply with:
 
 ```
 <promise>COMPLETE</promise>

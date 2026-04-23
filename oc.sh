@@ -10,15 +10,26 @@
 #   -p host:cont    Forward a port: map host port to container port (repeatable).
 #                   If the container exists with a different mapping, -f is required.
 #
-# This script must be run from a project directory containing .oc-config and .opencode/.
-# Use oc-init.sh from the docker repository to initialize a new project first.
+# This script must be run from a project directory (or workspace/ subdirectory) 
+# containing .oc-config and .opencode/. Use oc-init.sh from the docker repository 
+# to initialize a new project first.
 #
 # See README.md for full documentation.
 
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
-PROJECT_ROOT="${SCRIPT_DIR}"
+
+# Locate project root: check current dir, then parent (for nested mode where oc.sh is in workspace/)
+if [[ -f "${SCRIPT_DIR}/.oc-config" ]]; then
+  PROJECT_ROOT="${SCRIPT_DIR}"
+elif [[ -f "${SCRIPT_DIR}/../.oc-config" ]]; then
+  PROJECT_ROOT="${SCRIPT_DIR:h}"
+else
+  echo "ERROR: Cannot find .oc-config in ${SCRIPT_DIR} or parent directory." >&2
+  echo "Initialize the project with oc-init.sh first." >&2
+  exit 1
+fi
 
 # ── Default settings (overridden by project's .oc-config) ────────────────────
 PROJECT_NAME=""          # derived from project folder name if not set in .oc-config
@@ -81,7 +92,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Validate project structure ─────────────────────────────────────────────────
-[[ -f "${PROJECT_ROOT}/.oc-config" ]] || die "Missing .oc-config in ${PROJECT_ROOT}. Initialize with oc-init.sh first."
+# .oc-config was already found during PROJECT_ROOT detection, just verify .opencode/ exists
 [[ -d "${PROJECT_ROOT}/.opencode" ]] || die "Missing .opencode/ in ${PROJECT_ROOT}. Initialize with oc-init.sh first."
 
 # ── Load project config ────────────────────────────────────────────────────────

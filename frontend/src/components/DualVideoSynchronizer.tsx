@@ -1126,7 +1126,7 @@ export function DualVideoSynchronizer() {
           videoSlot="A"
           sessionId={sessionId || undefined}
           onUploadComplete={handleVideoAUploadComplete}
-          externalVideo={videoAStore?.metadata && videoAStore?.blob ? {
+          externalVideo={sessionId === 'library' && videoAStore?.metadata && videoAStore?.blob ? {
             metadata: videoAStore.metadata,
             blob: videoAStore.blob
           } : undefined}
@@ -1136,7 +1136,7 @@ export function DualVideoSynchronizer() {
           videoSlot="B"
           sessionId={sessionId || undefined}
           onUploadComplete={handleVideoBUploadComplete}
-          externalVideo={videoBStore?.metadata && videoBStore?.blob ? {
+          externalVideo={sessionId === 'library' && videoBStore?.metadata && videoBStore?.blob ? {
             metadata: videoBStore.metadata,
             blob: videoBStore.blob
           } : undefined}

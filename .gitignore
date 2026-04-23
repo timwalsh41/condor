@@ -31,3 +31,6 @@ video_storage
 # opencode workspace content
 /.oc-config
 .opencode/
+
+# log files
+*.log

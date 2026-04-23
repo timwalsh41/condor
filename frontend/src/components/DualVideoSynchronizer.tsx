@@ -311,7 +311,7 @@ export function DualVideoSynchronizer() {
         return annotation.points;
 
       case "angle":
-        // For angle, control points are all 3 defining points: vertex, arm1-end, arm2-end
+        // For angle, control points are all 3 defining points: arm1-end, vertex, arm2-end
         return annotation.points;
 
       case "oval": {
@@ -1560,7 +1560,7 @@ export function DualVideoSynchronizer() {
                                               x={annotation.points[0].x}
                                               y={annotation.points[0].y}
                                               text={annotation.text ?? ""}
-                                              fontSize={36}
+                                              fontSize={144}
                                               fill={annotation.color}
                                               stroke={isSelected ? "#2196F3" : undefined}
                                               strokeWidth={isSelected ? 1 : 0}
@@ -1579,7 +1579,7 @@ export function DualVideoSynchronizer() {
                                           ) : null;
                                         case "angle": {
                                           if (annotation.points.length < 3) return null;
-                                          const [vx, arm1, arm2] = annotation.points;
+                                          const [arm1, vx, arm2] = annotation.points;
                                           const dx1 = arm1.x - vx.x, dy1 = arm1.y - vx.y;
                                           const dx2 = arm2.x - vx.x, dy2 = arm2.y - vx.y;
                                           const angleDeg = Math.round(
@@ -1589,10 +1589,10 @@ export function DualVideoSynchronizer() {
                                           const lblWidth = lblText.length * 10 + 8;
                                           return (
                                             <>
-                                              <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
+                                              <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
-                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={18} fill="#111" fontStyle="bold" listening={false} />
+                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={72} fill="#111" fontStyle="bold" listening={false} />
                                               {/* Render control points if selected */}
                                               {isSelected &&
                                                 getControlPoints(annotation).map((point, idx) => (
@@ -1746,7 +1746,7 @@ export function DualVideoSynchronizer() {
                                               listening={false}
                                             />
                                           )}
-                                          {/* Rubber-band arm from arm1-end to cursor */}
+                                          {/* Rubber-band arm from vertex to cursor */}
                                           {polylineMousePosA && (
                                             <Line
                                               points={[
@@ -2158,7 +2158,7 @@ export function DualVideoSynchronizer() {
                                               x={annotation.points[0].x}
                                               y={annotation.points[0].y}
                                               text={annotation.text ?? ""}
-                                              fontSize={24}
+                                              fontSize={144}
                                               fill={annotation.color}
                                               stroke={isSelected ? "#2196F3" : undefined}
                                               strokeWidth={isSelected ? 1 : 0}
@@ -2177,7 +2177,7 @@ export function DualVideoSynchronizer() {
                                           ) : null;
                                         case "angle": {
                                           if (annotation.points.length < 3) return null;
-                                          const [vx, arm1, arm2] = annotation.points;
+                                          const [arm1, vx, arm2] = annotation.points;
                                           const dx1 = arm1.x - vx.x, dy1 = arm1.y - vx.y;
                                           const dx2 = arm2.x - vx.x, dy2 = arm2.y - vx.y;
                                           const angleDeg = Math.round(
@@ -2187,10 +2187,10 @@ export function DualVideoSynchronizer() {
                                           const lblWidth = lblText.length * 10 + 8;
                                           return (
                                             <>
-                                              <Line key={`${annotation.id}-l1`} points={[vx.x, vx.y, arm1.x, arm1.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
+                                              <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
-                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={48} fill="#111" fontStyle="bold" listening={false} />
+                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={72} fill="#111" fontStyle="bold" listening={false} />
                                               {/* Render control points if selected */}
                                               {isSelected &&
                                                 getControlPoints(annotation).map((point, idx) => (
@@ -2344,7 +2344,7 @@ export function DualVideoSynchronizer() {
                                               listening={false}
                                             />
                                           )}
-                                          {/* Rubber-band arm from arm1-end to cursor */}
+                                          {/* Rubber-band arm from vertex to cursor */}
                                           {polylineMousePosB && (
                                             <Line
                                               points={[
@@ -3213,7 +3213,7 @@ export function DualVideoSynchronizer() {
                   : selectedTool === "angle" &&
                     (drawingStateA.mode === "angle-active" ||
                       drawingStateB.mode === "angle-active")
-                  ? "Click vertex then 2 endpoints to measure angle. Escape to cancel."
+                  ? "Click arm1 end, then vertex, then arm2 end to measure angle. Escape to cancel."
                   : selectedTool === "text"
                   ? "Click on the video to place a text label."
                   : "\u00A0"}

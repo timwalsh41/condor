@@ -78,6 +78,7 @@ async def create_library_video(
         swing_date=payload.swing_date,
         notes=payload.notes,
         quality_score=payload.quality_score,
+        camera_view=payload.camera_view,
     )
     db.add(video)
     await db.commit()

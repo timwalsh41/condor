@@ -26,30 +26,73 @@ The Condor is an open-source platform for frame-accurate video analysis with dua
 
 For detailed instructions on managing the container image, cleaning up disk space, and troubleshooting, see `.devcontainer/DOCKER_MANAGEMENT.md`.
 
-### Run Full Application (Frontend + Backend) from Dev Container
+### Container Startup (Every Session)
+
+PostgreSQL does not start automatically and must be started each time the container restarts:
 
 ```bash
+sudo service postgresql start
+```
 
-# Terminal 1: Backend services
-# Install Python dependencies with uv (one time only)
+### First-Time Container Setup
+
+After connecting to a **fresh** dev container, complete these additional steps once to initialise the environment.
+
+**1. Install Python dependencies**
+
+```bash
 uv sync
+```
 
-# Start backend services
+**2. Initialise the database**
+
+Run the backend once to apply Alembic migrations. Wait for `Application startup complete`, then stop it with `Ctrl+C`:
+
+```bash
 uv run python -m backend.main
-# Server starts at http://localhost:8000
+```
+
+> The database schema must be initialised this way before backend tests can pass.
+
+**3. Install frontend dependencies**
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+**4. Verify with tests**
+
+Run all backend unit tests:
+
+```bash
+uv run pytest backend/
+```
+
+Run all frontend unit tests:
+
+```bash
+cd frontend && npm test && cd ..
+```
+
+All tests should pass before beginning development. See `backend/README.md` and `frontend/README.md` for integration test instructions.
+
+### Run Full Application (Frontend + Backend)
+
+Once setup is complete, start the two services in separate terminals:
+
+```bash
+# Terminal 1: Backend
+uv run python -m backend.main
+# API at http://localhost:8000
 
 # Terminal 2: Frontend
-cd frontend
-
-# Install frontend dependencies (one time only)
-npm install
-
-# Start frontend
-npm run dev
+cd frontend && npm run dev
 # Use `npm run dev -- --host` when port forwarding outside of dev container
 ```
 
-Open browser to http://localhost:5173 - you'll see the upload workflow for dual-video analysis.
+Open http://localhost:5173 — you'll see the upload workflow for dual-video analysis.
 
 ### Run Legacy Demo (Frontend Only, No Backend)
 
@@ -92,37 +135,33 @@ Switch from sync mode to playback mode:
 
 Annotations can be selected (ctrl-click to select multiple). White control points appear when selected. Click on the annotation body (not on a control point) and drag to move selected annotations. Click and drag on a control point to edit (resize/adjust) the annotation itself. Press **Delete** (Windows/Linux) or **Backspace** (Mac) to remove all selected annotations.
 
-## Developer Setup
+## Development
 
-### Frontend Development
+### Running Tests
 
-```bash
-cd frontend
-npm install
-npm run dev
-# Opens at http://localhost:5173
-# Use `npm run dev -- --host` when port forwarding outside of dev container
-
-# Build for production
-npm run build
-```
-
-See `frontend/README.md` for details on running unit and integration tests.
-
-### Backend Development
+**Backend unit tests** (from project root):
 
 ```bash
-# Install Python dependencies
-uv sync
-
-# Run backend server
-uv run python -m backend.main
-# Server starts at http://localhost:8000
-# API docs at http://localhost:8000/docs
-
-# Run backend tests
 uv run pytest backend/
 ```
+
+**Frontend unit tests** (from `frontend/`):
+
+```bash
+npm test
+```
+
+See `backend/README.md` and `frontend/README.md` for integration test instructions.
+
+### Building for Production
+
+```bash
+cd frontend && npm run build
+```
+
+### API Documentation
+
+Interactive API docs are available at http://localhost:8000/docs when the backend is running.
 
 ## Docker Deployment
 

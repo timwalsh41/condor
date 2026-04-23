@@ -349,7 +349,7 @@ describe("AnnotationManager", () => {
     });
 
     describe("angle validation", () => {
-      it("should accept exactly 3 points for angle (vertex, arm1-end, arm2-end)", () => {
+      it("should accept exactly 3 points for angle (arm1-end, vertex, arm2-end)", () => {
         expect(
           AnnotationManager.validatePoints("angle", [
             { x: 100, y: 100 },
@@ -783,9 +783,9 @@ describe("AnnotationManager", () => {
         expect(manager.isAngleActive()).toBe(true); // Still active
       });
 
-      it("should store points in correct order: vertex, arm1-end, arm2-end", () => {
+      it("should store points in correct order: arm1-end, vertex, arm2-end", () => {
         manager.setTool("angle");
-        // Click 1: vertex at (100, 100)
+        // Click 1: arm1-end at (100, 100)
         manager.startDrawing({ x: 100, y: 100 });
         let state = manager.getDrawingState();
         expect(state.mode).toBe("angle-active");
@@ -794,42 +794,42 @@ describe("AnnotationManager", () => {
           expect(state.points[0]).toEqual({ x: 100, y: 100 });
         }
 
-        // Click 2: arm1-end at (200, 100) - horizontal right
+        // Click 2: vertex at (200, 100)
         manager.addAngleVertex({ x: 200, y: 100 });
         state = manager.getDrawingState();
         expect(state.mode).toBe("angle-active");
         if (state.mode === "angle-active") {
           expect(state.points).toHaveLength(2);
-          expect(state.points[0]).toEqual({ x: 100, y: 100 }); // vertex
-          expect(state.points[1]).toEqual({ x: 200, y: 100 }); // arm1-end
+          expect(state.points[0]).toEqual({ x: 100, y: 100 }); // arm1-end
+          expect(state.points[1]).toEqual({ x: 200, y: 100 }); // vertex
         }
 
-        // Click 3: arm2-end at (150, 50) - 45 degrees up
+        // Click 3: arm2-end at (150, 50)
         const annotation = manager.addAngleVertex({ x: 150, y: 50 });
         
         expect(annotation).not.toBeNull();
         expect(annotation?.points).toEqual([
-          { x: 100, y: 100 }, // vertex (point 0)
-          { x: 200, y: 100 }, // arm1-end (point 1)
+          { x: 100, y: 100 }, // arm1-end (point 0)
+          { x: 200, y: 100 }, // vertex (point 1)
           { x: 150, y: 50 },  // arm2-end (point 2)
         ]);
       });
 
       it("should calculate 90-degree angle correctly", () => {
         manager.setTool("angle");
-        // Create a right angle: vertex at origin, arm1 along x-axis, arm2 along y-axis
-        manager.startDrawing({ x: 0, y: 0 }); // vertex
-        manager.addAngleVertex({ x: 100, y: 0 }); // arm1-end (right)
-        const annotation = manager.addAngleVertex({ x: 0, y: 100 }); // arm2-end (up)
+        // Create a right angle: arm1-end at origin, vertex to the right, arm2-end up
+        manager.startDrawing({ x: 0, y: 0 }); // arm1-end
+        manager.addAngleVertex({ x: 100, y: 0 }); // vertex (right)
+        const annotation = manager.addAngleVertex({ x: 100, y: 100 }); // arm2-end (up)
 
         expect(annotation).not.toBeNull();
         expect(annotation?.points).toHaveLength(3);
         
-        // Verify point order: vertex, arm1, arm2
-        const [vertex, arm1, arm2] = annotation!.points;
-        expect(vertex).toEqual({ x: 0, y: 0 });
-        expect(arm1).toEqual({ x: 100, y: 0 });
-        expect(arm2).toEqual({ x: 0, y: 100 });
+        // Verify point order: arm1-end, vertex, arm2-end
+        const [arm1, vertex, arm2] = annotation!.points;
+        expect(arm1).toEqual({ x: 0, y: 0 });
+        expect(vertex).toEqual({ x: 100, y: 0 });
+        expect(arm2).toEqual({ x: 100, y: 100 });
       });
     });
 
@@ -1939,14 +1939,14 @@ describe("AnnotationManager", () => {
 
       beforeEach(() => {
         angleAnnotation = manager.createAnnotation("angle", [
-          { x: 100, y: 100 }, // vertex
-          { x: 150, y: 50 },  // arm1-end
+          { x: 100, y: 100 }, // arm1-end
+          { x: 150, y: 50 },  // vertex
           { x: 150, y: 150 }, // arm2-end
         ]);
         manager.addAnnotation(angleAnnotation);
       });
 
-      it("should update vertex (index 0)", () => {
+      it("should update arm1-end (index 0)", () => {
         manager.startReshape(angleAnnotation.id, 0);
         manager.updateReshape({ x: 110, y: 110 });
 
@@ -1956,7 +1956,7 @@ describe("AnnotationManager", () => {
         expect(updated!.points[2]).toEqual({ x: 150, y: 150 }); // unchanged
       });
 
-      it("should update arm1-end (index 1)", () => {
+      it("should update vertex (index 1)", () => {
         manager.startReshape(angleAnnotation.id, 1);
         manager.updateReshape({ x: 200, y: 30 });
 

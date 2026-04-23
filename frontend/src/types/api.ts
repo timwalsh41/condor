@@ -65,6 +65,7 @@ export interface LibraryVideo {
   swing_date: string | null;
   notes: string | null;
   quality_score: number | null;
+  camera_view: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +81,7 @@ export interface LibraryVideoCreate {
   swing_date?: string | null;
   notes?: string | null;
   quality_score?: number | null;
+  camera_view?: string | null;
 }
 
 /**
@@ -92,6 +94,7 @@ export interface LibraryVideoUpdate {
   swing_date?: string | null;
   notes?: string | null;
   quality_score?: number | null;
+  camera_view?: string | null;
 }
 
 // ---------------------------------------------------------------------------

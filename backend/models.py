@@ -75,6 +75,10 @@ class LibraryVideoCreate(BaseModel):
     )
     notes: Optional[str] = Field(None)
     quality_score: Optional[int] = Field(None, ge=1, le=10)
+    camera_view: Optional[str] = Field(
+        None,
+        description="Camera view: DTL (Down The Line), FO (Face On), or Other",
+    )
 
 
 class LibraryVideoUpdate(BaseModel):
@@ -94,6 +98,10 @@ class LibraryVideoUpdate(BaseModel):
     )
     notes: Optional[str] = Field(None)
     quality_score: Optional[int] = Field(None, ge=1, le=10)
+    camera_view: Optional[str] = Field(
+        None,
+        description="Camera view: DTL (Down The Line), FO (Face On), or Other",
+    )
 
 
 class LibraryVideoResponse(BaseModel):
@@ -115,6 +123,7 @@ class LibraryVideoResponse(BaseModel):
     swing_date: Optional[str]
     notes: Optional[str]
     quality_score: Optional[int]
+    camera_view: Optional[str]
     created_at: datetime
     updated_at: datetime
 

@@ -377,7 +377,7 @@ export function useVideoAnnotations(
       // ── Angle tool: accumulate 3 click points ───────────────────────────
       if (tool === "angle") {
         if (!manager.isAngleActive()) {
-          // First click: start angle (vertex)
+          // First click: arm1 end
           console.log(`Video ${videoId}: Angle started at:`, point);
           manager.startDrawing(point);
           setSelectedIds(manager.getSelectedIds());

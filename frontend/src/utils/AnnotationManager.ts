@@ -226,7 +226,7 @@ export class AnnotationManager {
         return points.length === 1;
 
       case "angle":
-        // Need exactly 3 points: vertex, arm1-end, arm2-end
+        // Need exactly 3 points: arm1-end, vertex, arm2-end
         return points.length === 3;
 
       default:
@@ -363,7 +363,7 @@ export class AnnotationManager {
   }
 
   /**
-   * Finalize the current angle annotation (3 points: vertex, arm1-end, arm2-end).
+   * Finalize the current angle annotation (3 points: arm1-end, vertex, arm2-end).
    */
   finalizeAngle(
     style: AnnotationStyle = DEFAULT_ANNOTATION_STYLE
@@ -635,7 +635,7 @@ export class AnnotationManager {
       }
 
       case "angle": {
-        // Direct vertex manipulation for all 3 points (vertex, arm1-end, arm2-end)
+        // Direct vertex manipulation for all 3 points (arm1-end, vertex, arm2-end)
         if (controlIndex >= 0 && controlIndex < annotation.points.length) {
           const newPoints = annotation.points.map((p, i) =>
             i === controlIndex ? { ...newPosition } : { ...p }

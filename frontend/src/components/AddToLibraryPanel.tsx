@@ -28,6 +28,7 @@ interface SaveFormState {
   swingDate: string;
   notes: string;
   qualityScore: number | "";
+  cameraView: string;
 }
 
 const emptyForm = (): SaveFormState => ({
@@ -36,6 +37,7 @@ const emptyForm = (): SaveFormState => ({
   swingDate: "",
   notes: "",
   qualityScore: "",
+  cameraView: "",
 });
 
 export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToLibraryPanelProps) {
@@ -124,6 +126,7 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
       swing_date: formState.swingDate || null,
       notes: formState.notes.trim() || null,
       quality_score: formState.qualityScore === "" ? null : Number(formState.qualityScore),
+      camera_view: formState.cameraView || null,
     };
 
     try {
@@ -240,6 +243,21 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
                   }
                   className="library-modal__input library-modal__input--short"
                 />
+              </label>
+              <label className="library-modal__label">
+                Camera view
+                <select
+                  value={formState.cameraView}
+                  onChange={(e) =>
+                    setFormState((f) => ({ ...f, cameraView: e.target.value }))
+                  }
+                  className="library-modal__input"
+                >
+                  <option value="">— Select —</option>
+                  <option value="DTL">DTL (Down The Line)</option>
+                  <option value="FO">FO (Face On)</option>
+                  <option value="Other">Other</option>
+                </select>
               </label>
               <div className="library-modal__actions">
                 <button type="button" className="btn btn--secondary" onClick={closeSave}>

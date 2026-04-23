@@ -40,6 +40,7 @@ function EditModal({ video, onSave, onClose }: EditModalProps) {
   const [swingDate, setSwingDate] = useState(video.swing_date ?? '');
   const [notes, setNotes] = useState(video.notes ?? '');
   const [qualityScore, setQualityScore] = useState<number | ''>(video.quality_score ?? '');
+  const [cameraView, setCameraView] = useState(video.camera_view ?? '');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,6 +50,7 @@ function EditModal({ video, onSave, onClose }: EditModalProps) {
       swing_date: swingDate || null,
       notes: notes.trim() || null,
       quality_score: qualityScore === '' ? null : Number(qualityScore),
+      camera_view: cameraView || null,
     });
   }
 
@@ -108,6 +110,19 @@ function EditModal({ video, onSave, onClose }: EditModalProps) {
               }
               className="library-modal__input library-modal__input--short"
             />
+          </label>
+          <label className="library-modal__label">
+            Camera view
+            <select
+              value={cameraView}
+              onChange={(e) => setCameraView(e.target.value)}
+              className="library-modal__input"
+            >
+              <option value="">— Select —</option>
+              <option value="DTL">DTL (Down The Line)</option>
+              <option value="FO">FO (Face On)</option>
+              <option value="Other">Other</option>
+            </select>
           </label>
           <div className="library-modal__actions">
             <button type="button" className="btn btn--secondary" onClick={onClose}>
@@ -172,6 +187,12 @@ function VideoCard({ video, onEdit, onDelete, onLoadA, onLoadB, loadingSlot }: V
             <>
               <dt>Quality</dt>
               <dd>{'★'.repeat(Math.round(video.quality_score / 2))} {video.quality_score}/10</dd>
+            </>
+          )}
+          {video.camera_view && (
+            <>
+              <dt>Camera</dt>
+              <dd>{video.camera_view}</dd>
             </>
           )}
         </dl>

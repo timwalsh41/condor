@@ -96,6 +96,9 @@ class LibraryVideo(Base):
         CheckConstraint("quality_score BETWEEN 1 AND 10", name="ck_quality_score"),
         nullable=True,
     )
+    camera_view: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # "DTL", "FO", or "Other"
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

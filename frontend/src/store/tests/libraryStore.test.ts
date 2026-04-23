@@ -30,6 +30,7 @@ const mockVideoA: LibraryVideo = {
   swing_date: '2026-03-11',
   notes: 'Test swing',
   quality_score: 8,
+  camera_view: 'DTL',
   created_at: '2026-03-11T00:00:00Z',
   updated_at: '2026-03-11T00:00:00Z',
 };
@@ -48,6 +49,7 @@ const mockVideoB: LibraryVideo = {
   swing_date: null,
   notes: null,
   quality_score: null,
+  camera_view: null,
   created_at: '2026-03-11T00:00:00Z',
   updated_at: '2026-03-11T00:00:00Z',
 };
@@ -174,6 +176,7 @@ describe('libraryStore', () => {
         swing_date: '2026-03-12',
         notes: 'New swing',
         quality_score: 9,
+        camera_view: 'FO',
       };
       vi.mocked(api.addToLibrary).mockResolvedValue(mockVideoA);
 
@@ -199,6 +202,7 @@ describe('libraryStore', () => {
         swing_date: null,
         notes: null,
         quality_score: null,
+        camera_view: null,
       };
       vi.mocked(api.addToLibrary).mockResolvedValue(mockVideoA);
 
@@ -222,6 +226,7 @@ describe('libraryStore', () => {
         swing_date: null,
         notes: null,
         quality_score: null,
+        camera_view: null,
       };
       vi.mocked(api.addToLibrary).mockRejectedValue(new Error('Duplicate video'));
 

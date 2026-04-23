@@ -12,26 +12,16 @@ The Condor is an open-source platform for frame-accurate video analysis with dua
 - **npm** or **yarn**: Package management
 - **Playwright Browsers**: For cross-browser testing
 
-### Build Dev Container
+### Development Container
 
-1. **Configure**: Open `.devcontainer/connect-container.sh` and set `HOST_CODE_DIR` to your absolute project path (e.g., `/Users/<user>/Code/Claude/condor`).
-2. **Build**: Create the image:
-   ```bash
-   ./.devcontainer/build-image.sh
-   ```
-3. **Connect**: Access the container environment:
-   ```bash
-   ./.devcontainer/connect-container.sh
-   ```
-
-For detailed instructions on managing the container image, cleaning up disk space, and troubleshooting, see `.devcontainer/DOCKER_MANAGEMENT.md`.
+We manage the development container in the `.opencode/` folder using the Dockerfile and the `oc.sh` script. After updating the Dockerfile, manually rebuild the container and then run `oc.sh -f` to recreate the container with the new image.
 
 ### Container Startup (Every Session)
 
-PostgreSQL does not start automatically and must be started each time the container restarts:
+PostgreSQL does not start automatically and must be started each time the container restarts. Run this from the **host** (outside the container):
 
 ```bash
-sudo service postgresql start
+docker exec -it -u postgres opencode-condor /bin/zsh -c "service postgresql start"
 ```
 
 ### First-Time Container Setup

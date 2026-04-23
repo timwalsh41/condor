@@ -149,14 +149,31 @@ interface VideoCardProps {
   loadingSlot: 'A' | 'B' | null;
 }
 
+function generateDisplayTitle(video: LibraryVideo): string {
+  const parts: string[] = [];
+  if (video.swing_date) {
+    parts.push(video.swing_date); // Assuming this is already in YYYY-MM-DD format
+  }
+  if (video.golfer_name) {
+    parts.push(video.golfer_name);
+  }
+  if (video.club) {
+    parts.push(video.club);
+  }
+  if (video.camera_view) {
+    parts.push(video.camera_view);
+  }
+  return parts.filter(Boolean).join(' ');
+}
+
 function VideoCard({ video, onEdit, onDelete, onLoadA, onLoadB, loadingSlot }: VideoCardProps) {
-  return (
-    <div className="library-card">
-      <div className="library-card__info">
-        <p className="library-card__filename" title={video.filename}>
-          {video.filename}
-        </p>
-        <dl className="library-card__meta">
+   return (
+     <div className="library-card">
+       <div className="library-card__info">
+         <p className="library-card__filename" title={generateDisplayTitle(video)}>
+           {generateDisplayTitle(video)}
+         </p>
+         <dl className="library-card__meta">
           {video.golfer_name && (
             <>
               <dt>Golfer</dt>
@@ -273,8 +290,10 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
   // ── Load into analyzer slot ──
   async function handleLoad(video: LibraryVideo, slot: 'A' | 'B') {
     setLoadingSlots((prev) => ({ ...prev, [video.id]: slot }));
+    console.log('[LibraryView] Loading video to slot', slot, ':', video.id);
     try {
       const blob = await fetchLibraryVideoBlob(video.id);
+      console.log('[LibraryView] Blob received, size:', blob.size);
 
       // Build a VideoMetadata-compatible object from the library record
       const metadata: VideoMetadata = {
@@ -288,6 +307,7 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
         codec: video.codec,
         gop_size: video.gop_size,
       };
+      console.log('[LibraryView] Metadata built:', metadata);
 
       if (!sessionId) {
         setSessionId('library');
@@ -296,14 +316,17 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
       if (slot === 'A') {
         setAnnotationsA([]);
         setVideoA({ metadata, blob });
+        console.log('[LibraryView] Set video A');
       } else {
         setAnnotationsB([]);
         setVideoB({ metadata, blob });
+        console.log('[LibraryView] Set video B');
       }
 
       onNavigateToAnalyze();
+      console.log('[LibraryView] Navigate to analyze');
     } catch (err) {
-      console.error('Failed to load library video:', err);
+      console.error('[LibraryView] Failed to load library video:', err);
     } finally {
       setLoadingSlots((prev) => ({ ...prev, [video.id]: null }));
     }

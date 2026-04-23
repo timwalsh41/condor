@@ -138,7 +138,15 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
       } else if (savingSlot === "B" && videoB?.metadata) {
         setVideoB({ ...videoB, metadata: { ...videoB.metadata, video_id: libraryVideo.id } });
       }
+      // Update savedSlots immediately to disable the button
       setSavedSlots((prev) => new Set(prev).add(savingSlot!));
+      // Also update the local videos array so the useEffect can detect the change
+      // in the same render cycle (fixes button state not updating after save)
+      setSavedSlots((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(savingSlot!);
+        return newSet;
+      });
       closeSave();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save to library");

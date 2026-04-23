@@ -1553,20 +1553,20 @@ export function DualVideoSynchronizer() {
                                                 ))}
                                             </>
                                           );
-                                        case "text":
-                                          return annotation.points[0] ? (
-                                            <KonvaText
-                                              key={annotation.id}
-                                              x={annotation.points[0].x}
-                                              y={annotation.points[0].y}
-                                              text={annotation.text ?? ""}
-                                              fontSize={144}
-                                              fill={annotation.color}
-                                              stroke={isSelected ? "#2196F3" : undefined}
-                                              strokeWidth={isSelected ? 1 : 0}
-                                              cursor={cursorStyle}
-                                              onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)}
-                                              onMouseDown={(e) => {
+                                         case "text":
+                                           return annotation.points[0] ? (
+                                             <KonvaText
+                                               key={annotation.id}
+                                               x={annotation.points[0].x}
+                                               y={annotation.points[0].y}
+                                               text={annotation.text ?? ""}
+                                               fontSize={72}
+                                               fill={annotation.color}
+                                               stroke={isSelected ? "#2196F3" : undefined}
+                                               strokeWidth={isSelected ? 1 : 0}
+                                               cursor={cursorStyle}
+                                               onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)}
+                                               onMouseDown={(e) => {
                                                 if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e);
                                               }}
                                               onDblClick={() => {
@@ -1577,45 +1577,51 @@ export function DualVideoSynchronizer() {
                                               }}
                                             />
                                           ) : null;
-                                        case "angle": {
-                                          if (annotation.points.length < 3) return null;
-                                          const [arm1, vx, arm2] = annotation.points;
-                                          const dx1 = arm1.x - vx.x, dy1 = arm1.y - vx.y;
-                                          const dx2 = arm2.x - vx.x, dy2 = arm2.y - vx.y;
-                                          const angleDeg = Math.round(
-                                            Math.abs(Math.atan2(dx1 * dy2 - dy1 * dx2, dx1 * dx2 + dy1 * dy2) * 180 / Math.PI)
-                                          );
-                                          const lblText = `${angleDeg}°`;
-                                          const lblWidth = lblText.length * 10 + 8;
-                                          return (
-                                            <>
-                                              <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
-                                              <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
-                                              <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
-                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={72} fill="#111" fontStyle="bold" listening={false} />
-                                              {/* Render control points if selected */}
-                                              {isSelected &&
-                                                getControlPoints(annotation).map((point, idx) => (
-                                                  <Rect
-                                                    key={`cp-${annotation.id}-${idx}`}
-                                                    x={point.x - CONTROL_POINT_SIZE / 2}
-                                                    y={point.y - CONTROL_POINT_SIZE / 2}
-                                                    width={CONTROL_POINT_SIZE}
-                                                    height={CONTROL_POINT_SIZE}
-                                                    fill="white"
-                                                    stroke="black"
-                                                    strokeWidth={1}
-                                                    hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
-                                                    cursor="pointer"
-                                                    onClick={(e) => { e.cancelBubble = true; }}
-                                                    onMouseDown={(e) => {
-                                                      handlersA.handleControlPointMouseDown(annotation.id, idx, e);
-                                                    }}
-                                                  />
-                                                ))}
-                                            </>
-                                          );
-                                        }
+                                         case "angle": {
+                                           if (annotation.points.length < 3) return null;
+                                           const [arm1, vx, arm2] = annotation.points;
+                                           const dx1 = arm1.x - vx.x, dy1 = arm1.y - vx.y;
+                                           const dx2 = arm2.x - vx.x, dy2 = arm2.y - vx.y;
+                                           const angleDeg = Math.round(
+                                             Math.abs(Math.atan2(dx1 * dy2 - dy1 * dx2, dx1 * dx2 + dy1 * dy2) * 180 / Math.PI)
+                                           );
+                                           const lblText = `${angleDeg}°`;
+                                           const lblWidth = lblText.length * 10 + 8;
+                                           return (
+                                             <>
+                                               <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
+                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
+                                               <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
+                                               <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={72} fill="red" fontStyle="bold" listening={false} />
+                                               {/* Render control points if selected */}
+                                               {isSelected &&
+                                                 getControlPoints(annotation).map((point, idx) => (
+                                                   <Rect
+                                                     key={`cp-${annotation.id}-${idx}`}
+                                                     x={point.x - CONTROL_POINT_SIZE / 2}
+                                                     y={point.y - CONTROL_POINT_SIZE / 2}
+                                                     width={CONTROL_POINT_SIZE}
+                                                     height={CONTROL_POINT_SIZE}
+                                                     fill="white"
+                                                     stroke="black"
+                                                     strokeWidth={1}
+                                                     hitStrokeWidth={CONTROL_POINT_HIT_SIZE}
+                                                     cursor="pointer"
+                                                     onClick={(e) => {
+                                                       e.cancelBubble = true;
+                                                     }}
+                                                     onMouseDown={(e) => {
+                                                       handlersB.handleControlPointMouseDown(
+                                                         annotation.id,
+                                                         idx,
+                                                         e
+                                                       );
+                                                     }}
+                                                   />
+                                                 ))}
+                                             </>
+                                           );
+                                         }
                                         default:
                                           return null;
                                       }

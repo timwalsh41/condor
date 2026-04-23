@@ -70,35 +70,43 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
     setSavedSlots(newSavedSlots);
   }, [videoA, videoB, videos]);
 
-  // Detect video changes and reset saved state when new video uploaded to same channel
+  // Detect video changes and reset saved state when a genuinely new video is uploaded
+  // to the same channel.  Skip clearing when the ID change is a save-to-library
+  // transition (new ID already exists in the library array).
   useEffect(() => {
     const currentVideoAId = videoA?.metadata?.video_id ?? null;
     const currentVideoBId = videoB?.metadata?.video_id ?? null;
-    
+
     // Check if video A has changed (new upload)
     // Only process if prevVideoAIdRef has been initialized (not initial mount)
     if (prevVideoAIdRef.current !== null && currentVideoAId !== prevVideoAIdRef.current) {
-      // Video A changed - remove from saved slots to allow re-saving
-      setSavedSlots(prev => {
-        const newSet = new Set(prev);
-        newSet.delete("A");
-        return newSet;
-      });
+      const isNowInLibrary = currentVideoAId !== null && videos.some(v => v.id === currentVideoAId);
+      if (!isNowInLibrary) {
+        // Video A changed to a new upload — remove from saved slots to allow re-saving
+        setSavedSlots(prev => {
+          const newSet = new Set(prev);
+          newSet.delete("A");
+          return newSet;
+        });
+      }
     }
     prevVideoAIdRef.current = currentVideoAId;
-    
+
     // Check if video B has changed (new upload)
     // Only process if prevVideoBIdRef has been initialized (not initial mount)
     if (prevVideoBIdRef.current !== null && currentVideoBId !== prevVideoBIdRef.current) {
-      // Video B changed - remove from saved slots to allow re-saving
-      setSavedSlots(prev => {
-        const newSet = new Set(prev);
-        newSet.delete("B");
-        return newSet;
-      });
+      const isNowInLibrary = currentVideoBId !== null && videos.some(v => v.id === currentVideoBId);
+      if (!isNowInLibrary) {
+        // Video B changed to a new upload — remove from saved slots to allow re-saving
+        setSavedSlots(prev => {
+          const newSet = new Set(prev);
+          newSet.delete("B");
+          return newSet;
+        });
+      }
     }
     prevVideoBIdRef.current = currentVideoBId;
-  }, [videoA?.metadata?.video_id, videoB?.metadata?.video_id]);
+  }, [videoA?.metadata?.video_id, videoB?.metadata?.video_id, videos]);
 
   // Only show when at least one slot has a video
   if (!videoA && !videoB) return null;
@@ -140,13 +148,6 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
       }
       // Update savedSlots immediately to disable the button
       setSavedSlots((prev) => new Set(prev).add(savingSlot!));
-      // Also update the local videos array so the useEffect can detect the change
-      // in the same render cycle (fixes button state not updating after save)
-      setSavedSlots((prev) => {
-        const newSet = new Set(prev);
-        newSet.add(savingSlot!);
-        return newSet;
-      });
       closeSave();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save to library");

@@ -114,8 +114,15 @@ export function DualVideoSynchronizer() {
   const prevVideoAIdRef = useRef<string | null>(null);
   const prevVideoBIdRef = useRef<string | null>(null);
 
+  // Session hydration flag — must be declared before the video-change effect that reads it.
+  const isHydratingSession = useSessionStore((state) => state.isHydratingSession);
+
   // Detect video changes and reset sync/trim state when new videos are loaded
   useEffect(() => {
+    // Skip reset while a session is being hydrated — restoreSessionState() sets
+    // sync/trim bounds and we must not wipe them on the next render cycle.
+    if (isHydratingSession) return;
+
     const currentVideoAId = videoAStore?.metadata?.video_id ?? null;
     const currentVideoBId = videoBStore?.metadata?.video_id ?? null;
 
@@ -138,7 +145,7 @@ export function DualVideoSynchronizer() {
         resetTrimState();
       }
     }
-  }, [videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id, resetSyncState, resetTrimState]);
+  }, [videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id, resetSyncState, resetTrimState, isHydratingSession]);
 
   // Track which video is active for keyboard shortcuts (used by annotation hooks for keyboard handling)
   const [activeVideo, setActiveVideo] = useState<"A" | "B" | null>(null);
@@ -1560,12 +1567,12 @@ export function DualVideoSynchronizer() {
                                                x={annotation.points[0].x}
                                                y={annotation.points[0].y}
                                                text={annotation.text ?? ""}
-                                               fontSize={72}
-                                               fill={annotation.color}
-                                               stroke={isSelected ? "#2196F3" : undefined}
-                                               strokeWidth={isSelected ? 1 : 0}
-                                               cursor={cursorStyle}
-                                               onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)}
+                                                fontSize={54}
+                                                fill={annotation.color}
+                                                stroke={isSelected ? "#2196F3" : undefined}
+                                                strokeWidth={isSelected ? 1 : 0}
+                                                cursor={cursorStyle}
+                                                onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)}
                                                onMouseDown={(e) => {
                                                 if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e);
                                               }}
@@ -1589,10 +1596,10 @@ export function DualVideoSynchronizer() {
                                            const lblWidth = lblText.length * 10 + 8;
                                            return (
                                              <>
-                                               <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
-                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
+                                                <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
+                                                <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
                                                <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
-                                               <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={72} fill="red" fontStyle="bold" listening={false} />
+                                                <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={54} fill="red" fontStyle="bold" listening={false} />
                                                {/* Render control points if selected */}
                                                {isSelected &&
                                                  getControlPoints(annotation).map((point, idx) => (
@@ -1610,13 +1617,13 @@ export function DualVideoSynchronizer() {
                                                      onClick={(e) => {
                                                        e.cancelBubble = true;
                                                      }}
-                                                     onMouseDown={(e) => {
-                                                       handlersB.handleControlPointMouseDown(
-                                                         annotation.id,
-                                                         idx,
-                                                         e
-                                                       );
-                                                     }}
+                                                      onMouseDown={(e) => {
+                                                        handlersA.handleControlPointMouseDown(
+                                                          annotation.id,
+                                                          idx,
+                                                          e
+                                                        );
+                                                      }}
                                                    />
                                                  ))}
                                              </>
@@ -2164,12 +2171,12 @@ export function DualVideoSynchronizer() {
                                               x={annotation.points[0].x}
                                               y={annotation.points[0].y}
                                               text={annotation.text ?? ""}
-                                              fontSize={144}
-                                              fill={annotation.color}
-                                              stroke={isSelected ? "#2196F3" : undefined}
-                                              strokeWidth={isSelected ? 1 : 0}
-                                              cursor={cursorStyle}
-                                              onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)}
+                                               fontSize={108}
+                                               fill={annotation.color}
+                                               stroke={isSelected ? "#2196F3" : undefined}
+                                               strokeWidth={isSelected ? 1 : 0}
+                                               cursor={cursorStyle}
+                                               onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)}
                                               onMouseDown={(e) => {
                                                 if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e);
                                               }}
@@ -2196,7 +2203,7 @@ export function DualVideoSynchronizer() {
                                               <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
-                                              <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={72} fill="#111" fontStyle="bold" listening={false} />
+                                               <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={54} fill="#111" fontStyle="bold" listening={false} />
                                               {/* Render control points if selected */}
                                               {isSelected &&
                                                 getControlPoints(annotation).map((point, idx) => (

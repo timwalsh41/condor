@@ -37,6 +37,8 @@ interface SessionStoreState {
   error: string | null;
   /** ID of the currently loaded session (if any). */
   activeSessionId: string | null;
+  /** True while a session is being hydrated into the Analyze view. */
+  isHydratingSession: boolean;
 
   fetchSessions: () => Promise<void>;
   saveSession: (name: string, notes?: string) => Promise<AnalysisSessionResponse>;
@@ -176,6 +178,7 @@ export const useSessionStore = create<SessionStoreState>((set) => ({
   loading: false,
   error: null,
   activeSessionId: null,
+  isHydratingSession: false,
 
   fetchSessions: async () => {
     set({ loading: true, error: null });
@@ -204,17 +207,18 @@ export const useSessionStore = create<SessionStoreState>((set) => ({
   },
 
   loadSession: async (sessionId: string) => {
-    set({ error: null, loading: true });
+    set({ error: null, loading: true, isHydratingSession: true });
     try {
       // Fetch full session record from API
       const { getSession } = await import('../services/api');
       const session = await getSession(sessionId);
       await restoreSessionState(session);
-      set({ activeSessionId: sessionId, loading: false });
+      set({ activeSessionId: sessionId, loading: false, isHydratingSession: false });
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to load session',
         loading: false,
+        isHydratingSession: false,
       });
     }
   },

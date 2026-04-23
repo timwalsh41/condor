@@ -315,6 +315,59 @@ describe('AddToLibraryPanel', () => {
       mockIsVideoInLibrary.mockReturnValue(false);
     });
 
+    it('disables save button immediately after saving to library', async () => {
+      // Mutable library state that updates when addVideo is called
+      let currentVideos: LibraryVideo[] = [];
+
+      vi.mocked(useVideoStore).mockReturnValue({
+        videoA: { metadata: uploadMetadataA, blob: new Blob() },
+        videoB: null,
+        setVideoA: (video: { metadata: VideoMetadata; blob: Blob } | null) => {
+          // Simulate the real store update: video_id changes to library ID
+          if (video?.metadata) {
+            uploadMetadataA.video_id = video.metadata.video_id;
+          }
+        },
+        setVideoB: mockSetVideoB,
+      } as unknown as ReturnType<typeof useVideoStore>);
+
+      mockAddVideo.mockImplementation(async () => {
+        currentVideos = [libraryVideoA];
+        return libraryVideoA;
+      });
+
+      vi.mocked(useLibraryStore).mockReturnValue({
+        addVideo: mockAddVideo,
+        get videos() { return currentVideos; },
+        loading: false,
+        error: null,
+        fetchVideos: vi.fn(),
+        updateVideo: vi.fn(),
+        removeVideo: vi.fn(),
+        isVideoInLibrary: (id: string) => currentVideos.some(v => v.id === id),
+        clearError: vi.fn(),
+      } as unknown as ReturnType<typeof useLibraryStore>);
+
+      render(<AddToLibraryPanel />);
+
+      // Initially enabled
+      const buttonBefore = screen.getByText(/＋ Video A/);
+      expect(buttonBefore.hasAttribute('disabled')).toBe(false);
+
+      // Open the save modal for slot A
+      fireEvent.click(screen.getByRole('button', { name: /video a/i }));
+
+      // Submit the form
+      fireEvent.click(screen.getByRole('button', { name: /save to library/i }));
+
+      await waitFor(() => {
+        // After save, button should be disabled and show "saved"
+        const buttonAfter = screen.getByText(/✓ Video A saved/);
+        expect(buttonAfter).toBeTruthy();
+        expect(buttonAfter.hasAttribute('disabled')).toBe(true);
+      });
+    });
+
     it('disables save button and shows "saved" when video is already in library', async () => {
       // Create metadata for a video loaded from library (has library ID as video_id)
       const libraryMetadataA: VideoMetadata = {

@@ -582,5 +582,75 @@ describe('sessionStore', () => {
       const { activeSessionId } = useSessionStore.getState();
       expect(activeSessionId).toBe('test-session-1');
     });
+
+    it('should set isHydratingSession flag during load and clear it after', async () => {
+      const { loadSession } = useSessionStore.getState();
+      const { getSession } = await import('../../services/api');
+
+      const mockSession: AnalysisSessionResponse = {
+        id: 'test-session-1',
+        name: 'Test Session',
+        notes: null,
+        video_a_id: 'video-a-1',
+        video_b_id: 'video-b-1',
+        sync_frame_a: 100,
+        sync_frame_b: 200,
+        trim_start_a: 10,
+        trim_end_a: 500,
+        trim_start_b: null,
+        trim_end_b: null,
+        playback_speed: 1.0,
+        loop_playback: false,
+        annotations: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      vi.mocked(getSession).mockResolvedValue(mockSession);
+
+      const { getLibraryVideo, fetchLibraryVideoBlob } = await import('../../services/api');
+      vi.mocked(getLibraryVideo).mockResolvedValue({
+        id: 'test-video',
+        filename: 'test.mp4',
+        framerate: 30,
+        duration: 60,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        gop_size: 30,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      });
+      vi.mocked(fetchLibraryVideoBlob).mockResolvedValue(new Blob(['test']));
+
+      // Before load
+      expect(useSessionStore.getState().isHydratingSession).toBe(false);
+
+      const loadPromise = loadSession('test-session-1');
+
+      // During load (async, but Zustand set is synchronous so flag is set immediately)
+      expect(useSessionStore.getState().isHydratingSession).toBe(true);
+
+      await loadPromise;
+
+      // After load
+      expect(useSessionStore.getState().isHydratingSession).toBe(false);
+    });
+
+    it('should clear isHydratingSession flag even when load fails', async () => {
+      const { loadSession } = useSessionStore.getState();
+      const { getSession } = await import('../../services/api');
+
+      vi.mocked(getSession).mockRejectedValue(new Error('Network error'));
+
+      // Before load
+      expect(useSessionStore.getState().isHydratingSession).toBe(false);
+
+      await loadSession('test-session-1');
+
+      // After failed load
+      expect(useSessionStore.getState().isHydratingSession).toBe(false);
+      expect(useSessionStore.getState().error).toBe('Network error');
+    });
   });
 });

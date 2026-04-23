@@ -101,6 +101,7 @@ describe('AddToLibraryPanel', () => {
         videoB: null,
         setVideoA: mockSetVideoA,
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as ReturnType<typeof useVideoStore>);
 
       mockAddVideo.mockResolvedValue(libraryVideoA);
@@ -146,6 +147,7 @@ describe('AddToLibraryPanel', () => {
         videoB: { metadata: uploadMetadataB, blob: new Blob() },
         setVideoA: mockSetVideoA,
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as ReturnType<typeof useVideoStore>);
 
       mockAddVideo.mockResolvedValue(libraryVideoB);
@@ -183,6 +185,7 @@ describe('AddToLibraryPanel', () => {
         videoB: null,
         setVideoA: mockSetVideoA,
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as ReturnType<typeof useVideoStore>);
 
       mockAddVideo.mockResolvedValue(libraryVideoA);
@@ -227,6 +230,7 @@ describe('AddToLibraryPanel', () => {
         videoB: null,
         setVideoA: mockSetVideoA,
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as ReturnType<typeof useVideoStore>);
 
       mockAddVideo.mockRejectedValue(new Error('Network error'));
@@ -264,6 +268,7 @@ describe('AddToLibraryPanel', () => {
         videoB: null,
         setVideoA: mockSetVideoA,
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as ReturnType<typeof useVideoStore>);
 
       vi.mocked(useLibraryStore).mockReturnValue({
@@ -288,6 +293,7 @@ describe('AddToLibraryPanel', () => {
         videoB: null,
         setVideoA: mockSetVideoA,
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as ReturnType<typeof useVideoStore>);
 
       vi.mocked(useLibraryStore).mockReturnValue({
@@ -329,6 +335,7 @@ describe('AddToLibraryPanel', () => {
           }
         },
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as unknown as ReturnType<typeof useVideoStore>);
 
       mockAddVideo.mockImplementation(async () => {
@@ -390,6 +397,7 @@ describe('AddToLibraryPanel', () => {
         videoB: null,
         setVideoA: mockSetVideoA,
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as ReturnType<typeof useVideoStore>);
 
       vi.mocked(useLibraryStore).mockReturnValue({
@@ -421,6 +429,7 @@ describe('AddToLibraryPanel', () => {
         videoB: null,
         setVideoA: mockSetVideoA,
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as ReturnType<typeof useVideoStore>);
 
       vi.mocked(useLibraryStore).mockReturnValue({
@@ -465,6 +474,7 @@ describe('AddToLibraryPanel', () => {
         videoB: { metadata: uploadMetadataB, blob: new Blob() },
         setVideoA: mockSetVideoA,
         setVideoB: mockSetVideoB,
+        setSavingToLibrary: vi.fn(),
       } as ReturnType<typeof useVideoStore>);
 
       vi.mocked(useLibraryStore).mockReturnValue({

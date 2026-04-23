@@ -41,7 +41,7 @@ const emptyForm = (): SaveFormState => ({
 });
 
 export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToLibraryPanelProps) {
-  const { videoA, videoB, setVideoA, setVideoB } = useVideoStore();
+  const { videoA, videoB, setVideoA, setVideoB, setSavingToLibrary } = useVideoStore();
   const { addVideo, videos } = useLibraryStore();
 
   const [savingSlot, setSavingSlot] = useState<Slot | null>(null);
@@ -54,19 +54,28 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
   const prevVideoBIdRef = useRef<string | null>(null);
 
   // Derive saved state from library membership - handles both initial load
-  // from library and component remount scenarios
+  // from library and component remount scenarios. Also checks session_id ===
+  // 'library' marker set by sessionStore.restoreSessionState() so buttons
+  // are correctly disabled after a session is loaded into the Analyze view.
   useEffect(() => {
     const newSavedSlots = new Set<Slot>();
-    
-    // Check if video IDs are in the library videos array
-    if (videoA?.metadata?.video_id && videos.some(v => v.id === videoA.metadata.video_id)) {
-      newSavedSlots.add("A");
+
+    if (videoA?.metadata?.video_id) {
+      const inLibraryArray = videos.some(v => v.id === videoA.metadata.video_id);
+      const isFromLibrary = videoA.metadata.session_id === 'library';
+      if (inLibraryArray || isFromLibrary) {
+        newSavedSlots.add("A");
+      }
     }
-    
-    if (videoB?.metadata?.video_id && videos.some(v => v.id === videoB.metadata.video_id)) {
-      newSavedSlots.add("B");
+
+    if (videoB?.metadata?.video_id) {
+      const inLibraryArray = videos.some(v => v.id === videoB.metadata.video_id);
+      const isFromLibrary = videoB.metadata.session_id === 'library';
+      if (inLibraryArray || isFromLibrary) {
+        newSavedSlots.add("B");
+      }
     }
-    
+
     setSavedSlots(newSavedSlots);
   }, [videoA, videoB, videos]);
 
@@ -138,6 +147,10 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
     };
 
     try {
+      // Prevent the video change detection effect in DualVideoSynchronizer
+      // from resetting sync/trim state when the video_id changes during save.
+      setSavingToLibrary(true);
+
       const libraryVideo = await addVideo(payload);
       // Update the metadata.video_id in videoStore to the library_videos.id so
       // that subsequent session saves use the correct FK value.
@@ -149,7 +162,12 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
       // Update savedSlots immediately to disable the button
       setSavedSlots((prev) => new Set(prev).add(savingSlot!));
       closeSave();
+
+      // Clear the flag after a microtask so effects can fire safely.
+      setTimeout(() => setSavingToLibrary(false), 0);
     } catch (err) {
+      // Always clear the flag on failure too.
+      setSavingToLibrary(false);
       setError(err instanceof Error ? err.message : "Failed to save to library");
     }
   }

@@ -35,12 +35,17 @@ interface VideoStoreState {
   uploadingVideoA: boolean;
   uploadingVideoB: boolean;
 
+  // Flag set during save-to-library transitions to prevent the video change
+  // detection effect from resetting sync/trim state.
+  isSavingToLibrary: boolean;
+
   // Actions
   setSessionId: (sessionId: string) => void;
   setVideoA: (video: VideoState | null) => void;
   setVideoB: (video: VideoState | null) => void;
   setUploadingVideoA: (uploading: boolean) => void;
   setUploadingVideoB: (uploading: boolean) => void;
+  setSavingToLibrary: (saving: boolean) => void;
   reset: () => void;
 }
 
@@ -53,6 +58,7 @@ const initialState = {
   videoB: null,
   uploadingVideoA: false,
   uploadingVideoB: false,
+  isSavingToLibrary: false,
 };
 
 /**
@@ -71,6 +77,8 @@ export const useVideoStore = create<VideoStoreState>((set) => ({
 
   setUploadingVideoB: (uploading) => set({ uploadingVideoB: uploading }),
 
+  setSavingToLibrary: (saving) => set({ isSavingToLibrary: saving }),
+
   /**
    * Reset store to initial state.
    *
@@ -83,5 +91,5 @@ export const useVideoStore = create<VideoStoreState>((set) => ({
    *
    * **Integration**: Should be called from App component unmount or session reset handler.
    */
-  reset: () => set(initialState),
+  reset: () => set({ ...initialState }),
 }));

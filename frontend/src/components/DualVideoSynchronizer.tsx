@@ -117,11 +117,18 @@ export function DualVideoSynchronizer() {
   // Session hydration flag — must be declared before the video-change effect that reads it.
   const isHydratingSession = useSessionStore((state) => state.isHydratingSession);
 
+  // Flag set during save-to-library transitions to prevent resetting sync/trim.
+  const isSavingToLibrary = useVideoStore((state) => state.isSavingToLibrary);
+
   // Detect video changes and reset sync/trim state when new videos are loaded
   useEffect(() => {
     // Skip reset while a session is being hydrated — restoreSessionState() sets
     // sync/trim bounds and we must not wipe them on the next render cycle.
     if (isHydratingSession) return;
+
+    // Skip reset when saving to library — the video_id change is just a FK update,
+    // not a new video being loaded.
+    if (isSavingToLibrary) return;
 
     const currentVideoAId = videoAStore?.metadata?.video_id ?? null;
     const currentVideoBId = videoBStore?.metadata?.video_id ?? null;
@@ -145,7 +152,7 @@ export function DualVideoSynchronizer() {
         resetTrimState();
       }
     }
-  }, [videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id, resetSyncState, resetTrimState, isHydratingSession]);
+  }, [videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id, resetSyncState, resetTrimState, isHydratingSession, isSavingToLibrary]);
 
   // Track which video is active for keyboard shortcuts (used by annotation hooks for keyboard handling)
   const [activeVideo, setActiveVideo] = useState<"A" | "B" | null>(null);
@@ -227,6 +234,15 @@ export function DualVideoSynchronizer() {
   const hydratedSessionIdRefA = useRef<string | null>(null);
   const hydratedSessionIdRefB = useRef<string | null>(null);
 
+  // When a session is loaded (activeSessionId changes), pre-set the video ID
+  // refs so the video-change detection effect does not treat session-restored
+  // videos as "new uploads" once isHydratingSession flips to false.
+  useEffect(() => {
+    if (!activeSessionId) return;
+    prevVideoAIdRef.current = videoAStore?.metadata?.video_id ?? null;
+    prevVideoBIdRef.current = videoBStore?.metadata?.video_id ?? null;
+  }, [activeSessionId, videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id]);
+
   useEffect(() => {
     if (!activeSessionId || activeSessionId === hydratedSessionIdRefA.current) return;
     if (!videoA.isReady) return;
@@ -242,6 +258,51 @@ export function DualVideoSynchronizer() {
     hydrateAnnotationsB(storedB);
     hydratedSessionIdRefB.current = activeSessionId;
   }, [videoB.isReady, activeSessionId, hydrateAnnotationsB]);
+
+  // After videos are ready following a session load, seek to the saved sync
+  // frames and initialise the joint playhead so the scrub bar and playback
+  // loop become functional. targetSeekedRef stores the activeSessionId so the
+  // effect runs once per session (not just once ever).
+  const targetSeekedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
+    if (!videoA.isReady || !videoB.isReady) return;
+    if (targetSeekedRef.current === activeSessionId) return;
+    targetSeekedRef.current = activeSessionId;
+
+    const targetA = useSyncStore.getState().targetSyncFrameA;
+    const targetB = useSyncStore.getState().targetSyncFrameB;
+
+    let frameA = videoA.currentFrame;
+    let frameB = videoB.currentFrame;
+
+    // Seek both videos to their target sync frames if they exist
+    async function doSeek() {
+      if (targetA !== null) {
+        await videoA.seekToFrame(targetA);
+        frameA = targetA;
+      }
+      if (targetB !== null) {
+        await videoB.seekToFrame(targetB);
+        frameB = targetB;
+      }
+      useSyncStore.getState().clearTargetSyncFrames();
+    }
+
+    doSeek().then(() => {
+      // Initialise playhead state from the (now seeked) video positions.
+      const playhead = initializePlayhead(
+        frameA,
+        frameB,
+        videoA.totalFrames,
+        videoB.totalFrames
+      );
+      setPlayheadState(playhead);
+      setSyncOffset(playhead.syncOffset);
+      setSyncPoints({ frameA, frameB });
+    });
+  }, [videoA.isReady, videoB.isReady, activeSessionId, videoA, videoB]);
 
   // Video height slider configuration
   const videoHeightConfig = useMemo(() => {
@@ -357,27 +418,52 @@ export function DualVideoSynchronizer() {
     getBrowserCodecSupport().then(setBrowserCodecSupport);
   }, []);
 
-  // Upload completion handlers
-  const handleVideoAUploadComplete = (metadata: VideoMetadata, blob: Blob) => {
-    // Store session ID from first upload
-    if (!sessionId && metadata.session_id) {
-      setSessionId(metadata.session_id);
-    }
+  // Upload completion handlers — guarded so they don't fire during session
+  // restore (where restoreSessionState already set the video + annotations).
+  const handleVideoAUploadComplete = useCallback(
+    (metadata: VideoMetadata, blob: Blob) => {
+      // Store session ID from first upload
+      if (!sessionId && metadata.session_id) {
+        setSessionId(metadata.session_id);
+      }
 
-    // Clear annotations for this channel before loading the new video
-    clearAllA();
+      // Skip if this video is already loaded (e.g. from session restore).
+      // Without this guard, VideoUploadWorkflow.onUploadComplete fires during
+      // session load, wiping annotations via clearAllA() and triggering a
+      // second decoder init via a redundant setVideoA().
+      if (videoAStore?.metadata?.video_id === metadata.video_id) {
+        return;
+      }
 
-    // Store video A metadata and blob
-    setVideoA({ metadata, blob });
-  };
+      // Clear annotations for this channel before loading the new video
+      clearAllA();
 
-  const handleVideoBUploadComplete = (metadata: VideoMetadata, blob: Blob) => {
-    // Clear annotations for this channel before loading the new video
-    clearAllB();
+      // Store video A metadata and blob
+      setVideoA({ metadata, blob });
+    },
+    [sessionId, setSessionId, clearAllA, setVideoA, videoAStore]
+  );
 
-    // Store video B metadata and blob
-    setVideoB({ metadata, blob });
-  };
+  const handleVideoBUploadComplete = useCallback(
+    (metadata: VideoMetadata, blob: Blob) => {
+      // Store session ID from first upload
+      if (!sessionId && metadata.session_id) {
+        setSessionId(metadata.session_id);
+      }
+
+      // Skip if this video is already loaded (e.g. from session restore).
+      if (videoBStore?.metadata?.video_id === metadata.video_id) {
+        return;
+      }
+
+      // Clear annotations for this channel before loading the new video
+      clearAllB();
+
+      // Store video B metadata and blob
+      setVideoB({ metadata, blob });
+    },
+    [sessionId, setSessionId, clearAllB, setVideoB, videoBStore]
+  );
 
   // SYNC mode handlers - Video A
   const handlePlayPauseA = () => {
@@ -2203,7 +2289,7 @@ export function DualVideoSynchronizer() {
                                               <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
-                                               <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={54} fill="#111" fontStyle="bold" listening={false} />
+                                               <KonvaText key={`${annotation.id}-lbl`} x={vx.x + 8} y={vx.y - 24} text={lblText} fontSize={54} fill="red" fontStyle="bold" listening={false} />
                                               {/* Render control points if selected */}
                                               {isSelected &&
                                                 getControlPoints(annotation).map((point, idx) => (

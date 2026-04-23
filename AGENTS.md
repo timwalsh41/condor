@@ -8,6 +8,12 @@ Always ask for clarification when user intent is unclear, ambiguous, or contradi
 
 Stay in scope: only modify files directly related to the current task. Do not refactor, reformat, rename, or clean up files that are not in scope, even if you notice an opportunity for improvement. Report those observations to the user instead.
 
+# Repo Information
+
+Refer to the `README.md` in the project root for a description of the project. General technical documentation is available in `docs/SYSTEM_ARCHITECTURE.md`, `docs/BACKEND_DESIGN.md`, `docs/FRONTEND_DESIGN.md`, and `docs/UX_WORKFLOW_SPEC.md`. Please refer to those as needed, and keep them up to date while making changes in the codebase.
+
+Guidance on producing technical documentation is provided in `.claude/style-guides/TECHNICAL_DOCUMENTATION.md`. Refer to `.claude/style-guides/MARKDOWN.md` for markdown style.
+
 # Design Principles
 
 - KISS (Keep It Simple, Stupid): choose straightforward solutions over complex ones whenever possible
@@ -73,12 +79,6 @@ Linting:
 
 - **Frontend** (from `frontend/`): `npm run lint`
 - **Backend** (from project root): `uv run ruff check backend/`
-
-# Documentation
-
-General technical documentation is available in `docs/SYSTEM_ARCHITECTURE.md`, `docs/BACKEND_DESIGN.md`, `docs/FRONTEND_DESIGN.md`, and `docs/UX_WORKFLOW_SPEC.md`. Please refer to those as needed, and keep them up to date while making changes in the codebase.
-
-Guidance on producing technical documentation is provided in `.claude/style-guides/TECHNICAL_DOCUMENTATION.md`. Refer to `.claude/style-guides/MARKDOWN.md` for markdown style.
 
 # File Operations
 

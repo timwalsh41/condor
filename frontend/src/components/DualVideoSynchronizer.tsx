@@ -264,12 +264,18 @@ export function DualVideoSynchronizer() {
     prevVideoBIdRef.current = videoBStore?.metadata?.video_id ?? null;
   }, [activeSessionId, videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id]);
 
-  // Reset hydration refs when video changes (new video = new hook = needs re-hydration)
+  // Reset hydration refs when video changes — but ONLY when no session is active.
+  // During session load, video_id changes as videos are populated from the library.
+  // If we reset the hydration ref then, the hydration effect (which already ran on
+  // activeSessionId change) won't run again, leaving the ref null and permanently
+  // blocking both sync and re-hydration for that channel.
   useEffect(() => {
+    if (useSessionStore.getState().activeSessionId) return;
     hydratedSessionIdRefA.current = null;
   }, [videoAStore?.metadata?.video_id]);
 
   useEffect(() => {
+    if (useSessionStore.getState().activeSessionId) return;
     hydratedSessionIdRefB.current = null;
   }, [videoBStore?.metadata?.video_id]);
 

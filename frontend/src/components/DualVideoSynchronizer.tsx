@@ -1,4 +1,5 @@
 import { Fragment, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import type Konva from "konva";
 import { Stage, Layer, Line, Arrow, Ellipse, Rect, Text as KonvaText } from "react-konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { useVideoAnnotations } from "../hooks/useVideoAnnotations";
@@ -301,6 +302,20 @@ export function DualVideoSynchronizer() {
   // effect runs before the video-change detection effect in the same render cycle.
   const hydratedSessionIdRefA = useRef<string | null>(null);
   const hydratedSessionIdRefB = useRef<string | null>(null);
+
+  // Konva layer refs — used to force an explicit batchDraw() after annotation
+  // hydration so the canvas paints even if the initial RAF was deferred by
+  // concurrent WebCodecs decoder output callbacks on the main thread.
+  const layerARef = useRef<Konva.Layer>(null);
+  const layerBRef = useRef<Konva.Layer>(null);
+
+  useEffect(() => {
+    layerARef.current?.batchDraw();
+  }, [annotationsA]);
+
+  useEffect(() => {
+    layerBRef.current?.batchDraw();
+  }, [annotationsB]);
 
   // Reset hydration refs when video changes — but ONLY when no session is active.
   // During session load, video_id changes as videos are populated from the library.
@@ -1508,7 +1523,7 @@ export function DualVideoSynchronizer() {
                                   onClick={handlersA.handleClick}
                                   onDblClick={handlersA.handleDoubleClick}
                                 >
-                                  <Layer>
+                                  <Layer ref={layerARef}>
                                     {/* Render completed annotations */}
                                     {annotationsA.map((annotation) => {
                                       const isSelected = selectedIdsA.has(
@@ -2112,7 +2127,7 @@ export function DualVideoSynchronizer() {
                                   onClick={handlersB.handleClick}
                                   onDblClick={handlersB.handleDoubleClick}
                                 >
-                                  <Layer>
+                                  <Layer ref={layerBRef}>
                                     {/* Render completed annotations */}
                                     {annotationsB.map((annotation) => {
                                       const isSelected = selectedIdsB.has(

@@ -26,7 +26,7 @@
   "python.testing.pytestEnabled": true,
   "editor.tabCompletion": "on",
   "editor.inlineSuggest.enabled": true,
-  "plantuml.server": "http://localhost:8080",
+  "plantuml.server": "http://10.0.0.176:8080/",
   "plantuml.render": "PlantUMLServer",
   "search.followSymlinks": false,
   "chat.tools.terminal.enableAutoApprove": true,

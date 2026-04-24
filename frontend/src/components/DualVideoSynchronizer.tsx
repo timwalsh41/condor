@@ -303,19 +303,19 @@ export function DualVideoSynchronizer() {
   const hydratedSessionIdRefA = useRef<string | null>(null);
   const hydratedSessionIdRefB = useRef<string | null>(null);
 
-  // Konva layer refs — used to force an explicit batchDraw() after annotation
-  // hydration so the canvas paints even if the initial RAF was deferred by
-  // concurrent WebCodecs decoder output callbacks on the main thread.
+  // Konva layer refs — used to force a synchronous draw() when both videos are
+  // ready after a session restore. During session load, Video B's mp4box parse
+  // blocks the main thread synchronously for several seconds, starving Konva's
+  // batchDraw() RAF. By firing draw() once both decoders are ready (and all
+  // blocking init is complete), we guarantee annotations are visible immediately.
   const layerARef = useRef<Konva.Layer>(null);
   const layerBRef = useRef<Konva.Layer>(null);
 
   useEffect(() => {
-    layerARef.current?.batchDraw();
-  }, [annotationsA]);
-
-  useEffect(() => {
-    layerBRef.current?.batchDraw();
-  }, [annotationsB]);
+    if (!activeSessionId || !videoA.isReady || !videoB.isReady) return;
+    layerARef.current?.draw();
+    layerBRef.current?.draw();
+  }, [activeSessionId, videoA.isReady, videoB.isReady]);
 
   // Reset hydration refs when video changes — but ONLY when no session is active.
   // During session load, video_id changes as videos are populated from the library.

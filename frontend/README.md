@@ -81,6 +81,14 @@ npx playwright test --project=webkit
 
 - Upload Workflow, Frame Control, Dual Video Sync, Annotations, Performance
 
+**Manual Tests:**
+
+Some session-load behaviors require user verification because they depend on visual state of the Konva annotation canvas, which is not queryable by automated tests.
+
+| Scenario | Steps | Expected Result |
+|----------|-------|-----------------|
+| Session restore — annotations on both channels | 1. Upload two videos, draw at least one annotation on each channel. 2. Save both videos to library. 3. Save the session. 4. Reload the app. 5. Load the saved session. | Both Video A and Video B annotation canvases show the saved annotations after the session finishes loading. Neither channel is blank. |
+
 **Troubleshooting:**
 
 - If tests fail with connection errors, ensure backend is running

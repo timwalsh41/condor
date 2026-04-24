@@ -88,8 +88,12 @@ export function buildSessionPayload(name: string, notes?: string): AnalysisSessi
 
 /**
  * Restore the Analyze view state from a loaded session record.
+ *
+ * Returns a (possibly empty) list of non-fatal error messages, e.g. when a
+ * referenced library video can no longer be fetched. Callers should surface
+ * these to the user via the session store error field.
  */
-export async function restoreSessionState(session: AnalysisSessionResponse): Promise<void> {
+export async function restoreSessionState(session: AnalysisSessionResponse): Promise<string[]> {
   const { setVideoA, setVideoB, setSessionId } = useVideoStore.getState();
   const { setAnnotationsA, setAnnotationsB } = useAnnotationStore.getState();
   const { addSyncPoint, clearSyncPoints, setTemporalOffset, setMode, setTargetSyncFrames } = useSyncStore.getState();
@@ -137,9 +141,12 @@ export async function restoreSessionState(session: AnalysisSessionResponse): Pro
   }
 
   // Load library videos if referenced
+  const loadErrors: string[] = [];
+
   async function loadLibraryVideoSlot(
     videoId: string | null,
     setSetter: (v: { metadata: VideoMetadata; blob: Blob } | null) => void,
+    slotLabel: string,
   ) {
     if (!videoId) {
       setSetter(null);
@@ -162,16 +169,21 @@ export async function restoreSessionState(session: AnalysisSessionResponse): Pro
         gop_size: meta.gop_size,
       };
       setSetter({ metadata, blob });
-    } catch {
-      // Non-fatal: video may have been deleted from library
+    } catch (err) {
+      // Non-fatal: video may have been deleted from the library. Record the
+      // error so the caller can surface it and continue loading other state.
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      loadErrors.push(`${slotLabel} could not be loaded: ${msg}`);
       setSetter(null);
     }
   }
 
   await Promise.all([
-    loadLibraryVideoSlot(session.video_a_id, setVideoA),
-    loadLibraryVideoSlot(session.video_b_id, setVideoB),
+    loadLibraryVideoSlot(session.video_a_id, setVideoA, 'Video A'),
+    loadLibraryVideoSlot(session.video_b_id, setVideoB, 'Video B'),
   ]);
+
+  return loadErrors;
 }
 
 export const useSessionStore = create<SessionStoreState>((set) => ({
@@ -213,8 +225,16 @@ export const useSessionStore = create<SessionStoreState>((set) => ({
       // Fetch full session record from API
       const { getSession } = await import('../services/api');
       const session = await getSession(sessionId);
-      await restoreSessionState(session);
-      set({ activeSessionId: sessionId, loading: false, isHydratingSession: false });
+      const loadErrors = await restoreSessionState(session);
+      set({
+        activeSessionId: sessionId,
+        loading: false,
+        isHydratingSession: false,
+        // Surface any non-fatal video-load failures (e.g. deleted library videos)
+        error: loadErrors.length > 0
+          ? `Session loaded with warnings: ${loadErrors.join('; ')}`
+          : null,
+      });
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to load session',

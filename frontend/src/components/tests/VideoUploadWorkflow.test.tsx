@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { VideoUploadWorkflow } from '../VideoUploadWorkflow';
 import * as apiModule from '../../services/api';
 import type { VideoMetadata } from '../../types/api';
@@ -930,7 +930,15 @@ describe('VideoUploadWorkflow', () => {
       expect(screen.getByText(/No video uploaded/i)).toBeTruthy();
     });
 
-    it('should call onUploadComplete when externalVideo is provided', async () => {
+    it('should NOT call onUploadComplete when externalVideo is provided (session/library load path)', async () => {
+      /**
+       * Validates Fix 1: VideoUploadWorkflow.externalVideo decoupled from onUploadComplete.
+       *
+       * The externalVideo path (session restore / library load) must only update display
+       * state. Calling onUploadComplete would route through the DualVideoSynchronizer's
+       * clearAll*() handlers and risk wiping annotations that restoreSessionState() just
+       * restored to the hook.
+       */
       const externalMetadata: VideoMetadata = {
         video_id: 'library-video-1',
         session_id: 'test-session',
@@ -955,9 +963,14 @@ describe('VideoUploadWorkflow', () => {
         />
       );
 
-      await waitFor(() => {
-        expect(mockOnUploadComplete).toHaveBeenCalledWith(externalMetadata, externalBlob);
-      });
+      // Flush effects
+      await act(async () => {});
+
+      // onUploadComplete must NOT be called for externally-loaded videos
+      expect(mockOnUploadComplete).not.toHaveBeenCalled();
+
+      // Display state should still reflect the loaded video
+      expect(screen.getByTestId('video-metadata-a')).toBeTruthy();
     });
 
     it('should work with slot B as well', () => {

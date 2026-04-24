@@ -45,7 +45,6 @@ export function DualVideoSynchronizer() {
   const { sessionId, videoA: videoAStore, videoB: videoBStore, setSessionId, setVideoA, setVideoB } =
     useVideoStore();
 
-  // Convert blobs to Files for WebCodecs decoder (memoized to prevent unnecessary re-initialization)
   /* eslint-disable react-hooks/exhaustive-deps */
   const fileA = useMemo(() =>
     videoAStore?.blob && videoAStore.metadata
@@ -59,6 +58,22 @@ export function DualVideoSynchronizer() {
       ? new File([videoBStore.blob], videoBStore.metadata.filename, { type: "video/mp4" })
       : null,
     [videoBStore?.blob, videoBStore?.metadata?.filename]
+  );
+
+  // Stable references for externalVideo props — prevents VideoUploadWorkflow's
+  // externalVideo effect from re-firing on every render when unrelated store fields change.
+  const externalVideoA = useMemo(() =>
+    sessionId === 'library' && videoAStore?.metadata && videoAStore?.blob
+      ? { metadata: videoAStore.metadata, blob: videoAStore.blob }
+      : undefined,
+    [sessionId, videoAStore?.metadata?.video_id, videoAStore?.blob]
+  );
+
+  const externalVideoB = useMemo(() =>
+    sessionId === 'library' && videoBStore?.metadata && videoBStore?.blob
+      ? { metadata: videoBStore.metadata, blob: videoBStore.blob }
+      : undefined,
+    [sessionId, videoBStore?.metadata?.video_id, videoBStore?.blob]
   );
   /* eslint-enable react-hooks/exhaustive-deps */
 
@@ -122,6 +137,21 @@ export function DualVideoSynchronizer() {
 
   // Flag set during save-to-library transitions to prevent resetting sync/trim.
   const isSavingToLibrary = useVideoStore((state) => state.isSavingToLibrary);
+
+  // Active session ID — declared here (before the video-change detection effect) so the
+  // pre-set effect below runs in the same render cycle before the detection effect.
+  const activeSessionId = useSessionStore((state) => state.activeSessionId);
+
+  // Pre-set the previous-video-ID refs whenever a session is loaded so the
+  // video-change detection effect below does not treat session-restored videos
+  // as "new uploads" when isHydratingSession flips to false in the same render.
+  // ORDERING: this effect must be declared before the detection effect so React
+  // runs it first when both fire in the same render (deps overlap).
+  useEffect(() => {
+    if (!activeSessionId) return;
+    prevVideoAIdRef.current = videoAStore?.metadata?.video_id ?? null;
+    prevVideoBIdRef.current = videoBStore?.metadata?.video_id ?? null;
+  }, [activeSessionId, videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id]);
 
   // Detect video changes and reset sync/trim state when new videos are loaded
   useEffect(() => {
@@ -227,6 +257,11 @@ export function DualVideoSynchronizer() {
   // CRITICAL: Skip sync when a session is active but this channel hasn't been
   // hydrated yet. Otherwise the hook's empty initial state overwrites the store
   // before the hydration effect can run.
+  // Sync hook annotation state back to Zustand store (for session persistence).
+  // Use getState() to avoid creating reactive subscriptions that cause render loops.
+  // CRITICAL: Skip sync when a session is active but this channel hasn't been
+  // hydrated yet. Otherwise the hook's empty initial state overwrites the store
+  // before the hydration effect can run.
   useEffect(() => {
     const { isHydratingSession, activeSessionId } = useSessionStore.getState();
     if (isHydratingSession) return;
@@ -246,23 +281,12 @@ export function DualVideoSynchronizer() {
     useAnnotationStore.getState().setAnnotationsB(annotationsB);
   }, [annotationsB]);
 
-  // Session annotation hydration
-  // When a session is loaded, annotations are written to annotationStore by restoreSessionState.
-  // We hydrate the annotation hooks immediately when activeSessionId changes (no need to wait
-  // for decoder readiness — hydrateAnnotations only updates hook state).  Per-channel refs
-  // prevent re-hydration on subsequent activeSessionId cycles for the same session.
-  const activeSessionId = useSessionStore((state) => state.activeSessionId);
+  // Session annotation hydration — per-channel refs prevent re-hydration when the same
+  // session remains active across re-renders.
+  // Note: activeSessionId is declared earlier in this component to ensure the pre-set
+  // effect runs before the video-change detection effect in the same render cycle.
   const hydratedSessionIdRefA = useRef<string | null>(null);
   const hydratedSessionIdRefB = useRef<string | null>(null);
-
-  // When a session is loaded (activeSessionId changes), pre-set the video ID
-  // refs so the video-change detection effect does not treat session-restored
-  // videos as "new uploads" once isHydratingSession flips to false.
-  useEffect(() => {
-    if (!activeSessionId) return;
-    prevVideoAIdRef.current = videoAStore?.metadata?.video_id ?? null;
-    prevVideoBIdRef.current = videoBStore?.metadata?.video_id ?? null;
-  }, [activeSessionId, videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id]);
 
   // Reset hydration refs when video changes — but ONLY when no session is active.
   // During session load, video_id changes as videos are populated from the library.
@@ -282,6 +306,10 @@ export function DualVideoSynchronizer() {
   // Hydrate Video A annotations immediately when activeSessionId changes.
   // Running immediately (not waiting for videoA.isReady) prevents the sync
   // effect from overwriting the store with [] before hydration can run.
+  // Hydrate Video A annotations when a session is loaded. Running immediately (not
+  // waiting for videoA.isReady) prevents the sync-back effect from overwriting the
+  // store with [] before hydration runs. Per-channel ref prevents re-hydration for
+  // the same session.
   useEffect(() => {
     if (!activeSessionId || activeSessionId === hydratedSessionIdRefA.current) return;
     const { annotationsA: storedA } = useAnnotationStore.getState();
@@ -289,7 +317,7 @@ export function DualVideoSynchronizer() {
     hydratedSessionIdRefA.current = activeSessionId;
   }, [activeSessionId, hydrateAnnotationsA]);
 
-  // Hydrate Video B annotations immediately when activeSessionId changes.
+  // Hydrate Video B annotations when a session is loaded.
   useEffect(() => {
     if (!activeSessionId || activeSessionId === hydratedSessionIdRefB.current) return;
     const { annotationsB: storedB } = useAnnotationStore.getState();
@@ -477,49 +505,28 @@ export function DualVideoSynchronizer() {
 
   // Upload completion handlers — guarded so they don't fire during session
   // restore (where restoreSessionState already set the video + annotations).
+  // Upload completion handlers — only called from user-initiated uploads (not session
+  // restores, since VideoUploadWorkflow.externalVideo no longer calls onUploadComplete).
   const handleVideoAUploadComplete = useCallback(
     (metadata: VideoMetadata, blob: Blob) => {
-      // Store session ID from first upload
       if (!sessionId && metadata.session_id) {
         setSessionId(metadata.session_id);
       }
-
-      // Skip if this video is already loaded (e.g. from session restore).
-      // Without this guard, VideoUploadWorkflow.onUploadComplete fires during
-      // session load, wiping annotations via clearAllA() and triggering a
-      // second decoder init via a redundant setVideoA().
-      if (videoAStore?.metadata?.video_id === metadata.video_id) {
-        return;
-      }
-
-      // Clear annotations for this channel before loading the new video
       clearAllA();
-
-      // Store video A metadata and blob
       setVideoA({ metadata, blob });
     },
-    [sessionId, setSessionId, clearAllA, setVideoA, videoAStore]
+    [sessionId, setSessionId, clearAllA, setVideoA]
   );
 
   const handleVideoBUploadComplete = useCallback(
     (metadata: VideoMetadata, blob: Blob) => {
-      // Store session ID from first upload
       if (!sessionId && metadata.session_id) {
         setSessionId(metadata.session_id);
       }
-
-      // Skip if this video is already loaded (e.g. from session restore).
-      if (videoBStore?.metadata?.video_id === metadata.video_id) {
-        return;
-      }
-
-      // Clear annotations for this channel before loading the new video
       clearAllB();
-
-      // Store video B metadata and blob
       setVideoB({ metadata, blob });
     },
-    [sessionId, setSessionId, clearAllB, setVideoB, videoBStore]
+    [sessionId, setSessionId, clearAllB, setVideoB]
   );
 
   // SYNC mode handlers - Video A
@@ -1283,20 +1290,14 @@ export function DualVideoSynchronizer() {
           videoSlot="A"
           sessionId={sessionId || undefined}
           onUploadComplete={handleVideoAUploadComplete}
-          externalVideo={sessionId === 'library' && videoAStore?.metadata && videoAStore?.blob ? {
-            metadata: videoAStore.metadata,
-            blob: videoAStore.blob
-          } : undefined}
+          externalVideo={externalVideoA}
         />
         <VideoUploadWorkflow
           key="video-b"
           videoSlot="B"
           sessionId={sessionId || undefined}
           onUploadComplete={handleVideoBUploadComplete}
-          externalVideo={sessionId === 'library' && videoBStore?.metadata && videoBStore?.blob ? {
-            metadata: videoBStore.metadata,
-            blob: videoBStore.blob
-          } : undefined}
+          externalVideo={externalVideoB}
         />
       </div>
 

@@ -349,6 +349,32 @@ describe('DualVideoSynchronizer - Session Load Bug Fixes', () => {
       { id: 'ann-1', type: 'text', text: 'Test A', points: [], color: '#000', strokeWidth: 2 },
     ]);
   });
+  it('should hydrate channel B annotations without calling clearAllB', () => {
+    /**
+     * Validates Fix 1: externalVideo path no longer calls onUploadComplete/clearAllB.
+     *
+     * After restoreSessionState writes annotations to the store and activeSessionId is set,
+     * the HYDRATE B effect must call hydrateAnnotationsB with the stored annotations.
+     * clearAllB must NOT be called (it would wipe the just-restored annotations).
+     */
+    const channelBAnnotations = [
+      { id: 'ann-b-1', type: 'text', text: 'B annotation', points: [], color: '#000', strokeWidth: 2 },
+    ];
+    useAnnotationStore.getState().setAnnotationsB(channelBAnnotations as any);
+    useSessionStore.setState({
+      activeSessionId: 'session-b-hydration-test',
+      isHydratingSession: false,
+      error: null,
+      loading: false,
+    });
+
+    render(<DualVideoSynchronizer />);
+
+    // Hydration effect must call hydrateAnnotationsB with the stored annotations
+    expect(mockHydrateB).toHaveBeenCalledWith(channelBAnnotations);
+    // clearAllB must NOT be called during session restore
+    expect(mockClearAllB).not.toHaveBeenCalled();
+  });
 });
 
 /**

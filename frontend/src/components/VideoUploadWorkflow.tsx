@@ -82,24 +82,16 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
     if (!externalVideo?.metadata?.video_id) return;
 
     // Skip if already processed this video (prevents re-renders causing issues)
-    if (lastProcessedVideoIdRef.current === externalVideo.metadata.video_id) {
-      console.log('[VideoUploadWorkflow] Skipping re-process of video:', externalVideo.metadata.video_id);
-      return;
-    }
+    if (lastProcessedVideoIdRef.current === externalVideo.metadata.video_id) return;
 
-    console.log('[VideoUploadWorkflow] Processing externalVideo:', externalVideo.metadata.video_id);
     lastProcessedVideoIdRef.current = externalVideo.metadata.video_id;
 
-    try {
-      setUploadedMetadata(externalVideo.metadata);
-      setState('complete');
-      onUploadComplete(externalVideo.metadata, externalVideo.blob);
-    } catch (err) {
-      console.error('[VideoUploadWorkflow] Error processing externalVideo:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load video');
-      setState('error');
-    }
-  }, [externalVideo, onUploadComplete]);
+    // Update display state only — do NOT call onUploadComplete for externally-loaded
+    // videos (session/library loads). Calling it would route through clearAll() handlers
+    // and risk wiping annotations that have just been restored by restoreSessionState().
+    setUploadedMetadata(externalVideo.metadata);
+    setState('complete');
+  }, [externalVideo]);
 
   /**
    * Handle file selection with validation.

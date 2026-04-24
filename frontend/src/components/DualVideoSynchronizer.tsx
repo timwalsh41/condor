@@ -248,9 +248,9 @@ export function DualVideoSynchronizer() {
 
   // Session annotation hydration
   // When a session is loaded, annotations are written to annotationStore by restoreSessionState.
-  // Once the video decoder becomes ready we seed the annotation hook's internal state from
-  // the store.  Per-channel refs prevent re-hydration on subsequent isReady cycles for the
-  // same session (e.g., resize, navigation with Bug-1 display:none fix).
+  // We hydrate the annotation hooks immediately when activeSessionId changes (no need to wait
+  // for decoder readiness — hydrateAnnotations only updates hook state).  Per-channel refs
+  // prevent re-hydration on subsequent activeSessionId cycles for the same session.
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const hydratedSessionIdRefA = useRef<string | null>(null);
   const hydratedSessionIdRefB = useRef<string | null>(null);
@@ -264,30 +264,32 @@ export function DualVideoSynchronizer() {
     prevVideoBIdRef.current = videoBStore?.metadata?.video_id ?? null;
   }, [activeSessionId, videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id]);
 
-  // Reset hydration refs when video or session changes
+  // Reset hydration refs when video changes (new video = new hook = needs re-hydration)
   useEffect(() => {
     hydratedSessionIdRefA.current = null;
-  }, [videoAStore?.metadata?.video_id, activeSessionId]);
+  }, [videoAStore?.metadata?.video_id]);
 
   useEffect(() => {
     hydratedSessionIdRefB.current = null;
-  }, [videoBStore?.metadata?.video_id, activeSessionId]);
+  }, [videoBStore?.metadata?.video_id]);
 
+  // Hydrate Video A annotations immediately when activeSessionId changes.
+  // Running immediately (not waiting for videoA.isReady) prevents the sync
+  // effect from overwriting the store with [] before hydration can run.
   useEffect(() => {
     if (!activeSessionId || activeSessionId === hydratedSessionIdRefA.current) return;
-    if (!videoA.isReady) return;
     const { annotationsA: storedA } = useAnnotationStore.getState();
     hydrateAnnotationsA(storedA);
     hydratedSessionIdRefA.current = activeSessionId;
-  }, [videoA.isReady, activeSessionId, hydrateAnnotationsA]);
+  }, [activeSessionId, hydrateAnnotationsA]);
 
+  // Hydrate Video B annotations immediately when activeSessionId changes.
   useEffect(() => {
     if (!activeSessionId || activeSessionId === hydratedSessionIdRefB.current) return;
-    if (!videoB.isReady) return;
     const { annotationsB: storedB } = useAnnotationStore.getState();
     hydrateAnnotationsB(storedB);
     hydratedSessionIdRefB.current = activeSessionId;
-  }, [videoB.isReady, activeSessionId, hydrateAnnotationsB]);
+  }, [activeSessionId, hydrateAnnotationsB]);
 
   // Sync playback rate from store on session load
   useEffect(() => {

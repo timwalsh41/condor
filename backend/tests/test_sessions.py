@@ -367,3 +367,25 @@ class TestSessionRoutes:
         assert resp.status_code == 200
         ids = [s["id"] for s in resp.json()]
         assert str(session_in_db.id) in ids
+
+    async def test_loop_playback_persists(self, async_client: AsyncClient):
+        """POST /api/sessions and GET /api/sessions/{id} persist loop_playback.
+
+        Validates: REQ-P2-SESS-001
+        """
+        resp = await async_client.post(
+            "/api/sessions",
+            json={
+                "name": "Loop Test Session",
+                "playback_speed": 1.0,
+                "loop_playback": True,
+                "annotations": {"a": [], "b": []},
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["loop_playback"] is True
+
+        get_resp = await async_client.get(f"/api/sessions/{data['id']}")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["loop_playback"] is True

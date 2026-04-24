@@ -52,11 +52,11 @@ interface SessionStoreState {
  *
  * Reads from videoStore, annotationStore, syncStore, and playbackStore.
  */
-function buildSessionPayload(name: string, notes?: string): AnalysisSessionCreate {
+export function buildSessionPayload(name: string, notes?: string): AnalysisSessionCreate {
   const { videoA, videoB } = useVideoStore.getState();
   const { annotationsA, annotationsB } = useAnnotationStore.getState();
   const { syncPoints } = useSyncStore.getState();
-  const { playbackRate } = usePlaybackStore.getState();
+  const { playbackRate, isLooping } = usePlaybackStore.getState();
   const { trimStart, trimEnd } = useTrimStore.getState();
 
   // Use first sync point as canonical sync frames (MVP: single sync point)
@@ -76,7 +76,7 @@ function buildSessionPayload(name: string, notes?: string): AnalysisSessionCreat
     sync_frame_a: syncPoint?.frameA ?? null,
     sync_frame_b: syncPoint?.frameB ?? null,
     playback_speed: playbackRate,
-    loop_playback: false,
+    loop_playback: isLooping,
     // Trim bounds (Video A frame units, unified playhead position)
     trim_start_a: trimStart,
     trim_end_a: trimEnd,
@@ -89,15 +89,16 @@ function buildSessionPayload(name: string, notes?: string): AnalysisSessionCreat
 /**
  * Restore the Analyze view state from a loaded session record.
  */
-async function restoreSessionState(session: AnalysisSessionResponse): Promise<void> {
+export async function restoreSessionState(session: AnalysisSessionResponse): Promise<void> {
   const { setVideoA, setVideoB, setSessionId } = useVideoStore.getState();
   const { setAnnotationsA, setAnnotationsB } = useAnnotationStore.getState();
   const { addSyncPoint, clearSyncPoints, setTemporalOffset, setMode, setTargetSyncFrames } = useSyncStore.getState();
-  const { setPlaybackRate } = usePlaybackStore.getState();
+  const { setPlaybackRate, setIsLooping } = usePlaybackStore.getState();
   const { setTrimStart, setTrimEnd } = useTrimStore.getState();
 
   // Restore playback settings
   setPlaybackRate(session.playback_speed);
+  setIsLooping(session.loop_playback);
 
   // Restore trim bounds
   setTrimStart(session.trim_start_a ?? null);

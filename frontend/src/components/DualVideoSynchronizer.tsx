@@ -21,6 +21,7 @@ import { useAnnotationStore } from "../store/annotationStore";
 import { useSessionStore } from "../store/sessionStore";
 import { useTrimStore } from "../store/trimStore";
 import { useSyncStore } from "../store/syncStore";
+import { usePlaybackStore } from "../store/playbackStore";
 import type { VideoMetadata } from "../types/api";
 
 /**
@@ -45,19 +46,21 @@ export function DualVideoSynchronizer() {
     useVideoStore();
 
   // Convert blobs to Files for WebCodecs decoder (memoized to prevent unnecessary re-initialization)
+  /* eslint-disable react-hooks/exhaustive-deps */
   const fileA = useMemo(() =>
     videoAStore?.blob && videoAStore.metadata
       ? new File([videoAStore.blob], videoAStore.metadata.filename, { type: "video/mp4" })
       : null,
-    [videoAStore]
+    [videoAStore?.blob, videoAStore?.metadata?.filename]
   );
 
   const fileB = useMemo(() =>
     videoBStore?.blob && videoBStore.metadata
       ? new File([videoBStore.blob], videoBStore.metadata.filename, { type: "video/mp4" })
       : null,
-    [videoBStore]
+    [videoBStore?.blob, videoBStore?.metadata?.filename]
   );
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   // Mode state from syncStore (synced with global state for video change detection)
   const { mode, setMode, resetSyncState } = useSyncStore();
@@ -133,21 +136,24 @@ export function DualVideoSynchronizer() {
     const currentVideoAId = videoAStore?.metadata?.video_id ?? null;
     const currentVideoBId = videoBStore?.metadata?.video_id ?? null;
 
-    // Check if Video A changed
+    // Check if Video A changed.
+    // Only reset if BOTH previous and current are non-null — this means the user
+    // actually swapped one video for another. A change from null → value is an
+    // initial load (e.g. session restore) and must NOT reset state.
     if (currentVideoAId !== prevVideoAIdRef.current) {
+      const prevId = prevVideoAIdRef.current;
       prevVideoAIdRef.current = currentVideoAId;
-      // Reset sync and trim state when video changes
-      if (currentVideoAId !== null) {
+      if (prevId !== null && currentVideoAId !== null) {
         resetSyncState();
         resetTrimState();
       }
     }
 
-    // Check if Video B changed
+    // Check if Video B changed (same guard as Video A)
     if (currentVideoBId !== prevVideoBIdRef.current) {
+      const prevId = prevVideoBIdRef.current;
       prevVideoBIdRef.current = currentVideoBId;
-      // Reset sync and trim state when video changes
-      if (currentVideoBId !== null) {
+      if (prevId !== null && currentVideoBId !== null) {
         resetSyncState();
         resetTrimState();
       }
@@ -218,10 +224,25 @@ export function DualVideoSynchronizer() {
 
   // Sync hook annotation state to Zustand store (for session persistence)
   // Use getState() to avoid creating reactive subscriptions that cause render loops.
+  // CRITICAL: Skip sync when a session is active but this channel hasn't been
+  // hydrated yet. Otherwise the hook's empty initial state overwrites the store
+  // before the hydration effect can run.
   useEffect(() => {
+    const { isHydratingSession, activeSessionId } = useSessionStore.getState();
+    if (isHydratingSession) return;
+    if (useVideoStore.getState().isSavingToLibrary) return;
+    if (activeSessionId && activeSessionId !== hydratedSessionIdRefA.current) {
+      return; // Session active but not yet hydrated — don't overwrite store
+    }
     useAnnotationStore.getState().setAnnotationsA(annotationsA);
   }, [annotationsA]);
   useEffect(() => {
+    const { isHydratingSession, activeSessionId } = useSessionStore.getState();
+    if (isHydratingSession) return;
+    if (useVideoStore.getState().isSavingToLibrary) return;
+    if (activeSessionId && activeSessionId !== hydratedSessionIdRefB.current) {
+      return; // Session active but not yet hydrated — don't overwrite store
+    }
     useAnnotationStore.getState().setAnnotationsB(annotationsB);
   }, [annotationsB]);
 
@@ -243,6 +264,15 @@ export function DualVideoSynchronizer() {
     prevVideoBIdRef.current = videoBStore?.metadata?.video_id ?? null;
   }, [activeSessionId, videoAStore?.metadata?.video_id, videoBStore?.metadata?.video_id]);
 
+  // Reset hydration refs when video or session changes
+  useEffect(() => {
+    hydratedSessionIdRefA.current = null;
+  }, [videoAStore?.metadata?.video_id, activeSessionId]);
+
+  useEffect(() => {
+    hydratedSessionIdRefB.current = null;
+  }, [videoBStore?.metadata?.video_id, activeSessionId]);
+
   useEffect(() => {
     if (!activeSessionId || activeSessionId === hydratedSessionIdRefA.current) return;
     if (!videoA.isReady) return;
@@ -258,6 +288,25 @@ export function DualVideoSynchronizer() {
     hydrateAnnotationsB(storedB);
     hydratedSessionIdRefB.current = activeSessionId;
   }, [videoB.isReady, activeSessionId, hydrateAnnotationsB]);
+
+  // Sync playback rate from store on session load
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const rate = usePlaybackStore.getState().playbackRate;
+    setPlaybackRateBoth(rate);
+  }, [activeSessionId]);
+
+  // Sync loop state from store on session load
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const loop = usePlaybackStore.getState().isLooping;
+    setIsLooping(loop);
+  }, [activeSessionId]);
+
+  // Sync local loop state to store when user toggles it
+  useEffect(() => {
+    usePlaybackStore.getState().setIsLooping(isLooping);
+  }, [isLooping]);
 
   // After videos are ready following a session load, seek to the saved sync
   // frames and initialise the joint playhead so the scrub bar and playback
@@ -587,12 +636,17 @@ export function DualVideoSynchronizer() {
     if (trimStart === null) setTrimStart(range.min);
     if (trimEnd === null) setTrimEnd(range.max);
 
-    // Store sync offset and sync points
+    // Store sync offset and sync points in BOTH local state and syncStore
+    // so that buildSessionPayload can read them for persistence.
     setSyncOffset(playhead.syncOffset);
     setSyncPoints({
       frameA: videoA.currentFrame,
       frameB: videoB.currentFrame,
     });
+    const { addSyncPoint, clearSyncPoints, setTemporalOffset } = useSyncStore.getState();
+    clearSyncPoints();
+    addSyncPoint({ frameA: videoA.currentFrame, frameB: videoB.currentFrame });
+    setTemporalOffset(playhead.syncOffset);
 
     console.log(`[PLAYBACK MODE] Initialized playhead:`, playhead);
 
@@ -872,6 +926,8 @@ export function DualVideoSynchronizer() {
   const handleSpeedChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const rate = Number(e.target.value);
     setPlaybackRateBoth(rate);
+    // Persist to playbackStore so buildSessionPayload can read it on save
+    usePlaybackStore.getState().setPlaybackRate(rate);
     // Note: Don't call videoA.setPlaybackRate() - we control timing in our loop
   };
 

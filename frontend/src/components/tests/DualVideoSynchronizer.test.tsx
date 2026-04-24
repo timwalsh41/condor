@@ -1,18 +1,47 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Unit tests for DualVideoSynchronizer component - Video Height Slider.
+ * Unit tests for DualVideoSynchronizer component.
  *
- * Tests video height slider functionality:
- * - Height configuration calculation (min, max, default)
- * - Bounds checking
- * - Rotation handling in height calculation
- * - Single vs dual video scenarios
- *
- * Phase: Phase 1 Task 1.3.3 (Video Size Slider Control)
+ * Tests video height slider functionality and session load bug fixes.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { DualVideoSynchronizer } from '../DualVideoSynchronizer';
+import { useSessionStore } from '../../store/sessionStore';
+import { useAnnotationStore } from '../../store/annotationStore';
+import { usePlaybackStore } from '../../store/playbackStore';
+import { useVideoStore } from '../../store/videoStore';
+import { useSyncStore } from '../../store/syncStore';
+import { useTrimStore } from '../../store/trimStore';
+
+// Hoisted mock functions for useVideoAnnotations
+const mockHydrateA = vi.hoisted(() => vi.fn());
+const mockHydrateB = vi.hoisted(() => vi.fn());
+const mockClearAllA = vi.hoisted(() => vi.fn());
+const mockClearAllB = vi.hoisted(() => vi.fn());
+const mockHandlersA = vi.hoisted(() => ({
+  handleStageMouseDown: vi.fn(),
+  handleStageMouseMove: vi.fn(),
+  handleStageMouseUp: vi.fn(),
+  handleAnnotationClick: vi.fn(),
+  handleAnnotationDragStart: vi.fn(),
+  handleAnnotationDragMove: vi.fn(),
+  handleAnnotationDragEnd: vi.fn(),
+  handleControlPointMouseDown: vi.fn(),
+  handleStageClick: vi.fn(),
+}));
+const mockHandlersB = vi.hoisted(() => ({
+  handleStageMouseDown: vi.fn(),
+  handleStageMouseMove: vi.fn(),
+  handleStageMouseUp: vi.fn(),
+  handleAnnotationClick: vi.fn(),
+  handleAnnotationDragStart: vi.fn(),
+  handleAnnotationDragMove: vi.fn(),
+  handleAnnotationDragEnd: vi.fn(),
+  handleControlPointMouseDown: vi.fn(),
+  handleStageClick: vi.fn(),
+}));
 
 // Mock the WebCodecs decoder hook
 vi.mock('../../hooks/useWebCodecsDecoder', () => ({
@@ -64,69 +93,35 @@ vi.mock('../../hooks/useWebCodecsDecoder', () => ({
   },
 }));
 
-// Mock the video annotations hook — tracks calls so we can verify both channels
-// instantiate the hook with the correct slot parameter.
-const mockHandlersA = {
-  handleStageMouseDown: vi.fn(),
-  handleStageMouseMove: vi.fn(),
-  handleStageMouseUp: vi.fn(),
-  handleAnnotationClick: vi.fn(),
-  handleAnnotationDragStart: vi.fn(),
-  handleAnnotationDragMove: vi.fn(),
-  handleAnnotationDragEnd: vi.fn(),
-  handleControlPointMouseDown: vi.fn(),
-  handleStageClick: vi.fn(),
-};
-const mockHandlersB = {
-  handleStageMouseDown: vi.fn(),
-  handleStageMouseMove: vi.fn(),
-  handleStageMouseUp: vi.fn(),
-  handleAnnotationClick: vi.fn(),
-  handleAnnotationDragStart: vi.fn(),
-  handleAnnotationDragMove: vi.fn(),
-  handleAnnotationDragEnd: vi.fn(),
-  handleControlPointMouseDown: vi.fn(),
-  handleStageClick: vi.fn(),
-};
-
+// Mock the video annotations hook
 vi.mock('../../hooks/useVideoAnnotations', () => ({
   useVideoAnnotations: (
     _video: unknown,
-    videoId: 'A' | 'B',
-    _activeVideo: unknown,
-    _setActiveVideo: unknown,
-    _selectedTool: unknown,
-    _setSelectedTool: unknown
+    videoId: 'A' | 'B'
   ) => ({
     manager: {},
     drawingState: { isDrawing: false, currentTool: null },
     annotations: [],
-    selectedIds: [],
+    selectedIds: new Set<string>(),
     polylineMousePos: null,
     scale: 1,
     handlers: videoId === 'A' ? mockHandlersA : mockHandlersB,
-    clearAll: vi.fn(),
+    clearAll: videoId === 'A' ? mockClearAllA : mockClearAllB,
+    hydrateAnnotations: videoId === 'A' ? mockHydrateA : mockHydrateB,
     isDraggingAnnotation: false,
     isReshapingAnnotation: false,
-  }),
-}));
-
-// Mock the video store
-vi.mock('../../store/videoStore', () => ({
-  useVideoStore: () => ({
-    sessionId: null,
-    videoA: null,
-    videoB: null,
-    setSessionId: vi.fn(),
-    setVideoA: vi.fn(),
-    setVideoB: vi.fn(),
+    undo: vi.fn(),
+    redo: vi.fn(),
+    canUndo: false,
+    canRedo: false,
+    updateAnnotationText: vi.fn(),
   }),
 }));
 
 // Mock feature detection
 vi.mock('../../utils/featureDetection', () => ({
-  checkWebCodecsSupport: () => ({ supported: true, details: {} }),
-  getBrowserCodecSupport: () => Promise.resolve({ h264: true, h265: true }),
+  checkWebCodecsSupport: () => ({ isSupported: true, errorMessage: '', browserInfo: '' }),
+  getBrowserCodecSupport: () => Promise.resolve('H.264: supported, H.265: supported'),
 }));
 
 // Mock VideoUploadWorkflow
@@ -139,6 +134,12 @@ vi.mock('../VideoUploadWorkflow', () => ({
 describe('DualVideoSynchronizer - Video Height Slider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useVideoStore.getState().reset();
+    useSessionStore.setState({ activeSessionId: null, isHydratingSession: false, error: null, loading: false });
+    useAnnotationStore.getState().reset();
+    usePlaybackStore.getState().reset();
+    useSyncStore.getState().reset();
+    useTrimStore.getState().resetTrim();
   });
 
   describe('Annotation Hook Integration', () => {
@@ -261,6 +262,92 @@ describe('DualVideoSynchronizer - Video Height Slider', () => {
       // Not affected by displayWidth/displayHeight
       expect(true).toBe(true); // Placeholder
     });
+  });
+});
+
+describe('DualVideoSynchronizer - Session Load Bug Fixes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useVideoStore.getState().reset();
+    useSessionStore.setState({ activeSessionId: null, isHydratingSession: false, error: null, loading: false });
+    useAnnotationStore.getState().reset();
+    usePlaybackStore.getState().reset();
+    useSyncStore.getState().reset();
+    useTrimStore.getState().resetTrim();
+  });
+
+  it('should sync playback rate from store when activeSessionId changes', () => {
+    useVideoStore.getState().setVideoA({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+    usePlaybackStore.getState().setPlaybackRate(0.5);
+    useSyncStore.getState().setMode('PLAYBACK');
+    useSessionStore.setState({ activeSessionId: 'session-1', isHydratingSession: true });
+
+    render(<DualVideoSynchronizer />);
+
+    const select = screen.getByTestId('speed-select-both') as HTMLSelectElement;
+    expect(select.value).toBe('0.5');
+  });
+
+  it('should not overwrite store annotations during hydration', () => {
+    useAnnotationStore.getState().setAnnotationsA([
+      { id: 'ann-1', type: 'text', text: 'Test A', points: [], color: '#000', strokeWidth: 2 } as any,
+    ]);
+    useSessionStore.setState({ isHydratingSession: true });
+
+    render(<DualVideoSynchronizer />);
+
+    expect(useAnnotationStore.getState().annotationsA).toHaveLength(1);
+    expect(useAnnotationStore.getState().annotationsA[0].text).toBe('Test A');
+  });
+
+  it('should reset hydration ref and re-hydrate when activeSessionId changes', () => {
+    useVideoStore.getState().setVideoA({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+    useAnnotationStore.getState().setAnnotationsA([
+      { id: 'ann-1', type: 'text', text: 'Test A', points: [], color: '#000', strokeWidth: 2 } as any,
+    ]);
+    useSessionStore.setState({ activeSessionId: 'session-1', isHydratingSession: true });
+
+    render(<DualVideoSynchronizer />);
+
+    expect(mockHydrateA).toHaveBeenCalledWith([
+      { id: 'ann-1', type: 'text', text: 'Test A', points: [], color: '#000', strokeWidth: 2 },
+    ]);
+    const callsAfterMount = mockHydrateA.mock.calls.length;
+
+    act(() => {
+      useSessionStore.setState({ activeSessionId: 'session-2' });
+    });
+
+    expect(mockHydrateA.mock.calls.length).toBe(callsAfterMount + 1);
+    expect(mockHydrateA).toHaveBeenLastCalledWith([
+      { id: 'ann-1', type: 'text', text: 'Test A', points: [], color: '#000', strokeWidth: 2 },
+    ]);
   });
 });
 

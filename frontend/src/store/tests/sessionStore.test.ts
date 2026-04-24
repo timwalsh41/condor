@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useSessionStore } from '../sessionStore';
+import { useSessionStore, buildSessionPayload, restoreSessionState } from '../sessionStore';
 import { useSyncStore } from '../syncStore';
 import { useVideoStore } from '../videoStore';
 import { useAnnotationStore } from '../annotationStore';
@@ -651,6 +651,41 @@ describe('sessionStore', () => {
       // After failed load
       expect(useSessionStore.getState().isHydratingSession).toBe(false);
       expect(useSessionStore.getState().error).toBe('Network error');
+    });
+  });
+
+  describe('buildSessionPayload', () => {
+    it('should include loop_playback from playbackStore', () => {
+      usePlaybackStore.getState().setIsLooping(true);
+      const payload = buildSessionPayload('test-session');
+      expect(payload.loop_playback).toBe(true);
+    });
+  });
+
+  describe('restoreSessionState', () => {
+    it('should restore loop_playback to playbackStore', async () => {
+      const mockSession: AnalysisSessionResponse = {
+        id: 'test-session-1',
+        name: 'Test Session',
+        notes: null,
+        video_a_id: null,
+        video_b_id: null,
+        sync_frame_a: null,
+        sync_frame_b: null,
+        trim_start_a: null,
+        trim_end_a: null,
+        trim_start_b: null,
+        trim_end_b: null,
+        playback_speed: 1.0,
+        loop_playback: true,
+        annotations: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      await restoreSessionState(mockSession);
+
+      expect(usePlaybackStore.getState().isLooping).toBe(true);
     });
   });
 });

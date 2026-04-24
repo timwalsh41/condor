@@ -122,6 +122,13 @@ test.describe("Bug Fixes Integration Tests", () => {
   test.beforeEach(async ({ page }) => {
     page.on("console", (msg) => console.log(`BROWSER: ${msg.text()}`));
     page.on("pageerror", (err) => console.log(`PAGE ERROR: ${err.message}`));
+    page.on("dialog", (dialog) => {
+      if (dialog.type() === "prompt") {
+        dialog.accept("E2E Annotation");
+      } else {
+        dialog.accept();
+      }
+    });
     await navigateToProductionApp(page);
   });
 
@@ -295,6 +302,8 @@ test.describe("Bug Fixes Integration Tests", () => {
      * Validates: Bug fix 2.2 (Session load state restoration)
      * Validates: Bug fix 2.3 (Library video save button state)
      * Validates: Bug fix 4.1 (Library save before session save)
+     * Validates: Playback rate and loop state restoration
+     * Validates: Annotation persistence for both channels
      *
      * Acceptance Criteria:
      * - Set up videos with sync point
@@ -303,6 +312,8 @@ test.describe("Bug Fixes Integration Tests", () => {
      * - Load session
      * - Verify mode is PLAYBACK
      * - Verify videos are synchronized at sync frames
+     * - Verify playback rate and loop state restored
+     * - Verify annotations persisted for both channels
      */
     await uploadVideos(page, testVideoPath, testVideoPath);
 
@@ -318,6 +329,24 @@ test.describe("Bug Fixes Integration Tests", () => {
     const modeIndicator = page.locator('[data-testid="mode-indicator"]');
     await expect(modeIndicator).toContainText("PLAYBACK MODE");
     console.log("In PLAYBACK mode with sync offset +30");
+
+    // Set playback speed to 0.5x
+    const speedSelect = page.locator('[data-testid="speed-select-both"]');
+    await speedSelect.selectOption('0.5');
+    console.log("Playback speed set to 0.5x");
+
+    // Enable loop playback
+    const loopToggle = page.locator('[data-testid="loop-toggle"]');
+    await loopToggle.click();
+    console.log("Loop playback enabled");
+
+    // Draw text annotations on both channels
+    await page.locator('[data-testid="tool-text"]').click();
+    await page.locator('[data-testid="annotation-container-a"] canvas').click({ position: { x: 100, y: 100 } });
+    await page.waitForTimeout(500);
+    await page.locator('[data-testid="annotation-container-b"] canvas').click({ position: { x: 100, y: 100 } });
+    await page.waitForTimeout(500);
+    console.log("Annotations created on both channels");
 
     // Open library panel and save both videos
     const libraryButton = page.locator('[data-testid="library-toggle"]');
@@ -360,10 +389,23 @@ test.describe("Bug Fixes Integration Tests", () => {
     // Save session with a test name
     const sessionNameInput = page.locator('[data-testid="session-name-input"]');
     await sessionNameInput.fill("Test Session 5.2.3");
-    
+
     await saveSessionButton.click();
     await page.waitForTimeout(2000);
     console.log("Session saved");
+
+    // Verify annotations persisted in backend
+    const sessionsResp = await page.request.get('/api/sessions');
+    expect(sessionsResp.ok()).toBe(true);
+    const sessions = await sessionsResp.json();
+    const savedSession = sessions.find((s: { name: string; id: string }) => s.name === 'Test Session 5.2.3');
+    expect(savedSession).toBeDefined();
+    const sessionDetail = await page.request.get(`/api/sessions/${savedSession.id}`);
+    expect(sessionDetail.ok()).toBe(true);
+    const sessionData = await sessionDetail.json();
+    expect(sessionData.annotations.a.length).toBeGreaterThan(0);
+    expect(sessionData.annotations.b.length).toBeGreaterThan(0);
+    console.log("✓ Annotations persisted in backend");
 
     // Close session panel
     await sessionButton.click();
@@ -376,6 +418,11 @@ test.describe("Bug Fixes Integration Tests", () => {
     // Open session panel again
     await sessionButton.click();
     await page.waitForTimeout(500);
+
+    // Capture console messages for hydration verification
+    const hydrationMessages: string[] = [];
+    const consoleHandler = (msg: { text: () => string }) => hydrationMessages.push(msg.text());
+    page.on('console', consoleHandler);
 
     // Load the saved session
     const loadSessionButton = page.locator('[data-testid="load-session-button"]').first();
@@ -397,8 +444,25 @@ test.describe("Bug Fixes Integration Tests", () => {
     console.log("✓ Mode restored to PLAYBACK");
 
     // Verify sync offset is maintained
+    const offsetDisplay = page.locator('[data-testid="sync-offset-display"]');
     await expect(offsetDisplay).toContainText("+30", { timeout: 5000 });
     console.log("✓ Sync offset restored (+30)");
+
+    // Verify playback rate restored
+    const restoredSpeedSelect = page.locator('[data-testid="speed-select-both"]');
+    await expect(restoredSpeedSelect).toHaveValue('0.5');
+    console.log("✓ Playback rate restored to 0.5x");
+
+    // Verify loop state restored
+    const restoredLoopToggle = page.locator('[data-testid="loop-toggle"]');
+    const loopBg = await restoredLoopToggle.evaluate((el: HTMLElement) => window.getComputedStyle(el).backgroundColor);
+    expect(loopBg).toBe('rgb(76, 175, 80)');
+    console.log("✓ Loop state restored");
+
+    // Verify annotation hydration
+    expect(hydrationMessages.some((m: string) => m.includes('Video A: Hydrated'))).toBe(true);
+    expect(hydrationMessages.some((m: string) => m.includes('Video B: Hydrated'))).toBe(true);
+    console.log("✓ Annotation hydration verified for both channels");
 
     // Verify videos are at sync frames
     const frameA = await getFrameNumber(page, "frame-counter-a");
@@ -496,5 +560,114 @@ test.describe("Bug Fixes Integration Tests", () => {
     const finalButtonText = await saveVideoAButton.textContent();
     expect(finalButtonText).toContain("saved");
     console.log(`✓ Button shows: "${finalButtonText}"`);
+  });
+
+  test("5.2.5 - Session switching: reload annotations on session change", async ({ page }) => {
+    /**
+     * Validates: Hydration ref reset on session switch (Fix 6)
+     *
+     * Acceptance Criteria:
+     * - Upload videos and save to library
+     * - Create two sessions with different annotations via API
+     * - Load first session, verify annotations hydrated
+     * - Load second session, verify annotations hydrated
+     * - Load first session again, verify annotations re-hydrated
+     */
+    await uploadVideos(page, testVideoPath, testVideoPath);
+
+    // Save videos to library
+    const libraryButton = page.locator('[data-testid="library-toggle"]');
+    if (await libraryButton.isVisible()) {
+      await libraryButton.click();
+      await page.waitForTimeout(500);
+      await page.locator('[data-testid="save-video-a-button"]').click();
+      await page.waitForTimeout(1000);
+      await page.locator('[data-testid="save-video-b-button"]').click();
+      await page.waitForTimeout(1000);
+      await libraryButton.click();
+      await page.waitForTimeout(300);
+    }
+
+    // Fetch library video IDs
+    const libraryResp = await page.request.get('/api/library');
+    expect(libraryResp.ok()).toBe(true);
+    const libraryVideos = await libraryResp.json();
+    expect(libraryVideos.length).toBeGreaterThanOrEqual(2);
+    const videoAId = libraryVideos[0].id;
+    const videoBId = libraryVideos[1].id;
+
+    // Create Session A via API (annotation on A)
+    const sessionAResp = await page.request.post('/api/sessions', {
+      data: {
+        name: 'Session A',
+        video_a_id: videoAId,
+        video_b_id: videoBId,
+        sync_frame_a: 30,
+        sync_frame_b: 60,
+        playback_speed: 1.0,
+        loop_playback: false,
+        annotations: {
+          a: [{ id: 'ann-a-1', type: 'text', text: 'Session A Annotation', points: [0, 0] }],
+          b: [],
+        },
+      },
+    });
+    expect(sessionAResp.ok()).toBe(true);
+
+    // Create Session B via API (annotation on B)
+    const sessionBResp = await page.request.post('/api/sessions', {
+      data: {
+        name: 'Session B',
+        video_a_id: videoAId,
+        video_b_id: videoBId,
+        sync_frame_a: 30,
+        sync_frame_b: 60,
+        playback_speed: 1.0,
+        loop_playback: false,
+        annotations: {
+          a: [],
+          b: [{ id: 'ann-b-1', type: 'text', text: 'Session B Annotation', points: [0, 0] }],
+        },
+      },
+    });
+    expect(sessionBResp.ok()).toBe(true);
+
+    // Reload app
+    await navigateToProductionApp(page);
+    await page.waitForTimeout(1000);
+
+    // Open session panel
+    const sessionButton = page.locator('[data-testid="session-toggle"]');
+    await sessionButton.click();
+    await page.waitForTimeout(500);
+
+    const loadButtons = page.locator('[data-testid="load-session-button"]');
+
+    // Load Session A (second in list because B is newer)
+    const hydrationPromiseA = page.waitForEvent('console', {
+      predicate: (msg) => msg.text().includes('Video A: Hydrated'),
+      timeout: 15000,
+    });
+    await loadButtons.nth(1).click();
+    await hydrationPromiseA;
+    console.log("✓ Session A annotations hydrated");
+
+    // Load Session B (first in list)
+    const hydrationPromiseB = page.waitForEvent('console', {
+      predicate: (msg) => msg.text().includes('Video B: Hydrated'),
+      timeout: 15000,
+    });
+    await loadButtons.nth(0).click();
+    await hydrationPromiseB;
+    console.log("✓ Session B annotations hydrated");
+
+    // Load Session A again
+    const hydrationPromiseA2 = page.waitForEvent('console', {
+      predicate: (msg) => msg.text().includes('Video A: Hydrated'),
+      timeout: 15000,
+    });
+    await loadButtons.nth(1).click();
+    await hydrationPromiseA2;
+    console.log("✓ Session A annotations re-hydrated after switch");
   });
 });

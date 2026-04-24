@@ -33,6 +33,7 @@ interface PlaybackStoreState {
   // Playback control
   isPlaying: boolean;
   playbackRate: number;
+  isLooping: boolean;
 
   // Playhead management (PLAYBACK mode only)
   playheadState: PlayheadState | null;
@@ -43,6 +44,7 @@ interface PlaybackStoreState {
   // Actions
   setIsPlaying: (isPlaying: boolean) => void;
   setPlaybackRate: (rate: number) => void;
+  setIsLooping: (isLooping: boolean) => void;
   setPlayheadState: (state: PlayheadState | null) => void;
   setSliderPositions: (positions: SliderPositions) => void;
   reset: () => void;
@@ -54,6 +56,7 @@ interface PlaybackStoreState {
 const initialState = {
   isPlaying: false,
   playbackRate: 1.0,
+  isLooping: false,
   playheadState: null,
   sliderPositions: {
     videoA: 0,
@@ -71,6 +74,8 @@ export const usePlaybackStore = create<PlaybackStoreState>((set) => ({
   setIsPlaying: (isPlaying) => set({ isPlaying }),
 
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
+
+  setIsLooping: (isLooping) => set({ isLooping }),
 
   setPlayheadState: (state) => set({ playheadState: state }),
 

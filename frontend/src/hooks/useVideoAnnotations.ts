@@ -179,6 +179,13 @@ export function useVideoAnnotations(
       if (!canvas) return;
 
       const displayWidth = canvas.clientWidth;
+      // Guard: skip if canvas has not been laid out yet. clientWidth=0 happens when
+      // the canvas element was just inserted into the DOM but the browser has not yet
+      // computed its layout (e.g. the decoder set isReady=true before the canvas
+      // mounted). Setting scale=0 would collapse the annotation Stage to invisible
+      // via CSS transform:scale(0), hiding all annotations.
+      if (displayWidth === 0) return;
+
       const videoWidth = videoDecoder.metadata!.width;
       const scale = displayWidth / videoWidth;
 

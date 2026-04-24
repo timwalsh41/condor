@@ -478,9 +478,9 @@ export function useWebCodecsDecoder(
               const frameIndex = coordinateMap.getFrame(sample.cts);
               if (frameIndex !== undefined) {
                 pendingDecodesRef.current.add(frameIndex);
-                debugLog(
-                  `[SEEK] Added frame ${frameIndex} to pending (${pendingDecodesRef.current.size} total pending)`
-                );
+                // debugLog(
+                //  `[SEEK] Added frame ${frameIndex} to pending (${pendingDecodesRef.current.size} total pending)`
+                // );
               }
 
               // Log every 10th sample to avoid spam, plus first/last
@@ -1185,13 +1185,13 @@ export function useWebCodecsDecoder(
             const wasPending = pendingDecodesRef.current.has(frameIndex);
             pendingDecodesRef.current.delete(frameIndex);
 
-            if (wasPending) {
-              debugLog(
-                `[OUTPUT] Frame ${frameIndex} removed from pending (${
-                  pendingDecodesRef.current.size
-                } still pending), cacheSize=${cacheRef.current.getSize()}`
-              );
-            }
+            // if (wasPending) {
+            //  debugLog(
+            //    `[OUTPUT] Frame ${frameIndex} removed from pending (${
+            //      pendingDecodesRef.current.size
+            //    } still pending), cacheSize=${cacheRef.current.getSize()}`
+            //  );
+            //}
 
             // CRITICAL: Close original frame to release memory
             frame.close();

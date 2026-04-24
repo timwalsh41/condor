@@ -1,4 +1,4 @@
-import { Fragment, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { Fragment, useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import type Konva from "konva";
 import { Stage, Layer, Line, Arrow, Ellipse, Rect, Text as KonvaText } from "react-konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
@@ -303,19 +303,42 @@ export function DualVideoSynchronizer() {
   const hydratedSessionIdRefA = useRef<string | null>(null);
   const hydratedSessionIdRefB = useRef<string | null>(null);
 
-  // Konva layer refs — used to force a synchronous draw() when both videos are
-  // ready after a session restore. During session load, Video B's mp4box parse
-  // blocks the main thread synchronously for several seconds, starving Konva's
-  // batchDraw() RAF. By firing draw() once both decoders are ready (and all
-  // blocking init is complete), we guarantee annotations are visible immediately.
+  // Konva layer refs — used to force a draw() after annotation hydration on
+  // session restore before the browser paints.
+  //
+  // WHY useLayoutEffect (not useEffect):
+  //   useEffect fires AFTER the browser has already painted, so the user sees
+  //   one blank frame on first mount of the Konva Stage (when videoX.isReady
+  //   flips true). useLayoutEffect fires synchronously after the commit,
+  //   BEFORE the browser paints — guaranteeing annotations are on the canvas
+  //   on the very first visible frame.
+  //
+  // WHY per-channel effects on annotationsX change (not on videoX.isReady):
+  //   hydrateAnnotations() calls setAnnotations() which schedules a React state
+  //   update — it does NOT take effect until the next render. If we call draw()
+  //   in the same render that triggers hydration (e.g. the isReady render), the
+  //   Konva node tree still reflects the old empty state. We must fire draw()
+  //   *after* annotationsA/B are committed to state, i.e. in a subsequent render.
   const layerARef = useRef<Konva.Layer>(null);
   const layerBRef = useRef<Konva.Layer>(null);
 
-  useEffect(() => {
-    if (!activeSessionId || !videoA.isReady || !videoB.isReady) return;
-    layerARef.current?.draw();
-    layerBRef.current?.draw();
-  }, [activeSessionId, videoA.isReady, videoB.isReady]);
+  // Fire draw for Video A after its annotations are committed to React state
+  // (and therefore to the Konva node tree). Fires before browser paint.
+  useLayoutEffect(() => {
+    if (!activeSessionId || !videoA.isReady || annotationsA.length === 0) return;
+    const layer = layerARef.current;
+    console.log(`[DRAW A] Layout draw: layerRef=${layer ? 'SET' : 'NULL'}, nodeCount=${layer?.getChildren().length ?? 'N/A'}, annotations=${annotationsA.length}`);
+    layer?.draw();
+  }, [annotationsA, activeSessionId, videoA.isReady]);
+
+  // Fire draw for Video B after its annotations are committed to React state.
+  // Same rationale as Video A above.
+  useLayoutEffect(() => {
+    if (!activeSessionId || !videoB.isReady || annotationsB.length === 0) return;
+    const layer = layerBRef.current;
+    console.log(`[DRAW B] Layout draw: layerRef=${layer ? 'SET' : 'NULL'}, nodeCount=${layer?.getChildren().length ?? 'N/A'}, annotations=${annotationsB.length}`);
+    layer?.draw();
+  }, [annotationsB, activeSessionId, videoB.isReady]);
 
   // Reset hydration refs when video changes — but ONLY when no session is active.
   // During session load, video_id changes as videos are populated from the library.

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { Fragment, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Stage, Layer, Line, Arrow, Ellipse, Rect, Text as KonvaText } from "react-konva";
 import { useWebCodecsDecoder } from "../hooks/useWebCodecsDecoder";
 import { useVideoAnnotations } from "../hooks/useVideoAnnotations";
@@ -269,6 +269,13 @@ export function DualVideoSynchronizer() {
     if (activeSessionId && activeSessionId !== hydratedSessionIdRefA.current) {
       return; // Session active but not yet hydrated — don't overwrite store
     }
+    if (activeSessionId && annotationsA.length === 0) {
+      const stored = useAnnotationStore.getState().annotationsA;
+      if (stored.length > 0) {
+        console.warn(`[SYNC-BACK A] Would overwrite ${stored.length} stored annotations with [] — skipping`);
+        return;
+      }
+    }
     useAnnotationStore.getState().setAnnotationsA(annotationsA);
   }, [annotationsA]);
   useEffect(() => {
@@ -277,6 +284,13 @@ export function DualVideoSynchronizer() {
     if (useVideoStore.getState().isSavingToLibrary) return;
     if (activeSessionId && activeSessionId !== hydratedSessionIdRefB.current) {
       return; // Session active but not yet hydrated — don't overwrite store
+    }
+    if (activeSessionId && annotationsB.length === 0) {
+      const stored = useAnnotationStore.getState().annotationsB;
+      if (stored.length > 0) {
+        console.warn(`[SYNC-BACK B] Would overwrite ${stored.length} stored annotations with [] — skipping`);
+        return;
+      }
     }
     useAnnotationStore.getState().setAnnotationsB(annotationsB);
   }, [annotationsB]);
@@ -313,6 +327,7 @@ export function DualVideoSynchronizer() {
   useEffect(() => {
     if (!activeSessionId || activeSessionId === hydratedSessionIdRefA.current) return;
     const { annotationsA: storedA } = useAnnotationStore.getState();
+    console.log(`[HYDRATE A] session=${activeSessionId}, stored count=${storedA.length}`);
     hydrateAnnotationsA(storedA);
     hydratedSessionIdRefA.current = activeSessionId;
   }, [activeSessionId, hydrateAnnotationsA]);
@@ -321,6 +336,7 @@ export function DualVideoSynchronizer() {
   useEffect(() => {
     if (!activeSessionId || activeSessionId === hydratedSessionIdRefB.current) return;
     const { annotationsB: storedB } = useAnnotationStore.getState();
+    console.log(`[HYDRATE B] session=${activeSessionId}, stored count=${storedB.length}`);
     hydrateAnnotationsB(storedB);
     hydratedSessionIdRefB.current = activeSessionId;
   }, [activeSessionId, hydrateAnnotationsB]);
@@ -337,6 +353,15 @@ export function DualVideoSynchronizer() {
     if (!activeSessionId) return;
     const loop = usePlaybackStore.getState().isLooping;
     setIsLooping(loop);
+  }, [activeSessionId]);
+
+  // Sync offset from store on session load — provides immediate display while decoders load.
+  // The seek effect will overwrite this with the precise frame-based value once both
+  // decoders are ready.
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const offset = useSyncStore.getState().temporalOffset;
+    if (offset !== null) setSyncOffset(offset);
   }, [activeSessionId]);
 
   // Sync local loop state to store when user toggles it
@@ -375,17 +400,24 @@ export function DualVideoSynchronizer() {
       useSyncStore.getState().clearTargetSyncFrames();
     }
 
-    doSeek().then(() => {
-      // Initialise playhead state from the (now seeked) video positions.
+    const finalizePlayhead = (fA: number, fB: number) => {
       const playhead = initializePlayhead(
-        frameA,
-        frameB,
+        fA,
+        fB,
         videoA.totalFrames,
         videoB.totalFrames
       );
       setPlayheadState(playhead);
       setSyncOffset(playhead.syncOffset);
-      setSyncPoints({ frameA, frameB });
+      setSyncPoints({ frameA: fA, frameB: fB });
+    };
+
+    doSeek().then(() => {
+      finalizePlayhead(frameA, frameB);
+    }).catch((err) => {
+      console.error('[SESSION RESTORE] Seek failed, initialising playhead from current positions:', err);
+      // Still initialise playhead so the scrub bar and trim display are functional
+      finalizePlayhead(videoA.currentFrame, videoB.currentFrame);
     });
   }, [videoA.isReady, videoB.isReady, activeSessionId, videoA, videoB]);
 
@@ -1492,7 +1524,7 @@ export function DualVideoSynchronizer() {
                                         case "freehand":
                                         case "polyline":
                                           return (
-                                            <>
+                                            <Fragment key={annotation.id}>
                                               <Line
                                                 key={annotation.id}
                                                 points={pointsToKonva(
@@ -1562,7 +1594,7 @@ export function DualVideoSynchronizer() {
                                                     }}
                                                   />
                                                 ))}
-                                            </>
+                                            </Fragment>
                                           );
                                         case "oval": {
                                           // Points format: [start, end] where each is {x, y}
@@ -1575,7 +1607,7 @@ export function DualVideoSynchronizer() {
                                           const radiusY =
                                             Math.abs(end.y - start.y) / 2;
                                           return (
-                                            <>
+                                            <Fragment key={annotation.id}>
                                               <Ellipse
                                                 key={annotation.id}
                                                 x={centerX}
@@ -1638,12 +1670,12 @@ export function DualVideoSynchronizer() {
                                                     }}
                                                   />
                                                 ))}
-                                            </>
+                                            </Fragment>
                                           );
                                         }
                                         case "arrow":
                                           return (
-                                            <>
+                                            <Fragment key={annotation.id}>
                                               <Arrow
                                                 key={annotation.id}
                                                 points={pointsToKonva(
@@ -1709,7 +1741,7 @@ export function DualVideoSynchronizer() {
                                                     }}
                                                   />
                                                 ))}
-                                            </>
+                                            </Fragment>
                                           );
                                          case "text":
                                            return annotation.points[0] ? (
@@ -1746,7 +1778,7 @@ export function DualVideoSynchronizer() {
                                            const lblText = `${angleDeg}°`;
                                            const lblWidth = lblText.length * 10 + 8;
                                            return (
-                                             <>
+                                             <Fragment key={annotation.id}>
                                                 <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
                                                 <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersA.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersA.handleAnnotationDragStart(annotation.id, e); }} />
                                                <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
@@ -1777,7 +1809,7 @@ export function DualVideoSynchronizer() {
                                                       }}
                                                    />
                                                  ))}
-                                             </>
+                                             </Fragment>
                                            );
                                          }
                                         default:
@@ -2096,7 +2128,7 @@ export function DualVideoSynchronizer() {
                                         case "freehand":
                                         case "polyline":
                                           return (
-                                            <>
+                                            <Fragment key={annotation.id}>
                                               <Line
                                                 key={annotation.id}
                                                 points={pointsToKonva(
@@ -2166,7 +2198,7 @@ export function DualVideoSynchronizer() {
                                                     }}
                                                   />
                                                 ))}
-                                            </>
+                                            </Fragment>
                                           );
                                         case "oval": {
                                           // Points format: [start, end] where each is {x, y}
@@ -2179,7 +2211,7 @@ export function DualVideoSynchronizer() {
                                           const radiusY =
                                             Math.abs(end.y - start.y) / 2;
                                           return (
-                                            <>
+                                            <Fragment key={annotation.id}>
                                               <Ellipse
                                                 key={annotation.id}
                                                 x={centerX}
@@ -2242,12 +2274,12 @@ export function DualVideoSynchronizer() {
                                                     }}
                                                   />
                                                 ))}
-                                            </>
+                                            </Fragment>
                                           );
                                         }
                                         case "arrow":
                                           return (
-                                            <>
+                                            <Fragment key={annotation.id}>
                                               <Arrow
                                                 key={annotation.id}
                                                 points={pointsToKonva(
@@ -2313,7 +2345,7 @@ export function DualVideoSynchronizer() {
                                                     }}
                                                   />
                                                 ))}
-                                            </>
+                                            </Fragment>
                                           );
                                         case "text":
                                           return annotation.points[0] ? (
@@ -2350,7 +2382,7 @@ export function DualVideoSynchronizer() {
                                           const lblText = `${angleDeg}°`;
                                           const lblWidth = lblText.length * 10 + 8;
                                           return (
-                                            <>
+                                            <Fragment key={annotation.id}>
                                               <Line key={`${annotation.id}-l1`} points={[arm1.x, arm1.y, vx.x, vx.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Line key={`${annotation.id}-l2`} points={[vx.x, vx.y, arm2.x, arm2.y]} stroke={annotation.color} strokeWidth={annotation.strokeWidth} lineCap="round" hitStrokeWidth={20} cursor={cursorStyle} onClick={(e) => handlersB.handleAnnotationClick(annotation.id, e)} onMouseDown={(e) => { if (canDrag) handlersB.handleAnnotationDragStart(annotation.id, e); }} />
                                               <Rect key={`${annotation.id}-lblbg`} x={vx.x + 6} y={vx.y - 26} width={lblWidth} height={22} fill="white" opacity={0.8} listening={false} />
@@ -2375,7 +2407,7 @@ export function DualVideoSynchronizer() {
                                                     }}
                                                   />
                                                 ))}
-                                            </>
+                                            </Fragment>
                                           );
                                         }
                                         default:

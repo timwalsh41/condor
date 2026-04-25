@@ -152,11 +152,13 @@ export async function restoreSessionState(session: AnalysisSessionResponse): Pro
       setSetter(null);
       return;
     }
+    console.log(`[loadSession] Fetching ${slotLabel} (id=${videoId})...`);
     try {
       const [meta, blob] = await Promise.all([
         getLibraryVideo(videoId),
         fetchLibraryVideoBlob(videoId),
       ]);
+      console.log(`[loadSession] ${slotLabel} loaded: ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
       const metadata: VideoMetadata = {
         video_id: meta.id,
         session_id: 'library',
@@ -173,15 +175,17 @@ export async function restoreSessionState(session: AnalysisSessionResponse): Pro
       // Non-fatal: video may have been deleted from the library. Record the
       // error so the caller can surface it and continue loading other state.
       const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[loadSession] ${slotLabel} failed to load: ${msg}`);
       loadErrors.push(`${slotLabel} could not be loaded: ${msg}`);
       setSetter(null);
     }
   }
 
-  await Promise.all([
-    loadLibraryVideoSlot(session.video_a_id, setVideoA, 'Video A'),
-    loadLibraryVideoSlot(session.video_b_id, setVideoB, 'Video B'),
-  ]);
+  // Load sequentially to avoid saturating the connection with two concurrent
+  // large downloads, which causes transient "network connection was lost" errors
+  // (reproducible in Safari at ~50% rate with parallel 60 MB+ fetches).
+  await loadLibraryVideoSlot(session.video_a_id, setVideoA, 'Video A');
+  await loadLibraryVideoSlot(session.video_b_id, setVideoB, 'Video B');
 
   return loadErrors;
 }

@@ -257,22 +257,57 @@ export function getLibraryVideoStreamUrl(videoId: string): string {
 /**
  * Fetch the blob of a library video for WebCodecs playback.
  *
+ * Retries up to MAX_BLOB_FETCH_RETRIES times on transient network errors
+ * (e.g. "The network connection was lost" on Safari when two large fetches
+ * run concurrently). HTTP-level errors (4xx/5xx) are not retried.
+ *
  * @param videoId Library video UUID.
  * @returns Video blob.
  * @throws ApiError on failure.
  */
+const MAX_BLOB_FETCH_RETRIES = 2;
+const BLOB_FETCH_RETRY_DELAY_MS = 1500;
+
 export async function fetchLibraryVideoBlob(videoId: string): Promise<Blob> {
-  try {
-    const url = getLibraryVideoStreamUrl(videoId);
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new ApiError(`Failed to fetch library video: ${response.statusText}`, response.status);
+  const url = getLibraryVideoStreamUrl(videoId);
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= MAX_BLOB_FETCH_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = BLOB_FETCH_RETRY_DELAY_MS * attempt;
+      console.warn(
+        `[fetchLibraryVideoBlob] Attempt ${attempt + 1}/${MAX_BLOB_FETCH_RETRIES + 1} for video ${videoId}` +
+        ` — retrying after ${delay}ms (previous error: ${lastError?.message ?? 'unknown'})`
+      );
+      await new Promise<void>((resolve) => setTimeout(resolve, delay));
     }
-    return await response.blob();
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError('Failed to fetch library video blob', 500);
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        // HTTP errors are deterministic — no point retrying.
+        throw new ApiError(`Failed to fetch library video: ${response.statusText}`, response.status);
+      }
+      const blob = await response.blob();
+      if (attempt > 0) {
+        console.log(
+          `[fetchLibraryVideoBlob] Succeeded on attempt ${attempt + 1} for video ${videoId}` +
+          ` (${(blob.size / 1024 / 1024).toFixed(1)} MB)`
+        );
+      }
+      return blob;
+    } catch (error) {
+      if (error instanceof ApiError) throw error; // HTTP error — don't retry
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.warn(`[fetchLibraryVideoBlob] Network error on attempt ${attempt + 1} for video ${videoId}: ${message}`);
+      lastError = error instanceof Error ? error : new Error(message);
+    }
   }
+
+  throw new ApiError(
+    `Failed to fetch library video after ${MAX_BLOB_FETCH_RETRIES + 1} attempts: ${lastError?.message ?? 'Unknown error'}`,
+    500
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -72,6 +72,7 @@ export default defineConfig({
   },
 
   projects: [
+    /*
     {
       name: "chrome",
       use: {
@@ -95,6 +96,7 @@ export default defineConfig({
             }),
       },
     },
+    */
     {
       name: "firefox",
       use: {

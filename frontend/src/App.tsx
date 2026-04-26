@@ -53,6 +53,7 @@ function App() {
           </button>
           <button
             className={`app-nav__tab ${view === "sessions" ? "app-nav__tab--active" : ""}`}
+            data-testid="sessions-tab"
             onClick={() => setView("sessions")}
           >
             Sessions

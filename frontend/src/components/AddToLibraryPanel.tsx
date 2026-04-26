@@ -178,6 +178,7 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
       {videoA && (
         <button
           className={`btn btn--sm ${savedSlots.has("A") ? "btn--secondary" : "btn--primary"} ${highlightUnsaved && !savedSlots.has("A") ? "btn--highlight" : ""}`}
+          data-testid="save-video-a-button"
           onClick={() => openSave("A")}
           disabled={savedSlots.has("A")}
           title={savedSlots.has("A") ? "Video A is already in library" : "Save Video A to library"}
@@ -188,6 +189,7 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
       {videoB && (
         <button
           className={`btn btn--sm ${savedSlots.has("B") ? "btn--secondary" : "btn--primary"} ${highlightUnsaved && !savedSlots.has("B") ? "btn--highlight" : ""}`}
+          data-testid="save-video-b-button"
           onClick={() => openSave("B")}
           disabled={savedSlots.has("B")}
           title={savedSlots.has("B") ? "Video B is already in library" : "Save Video B to library"}
@@ -290,7 +292,7 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
                 <button type="button" className="btn btn--secondary" onClick={closeSave}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn--primary">
+                <button type="submit" className="btn btn--primary" data-testid="save-to-library-submit">
                   Save to Library
                 </button>
               </div>

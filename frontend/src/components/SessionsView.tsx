@@ -70,6 +70,7 @@ function SessionCard({ session, isActive, loading, onLoad, onDelete }: SessionCa
       <div className="library-card__actions">
         <button
           className="btn btn--primary btn--sm"
+          data-testid="load-session-button"
           onClick={onLoad}
           disabled={loading || isActive}
           title="Restore this session in the Analyze view"

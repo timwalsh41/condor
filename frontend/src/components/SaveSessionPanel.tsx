@@ -70,7 +70,8 @@ export function SaveSessionPanel({ videosNeedSaving = false }: SaveSessionPanelP
   return (
     <>
       <button 
-        className="btn btn--sm btn--secondary" 
+        className="btn btn--sm btn--secondary"
+        data-testid="save-session-button"
         onClick={openModal}
         disabled={!canSaveSession}
         title={!canSaveSession ? "Save both videos to library before saving session" : "Save current analysis session"}
@@ -110,8 +111,7 @@ export function SaveSessionPanel({ videosNeedSaving = false }: SaveSessionPanelP
                     required
                     autoFocus
                     onChange={(e) => setName(e.target.value)}
-                    className="library-modal__input"
-                    placeholder="e.g. Driver practice 2024-06-01"
+                    className="library-modal__input"                  data-testid="session-name-input"                    placeholder="e.g. Driver practice 2024-06-01"
                   />
                 </label>
                 <label className="library-modal__label">
@@ -128,7 +128,7 @@ export function SaveSessionPanel({ videosNeedSaving = false }: SaveSessionPanelP
                   <button type="button" className="btn btn--secondary" onClick={() => setOpen(false)}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn--primary" disabled={saving || !name.trim() || videosNeedSaving || internalVideosNeedSaving}>
+                  <button type="submit" className="btn btn--primary" data-testid="save-session-submit" disabled={saving || !name.trim() || videosNeedSaving || internalVideosNeedSaving}>
                     {saving ? 'Saving…' : 'Save'}
                   </button>
                 </div>

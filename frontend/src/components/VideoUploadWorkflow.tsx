@@ -363,6 +363,7 @@ export const VideoUploadWorkflow: React.FC<VideoUploadWorkflowProps> = ({
           state === 'error' ? 'error' :
           state === 'complete' ? 'complete' : ''
         }`}
+        data-testid={`upload-status-${videoSlot.toLowerCase()}`}
       >
         {/* Idle state - empty or show external video metadata */}
         {state === 'idle' && !externalVideo && (

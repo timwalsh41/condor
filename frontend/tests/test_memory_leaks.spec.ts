@@ -4,6 +4,7 @@ import {
   navigateToProductionApp,
   uploadVideoProduction,
 } from "./helpers/uploadHelpers";
+import path from 'node:path';
 
 /**
  * Memory Leak Detection Tests for WebCodecs VideoDecoder

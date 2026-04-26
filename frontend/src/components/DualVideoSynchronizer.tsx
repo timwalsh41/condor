@@ -161,8 +161,13 @@ export function DualVideoSynchronizer() {
     if (isHydratingSession) return;
 
     // Skip reset when saving to library — the video_id change is just a FK update,
-    // not a new video being loaded.
-    if (isSavingToLibrary) return;
+    // not a new video being loaded. Update the refs so that when isSavingToLibrary
+    // clears, the effect sees no change and does not trigger a spurious reset.
+    if (isSavingToLibrary) {
+      prevVideoAIdRef.current = videoAStore?.metadata?.video_id ?? null;
+      prevVideoBIdRef.current = videoBStore?.metadata?.video_id ?? null;
+      return;
+    }
 
     const currentVideoAId = videoAStore?.metadata?.video_id ?? null;
     const currentVideoBId = videoBStore?.metadata?.video_id ?? null;

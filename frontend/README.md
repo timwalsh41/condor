@@ -56,10 +56,9 @@ npm run test:ui       # Interactive UI
 uv run python3 -m backend.main
 
 # STEP 2: First time setup - install browser binaries (from frontend/)
-sudo npx playwright install --with-deps  # as root - install system packages
 npx playwright install firefox webkit    # as node user - install user copy in /home/node/.cache/ms-playwright
 
-# Optional - install chrome to run all tests (x86/amd64 only)
+# Optional - install chrome to run all tests (x86/amd64 only); NOTE THIS IS NOT POSSIBLE IN A CONTAINER WTIHOUT PROPER PRIVILEGES
 wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 sudo dpkg -i google-chrome-stable_current_amd64.deb
 

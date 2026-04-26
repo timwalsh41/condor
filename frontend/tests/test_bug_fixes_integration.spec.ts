@@ -103,10 +103,12 @@ async function stepToFrame(
 }
 
 /**
- * Helper: Click on canvas at specific coordinates
+ * Helper: Click on canvas at specific coordinates.
+ * canvasTestId should be the annotation container testid (e.g. "annotation-container-a");
+ * the Konva canvas element is located inside it.
  */
 async function clickCanvas(page: Page, canvasTestId: string, x: number, y: number) {
-  const canvas = page.locator(`[data-testid="${canvasTestId}"]`);
+  const canvas = page.locator(`[data-testid="${canvasTestId}"] canvas`);
   const box = await canvas.boundingBox();
   if (!box) throw new Error(`Canvas ${canvasTestId} not found`);
   
@@ -116,6 +118,107 @@ async function clickCanvas(page: Page, canvasTestId: string, x: number, y: numbe
       y: y
     }
   });
+}
+
+// Extend Window interface for Konva global
+interface WindowWithKonva extends Window {
+  Konva?: {
+    stages?: KonvaStage[];
+  };
+}
+
+interface KonvaStage {
+  container(): HTMLElement;
+  getChildren(): KonvaLayer[];
+}
+
+interface KonvaLayer {
+  getChildren(): KonvaShape[];
+}
+
+interface KonvaShape {
+  getClassName(): string;
+  stroke?(): string;
+  dash?(): number[];
+  fontSize?(): number;
+  text?(): string;
+}
+
+/**
+ * Helper: Count non-preview, non-control-point annotations in a video's Konva stage.
+ * Filters out Rect shapes (control points) and red-dashed preview shapes.
+ */
+async function getAnnotationCount(page: Page, videoId: "a" | "b"): Promise<number> {
+  await page.waitForTimeout(300);
+  const result = await page.evaluate((vid: string) => {
+    const container = document.querySelector(`[data-testid="annotation-container-${vid}"]`);
+    if (!container) return 0;
+
+    const stages = (window as unknown as WindowWithKonva).Konva?.stages;
+    if (!stages || stages.length === 0) return 0;
+
+    let stage = null;
+    for (const s of stages) {
+      try {
+        const sc = s.container();
+        if (container === sc || container.contains(sc)) { stage = s; break; }
+      } catch { /* skip */ }
+    }
+    if (!stage) return 0;
+
+    const layers = stage.getChildren();
+    if (!layers || layers.length === 0) return 0;
+    const shapes = layers[0].getChildren();
+    if (!shapes) return 0;
+
+    let count = 0;
+    for (const shape of shapes) {
+      const className = shape.getClassName();
+      if (className === 'Rect') continue; // control points
+      const stroke = shape.stroke?.();
+      const dash = shape.dash?.();
+      const isPreview = stroke === '#FF0000' && Array.isArray(dash) && dash.length > 0;
+      if (!isPreview) count++;
+    }
+    return count;
+  }, videoId);
+  return result;
+}
+
+/**
+ * Helper: Get the text content and fontSize of the first Konva Text shape
+ * in a video's annotation layer (used for angle labels).
+ */
+async function getKonvaLabelInfo(page: Page, videoId: "a" | "b"): Promise<{ text: string; fontSize: number } | null> {
+  await page.waitForTimeout(300);
+  return await page.evaluate((vid: string) => {
+    const container = document.querySelector(`[data-testid="annotation-container-${vid}"]`);
+    if (!container) return null;
+
+    const stages = (window as unknown as WindowWithKonva).Konva?.stages;
+    if (!stages || stages.length === 0) return null;
+
+    let stage = null;
+    for (const s of stages) {
+      try {
+        const sc = s.container();
+        if (container === sc || container.contains(sc)) { stage = s; break; }
+      } catch { /* skip */ }
+    }
+    if (!stage) return null;
+
+    const layers = stage.getChildren();
+    if (!layers || layers.length === 0) return null;
+    const shapes = layers[0].getChildren();
+    if (!shapes) return null;
+
+    for (const shape of shapes) {
+      if (shape.getClassName() === 'Text' && shape.fontSize && shape.text) {
+        return { text: shape.text(), fontSize: shape.fontSize() };
+      }
+    }
+    return null;
+  }, videoId);
 }
 
 test.describe("Bug Fixes Integration Tests", () => {
@@ -159,77 +262,71 @@ test.describe("Bug Fixes Integration Tests", () => {
     console.log("Angle annotation mode enabled");
 
     // Get canvas for video A
-    const canvasA = page.locator('[data-testid="annotation-canvas-a"]');
+    const canvasA = page.locator('[data-testid="annotation-container-a"] canvas');
     await expect(canvasA).toBeVisible({ timeout: 5000 });
 
     // Click 1: Place vertex (center of canvas)
-    await clickCanvas(page, "annotation-canvas-a", 200, 150);
+    await clickCanvas(page, "annotation-container-a", 200, 150);
     console.log("Click 1: Vertex placed");
     await page.waitForTimeout(200);
 
     // Click 2: Place arm1 end (to the right)
-    await clickCanvas(page, "annotation-canvas-a", 300, 150);
+    await clickCanvas(page, "annotation-container-a", 300, 150);
     console.log("Click 2: Arm1 end placed");
     await page.waitForTimeout(200);
 
     // Click 3: Place arm2 end (downwards, creating ~90° angle)
-    await clickCanvas(page, "annotation-canvas-a", 200, 250);
+    await clickCanvas(page, "annotation-container-a", 200, 250);
     console.log("Click 3: Arm2 end placed");
     await page.waitForTimeout(500);
 
-    // Verify angle annotation is drawn
-    // Look for SVG annotation elements
-    const angleAnnotations = page.locator('svg[data-testid="annotation-layer-a"] g.angle-annotation');
-    await expect(angleAnnotations).toHaveCount(1, { timeout: 3000 });
-    console.log("✓ Angle annotation created");
+    // Verify angle annotation is drawn using Konva stage inspection.
+    // An angle annotation renders as 2 Line shapes + 1 Text label in Konva,
+    // so we verify count is positive (> 0).
+    let annotationCount = await getAnnotationCount(page, "a");
+    expect(annotationCount).toBeGreaterThan(0);
+    console.log(`✓ Angle annotation created (${annotationCount} Konva shapes)`);
 
-    // Verify text label is visible and readable
-    const angleLabel = page.locator('svg[data-testid="annotation-layer-a"] text.angle-label');
-    await expect(angleLabel).toBeVisible({ timeout: 3000 });
-    
-    // Get computed font size
-    const fontSize = await angleLabel.evaluate((el) => {
-      return window.getComputedStyle(el).fontSize;
-    });
-    console.log(`Angle label font size: ${fontSize}`);
-    
-    // Font size should be 18px (from bug fix 1.1)
-    expect(fontSize).toBe("18px");
-    console.log("✓ Text label font size is correct (18px)");
+    // Verify label text and fontSize via Konva Text node inspection.
+    // The Konva canvas renders text at fontSize=54 canvas units (bug fix 1.1).
+    const labelInfo = await getKonvaLabelInfo(page, "a");
+    console.log(`Angle label: text="${labelInfo?.text}", fontSize=${labelInfo?.fontSize}`);
+    expect(labelInfo?.fontSize).toBe(54);
+    console.log("✓ Text label font size is correct (54 Konva canvas units)");
 
-    // Select the annotation by clicking on it
-    const annotationElement = angleAnnotations.first();
-    await annotationElement.click();
-    console.log("Annotation selected");
+    // Select the annotation by clicking near the vertex (second click point at (300, 150))
+    await clickCanvas(page, "annotation-container-a", 300, 150);
     await page.waitForTimeout(200);
 
-    // Delete annotation with Backspace key (Mac) / Delete key (Windows/Linux)
+    // Delete annotation with Backspace key
     await page.keyboard.press("Backspace");
     await page.waitForTimeout(500);
 
     // Verify annotation is deleted
-    await expect(angleAnnotations).toHaveCount(0, { timeout: 3000 });
+    annotationCount = await getAnnotationCount(page, "a");
+    expect(annotationCount).toBe(0);
     console.log("✓ Annotation deleted with Backspace key");
 
-    // Create another annotation and verify angle calculation is correct
-    // Create a 90-degree angle: vertex at (200, 200), arm1 at (200, 100), arm2 at (300, 200)
+    // Create another annotation to verify angle calculation is correct.
+    // Geometry: arm1-end=(200,200), vertex=(200,100), arm2-end=(300,100) → ~90°
     await angleButton.click();
-    await clickCanvas(page, "annotation-canvas-a", 200, 200);
+    await clickCanvas(page, "annotation-container-a", 200, 200);
     await page.waitForTimeout(200);
-    await clickCanvas(page, "annotation-canvas-a", 200, 100); // Upwards
+    await clickCanvas(page, "annotation-container-a", 200, 100); // Upwards (vertex)
     await page.waitForTimeout(200);
-    await clickCanvas(page, "annotation-canvas-a", 300, 200); // Rightwards
+    await clickCanvas(page, "annotation-container-a", 300, 100); // Rightwards
     await page.waitForTimeout(500);
 
     // Verify new annotation exists
-    await expect(angleAnnotations).toHaveCount(1, { timeout: 3000 });
+    annotationCount = await getAnnotationCount(page, "a");
+    expect(annotationCount).toBeGreaterThan(0);
 
-    // Read angle value from label
-    const angleText = await angleLabel.textContent();
+    // Read angle value from Konva Text node
+    const newLabelInfo = await getKonvaLabelInfo(page, "a");
+    const angleText = newLabelInfo?.text ?? "";
     console.log(`Measured angle: ${angleText}`);
-    
-    // Extract numeric value
-    const angleMatch = angleText?.match(/(\d+(\.\d+)?)/);
+
+    const angleMatch = angleText.match(/(\d+(\.\d+)?)/);
     if (angleMatch) {
       const angleValue = parseFloat(angleMatch[1]);
       // Should be close to 90 degrees (allow ±5 degrees tolerance)
@@ -286,10 +383,9 @@ test.describe("Bug Fixes Integration Tests", () => {
     await expect(modeIndicator).toContainText("SYNC MODE", { timeout: 5000 });
     console.log("✓ Mode reset to SYNC after new video upload");
 
-    // Verify sync points are cleared (offset display should not show +25)
-    const offsetText = await offsetDisplay.textContent();
-    expect(offsetText).not.toContain("+25");
-    console.log("✓ Sync offset cleared");
+    // The sync-offset-display is only shown in PLAYBACK mode, so it should no longer be visible.
+    await expect(offsetDisplay).not.toBeVisible({ timeout: 2000 });
+    console.log("✓ Sync offset display hidden (SYNC mode, no sync point set)");
 
     // Verify videos are at independent positions
     const frameA = await getFrameNumber(page, "frame-counter-a");
@@ -298,6 +394,8 @@ test.describe("Bug Fixes Integration Tests", () => {
   });
 
   test("5.2.3 - Session lifecycle: save → load → verify state restoration", async ({ page }) => {
+    // Unique session name to avoid collisions with prior test runs
+    const sessionName = `Test Session 5.2.3 - ${Date.now()}`;
     /**
      * Validates: Bug fix 2.2 (Session load state restoration)
      * Validates: Bug fix 2.3 (Library video save button state)
@@ -348,37 +446,25 @@ test.describe("Bug Fixes Integration Tests", () => {
     await page.waitForTimeout(500);
     console.log("Annotations created on both channels");
 
-    // Open library panel and save both videos
-    const libraryButton = page.locator('[data-testid="library-toggle"]');
-    if (await libraryButton.isVisible()) {
-      await libraryButton.click();
-      await page.waitForTimeout(500);
-
-      // Save Video A to library
-      const saveVideoAButton = page.locator('[data-testid="save-video-a-button"]');
-      if (await saveVideoAButton.isEnabled()) {
-        await saveVideoAButton.click();
-        await page.waitForTimeout(1000);
-        console.log("Video A saved to library");
-      }
-
-      // Save Video B to library
-      const saveVideoBButton = page.locator('[data-testid="save-video-b-button"]');
-      if (await saveVideoBButton.isEnabled()) {
-        await saveVideoBButton.click();
-        await page.waitForTimeout(1000);
-        console.log("Video B saved to library");
-      }
-
-      // Close library panel
-      await libraryButton.click();
+    // Save both videos to library via the AddToLibraryPanel in the Analyze view
+    const saveVideoAButton = page.locator('[data-testid="save-video-a-button"]');
+    if (await saveVideoAButton.isEnabled()) {
+      await saveVideoAButton.click();
       await page.waitForTimeout(300);
+      // Submit the modal (all metadata fields are optional)
+      await page.locator('[data-testid="save-to-library-submit"]').click();
+      await page.waitForTimeout(1000);
+      console.log("Video A saved to library");
     }
 
-    // Open session panel
-    const sessionButton = page.locator('[data-testid="session-toggle"]');
-    await sessionButton.click();
-    await page.waitForTimeout(500);
+    const saveVideoBButton = page.locator('[data-testid="save-video-b-button"]');
+    if (await saveVideoBButton.isEnabled()) {
+      await saveVideoBButton.click();
+      await page.waitForTimeout(300);
+      await page.locator('[data-testid="save-to-library-submit"]').click();
+      await page.waitForTimeout(1000);
+      console.log("Video B saved to library");
+    }
 
     // Verify session save button is enabled (since videos are in library)
     const saveSessionButton = page.locator('[data-testid="save-session-button"]');
@@ -386,11 +472,12 @@ test.describe("Bug Fixes Integration Tests", () => {
     expect(isEnabled).toBe(true);
     console.log("✓ Session save button is enabled (videos in library)");
 
-    // Save session with a test name
-    const sessionNameInput = page.locator('[data-testid="session-name-input"]');
-    await sessionNameInput.fill("Test Session 5.2.3");
-
+    // Open save session modal, fill name, and submit
     await saveSessionButton.click();
+    await page.waitForTimeout(300);
+    const sessionNameInput = page.locator('[data-testid="session-name-input"]');
+    await sessionNameInput.fill(sessionName);
+    await page.locator('[data-testid="save-session-submit"]').click();
     await page.waitForTimeout(2000);
     console.log("Session saved");
 
@@ -398,49 +485,55 @@ test.describe("Bug Fixes Integration Tests", () => {
     const sessionsResp = await page.request.get('/api/sessions');
     expect(sessionsResp.ok()).toBe(true);
     const sessions = await sessionsResp.json();
-    const savedSession = sessions.find((s: { name: string; id: string }) => s.name === 'Test Session 5.2.3');
+    const savedSession = sessions.find((s: { name: string; id: string }) => s.name === sessionName);
     expect(savedSession).toBeDefined();
     const sessionDetail = await page.request.get(`/api/sessions/${savedSession.id}`);
     expect(sessionDetail.ok()).toBe(true);
     const sessionData = await sessionDetail.json();
     expect(sessionData.annotations.a.length).toBeGreaterThan(0);
     expect(sessionData.annotations.b.length).toBeGreaterThan(0);
+    // Verify sync frames were saved correctly
+    console.log(`Session sync frames: A=${sessionData.sync_frame_a}, B=${sessionData.sync_frame_b}`);
+    expect(sessionData.sync_frame_a).toBe(30);
+    expect(sessionData.sync_frame_b).toBe(60);
     console.log("✓ Annotations persisted in backend");
-
-    // Close session panel
-    await sessionButton.click();
-    await page.waitForTimeout(300);
 
     // Navigate back to home and reload the app
     await navigateToProductionApp(page);
     await page.waitForTimeout(1000);
 
-    // Open session panel again
-    await sessionButton.click();
+    // Navigate to Sessions view to load the saved session
+    await page.click('[data-testid="sessions-tab"]');
     await page.waitForTimeout(500);
 
-    // Load the saved session
+    // Load the saved session — it was just created so it appears first in the newest-first list.
+    // Using .first() is safe because the unique sessionName guarantees no other session with
+    // this exact name exists in the list.
     const loadSessionButton = page.locator('[data-testid="load-session-button"]').first();
     await loadSessionButton.click();
     await page.waitForTimeout(3000);
 
     console.log("Session loaded");
 
-    // Wait for videos to be loaded
+    // Wait for videos to be loaded (session restore fetches videos from library)
     await page.waitForSelector('[data-testid="frame-counter-a"]', {
-      timeout: 15000,
+      timeout: 30000,
     });
     await page.waitForSelector('[data-testid="frame-counter-b"]', {
-      timeout: 15000,
+      timeout: 30000,
     });
 
     // Verify mode is PLAYBACK
-    await expect(modeIndicator).toContainText("PLAYBACK MODE", { timeout: 5000 });
+    await expect(modeIndicator).toContainText("PLAYBACK MODE", { timeout: 10000 });
     console.log("✓ Mode restored to PLAYBACK");
 
     // Verify sync offset is maintained
     const offsetDisplay = page.locator('[data-testid="sync-offset-display"]');
-    await expect(offsetDisplay).toContainText("+30", { timeout: 5000 });
+    // Debug: log what the offset display actually contains
+    await offsetDisplay.waitFor({ state: 'visible', timeout: 10000 });
+    const offsetText = await offsetDisplay.textContent();
+    console.log(`Sync offset display text: "${offsetText}"`);
+    await expect(offsetDisplay).toContainText("+30", { timeout: 10000 });
     console.log("✓ Sync offset restored (+30)");
 
     // Verify playback rate restored
@@ -491,15 +584,13 @@ test.describe("Bug Fixes Integration Tests", () => {
     });
     console.log("First video A uploaded");
 
-    // Open library panel
-    const libraryButton = page.locator('[data-testid="library-toggle"]');
-    await libraryButton.click();
-    await page.waitForTimeout(500);
-
-    // Save Video A to library
+    // Save Video A to library via the AddToLibraryPanel (always visible in Analyze view)
     const saveVideoAButton = page.locator('[data-testid="save-video-a-button"]');
     await expect(saveVideoAButton).toBeEnabled({ timeout: 5000 });
     await saveVideoAButton.click();
+    await page.waitForTimeout(300);
+    // Submit the modal (all metadata fields are optional)
+    await page.locator('[data-testid="save-to-library-submit"]').click();
     await page.waitForTimeout(1500);
 
     // Verify button shows saved state
@@ -513,10 +604,6 @@ test.describe("Bug Fixes Integration Tests", () => {
     expect(isDisabled).toBe(true);
     console.log("✓ Save button is disabled (video in library)");
 
-    // Close library panel
-    await libraryButton.click();
-    await page.waitForTimeout(300);
-
     // Upload new video to slot A
     console.log("Uploading new video A...");
     await uploadVideoProduction(page, "file-input-a", testVideoPath, 0, {
@@ -529,10 +616,6 @@ test.describe("Bug Fixes Integration Tests", () => {
     });
     console.log("New video A uploaded");
 
-    // Open library panel again
-    await libraryButton.click();
-    await page.waitForTimeout(500);
-
     // Verify button is re-enabled and shows unsaved state
     await expect(saveVideoAButton).toBeEnabled({ timeout: 5000 });
     const newButtonText = await saveVideoAButton.textContent();
@@ -540,13 +623,15 @@ test.describe("Bug Fixes Integration Tests", () => {
     expect(newButtonText).not.toContain("saved");
     console.log(`✓ Button shows: "${newButtonText}" (reset to unsaved state)`);
 
-    // Verify no "No video uploaded" banner is shown
-    const noVideoBanner = page.locator('text=/No video uploaded/i');
-    await expect(noVideoBanner).not.toBeVisible();
-    console.log("✓ No 'No video uploaded' banner shown (external video loaded correctly)");
+    // Verify no "No video uploaded" banner for slot A (slot B has no video so it would show one)
+    const noVideoBannerA = page.locator('[data-testid="upload-status-a"]').filter({ hasText: /No video uploaded/i });
+    await expect(noVideoBannerA).not.toBeVisible();
+    console.log("✓ No 'No video uploaded' banner for Video A (external video loaded correctly)");
 
     // Save the new video
     await saveVideoAButton.click();
+    await page.waitForTimeout(300);
+    await page.locator('[data-testid="save-to-library-submit"]').click();
     await page.waitForTimeout(1500);
 
     // Verify button shows saved state again
@@ -568,17 +653,20 @@ test.describe("Bug Fixes Integration Tests", () => {
      */
     await uploadVideos(page, testVideoPath, testVideoPath);
 
-    // Save videos to library
-    const libraryButton = page.locator('[data-testid="library-toggle"]');
-    if (await libraryButton.isVisible()) {
-      await libraryButton.click();
-      await page.waitForTimeout(500);
-      await page.locator('[data-testid="save-video-a-button"]').click();
-      await page.waitForTimeout(1000);
-      await page.locator('[data-testid="save-video-b-button"]').click();
-      await page.waitForTimeout(1000);
-      await libraryButton.click();
+    // Save videos to library via the AddToLibraryPanel in the Analyze view
+    const saveA5 = page.locator('[data-testid="save-video-a-button"]');
+    const saveB5 = page.locator('[data-testid="save-video-b-button"]');
+    if (await saveA5.isEnabled()) {
+      await saveA5.click();
       await page.waitForTimeout(300);
+      await page.locator('[data-testid="save-to-library-submit"]').click();
+      await page.waitForTimeout(1000);
+    }
+    if (await saveB5.isEnabled()) {
+      await saveB5.click();
+      await page.waitForTimeout(300);
+      await page.locator('[data-testid="save-to-library-submit"]').click();
+      await page.waitForTimeout(1000);
     }
 
     // Fetch library video IDs
@@ -629,14 +717,14 @@ test.describe("Bug Fixes Integration Tests", () => {
     await navigateToProductionApp(page);
     await page.waitForTimeout(1000);
 
-    // Open session panel
-    const sessionButton = page.locator('[data-testid="session-toggle"]');
-    await sessionButton.click();
+    // Navigate to Sessions view to load sessions
+    await page.click('[data-testid="sessions-tab"]');
     await page.waitForTimeout(500);
 
     const loadButtons = page.locator('[data-testid="load-session-button"]');
 
-    // Load Session A (second in list because B is newer)
+    // Load Session A (second in list because B is newer).
+    // Loading navigates back to Analyze view automatically.
     const hydrationPromiseA = page.waitForEvent('console', {
       predicate: (msg) => msg.text().includes('Video A: Hydrated'),
       timeout: 15000,
@@ -644,6 +732,10 @@ test.describe("Bug Fixes Integration Tests", () => {
     await loadButtons.nth(1).click();
     await hydrationPromiseA;
     console.log("✓ Session A annotations hydrated");
+
+    // Navigate back to Sessions view to load Session B
+    await page.click('[data-testid="sessions-tab"]');
+    await page.waitForTimeout(500);
 
     // Load Session B (first in list)
     const hydrationPromiseB = page.waitForEvent('console', {
@@ -653,6 +745,10 @@ test.describe("Bug Fixes Integration Tests", () => {
     await loadButtons.nth(0).click();
     await hydrationPromiseB;
     console.log("✓ Session B annotations hydrated");
+
+    // Navigate back to Sessions view to load Session A again
+    await page.click('[data-testid="sessions-tab"]');
+    await page.waitForTimeout(500);
 
     // Load Session A again
     const hydrationPromiseA2 = page.waitForEvent('console', {

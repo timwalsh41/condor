@@ -19,6 +19,10 @@ RUN npm ci --omit=dev
 # Copy frontend source
 COPY frontend/ ./
 
+# Copy scripts and resolve version from git before build
+COPY scripts/ ./scripts/
+RUN chmod +x scripts/set-version.sh && scripts/set-version.sh
+
 # Build production bundle (tsc + vite build)
 RUN npm run build
 

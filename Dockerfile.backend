@@ -39,6 +39,10 @@ COPY alembic.ini ./
 COPY alembic/ ./alembic/
 COPY backend/ ./backend/
 
+# Copy scripts and resolve version from git before build
+COPY scripts/ ./scripts/
+RUN chmod +x scripts/set-version.sh && scripts/set-version.sh
+
 # Create video storage directory (mounted as a volume in production)
 RUN mkdir -p /app/video_storage/library
 

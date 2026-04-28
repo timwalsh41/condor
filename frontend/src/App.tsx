@@ -6,6 +6,7 @@ import { AddToLibraryPanel } from "./components/AddToLibraryPanel";
 import { SaveSessionPanel } from "./components/SaveSessionPanel";
 import { useVideoStore } from "./store/videoStore";
 import { useLibraryStore } from "./store/libraryStore";
+import { VERSION } from "./version";
 import "./App.css";
 
 /**
@@ -37,7 +38,7 @@ function App() {
     <div className="app">
       {/* ── Navigation bar ──────────────────────────────────────────────── */}
       <nav className="app-nav">
-        <span className="app-nav__brand">🏌️ Condor</span>
+        <span className="app-nav__brand">🏌️ Condor <span className="app-nav__version">{VERSION}</span></span>
         <div className="app-nav__tabs">
           <button
             className={`app-nav__tab ${view === "analyze" ? "app-nav__tab--active" : ""}`}

@@ -10,14 +10,15 @@ import logging
 import subprocess
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.database import AsyncSessionLocal, check_db_connectivity
 from backend.repositories.user_repository import get_or_create_default_user
+from backend.version import VERSION
 
 # Configure logging (console + file)
 log_dir = Path("logs")
@@ -45,7 +46,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events."""
     # Startup
-    logger.info("Starting Golf Swing Analyzer API")
+    logger.info(f"Starting Condor API v{VERSION}")
 
     # Verify ffmpeg/ffprobe availability
     try:
@@ -100,7 +101,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Golf Swing Analyzer API",
     description="Backend API for frame-accurate golf swing video analysis",
-    version="0.1.0",
+    version=VERSION,
     lifespan=lifespan
 )
 
@@ -114,7 +115,8 @@ app.add_middleware(
 )
 
 # Register routers
-from backend.routes import upload, video, library, sessions, google_photos
+from backend.routes import google_photos, library, sessions, upload, video
+
 app.include_router(upload.router)
 app.include_router(video.router)
 app.include_router(library.router)
@@ -132,7 +134,7 @@ async def health_check():
     """
     return {
         "status": "healthy",
-        "version": "0.1.0"
+        "version": VERSION
     }
 
 

@@ -127,6 +127,59 @@ describe('playbackStore', () => {
     });
   });
 
+  describe('setPlayheadPosition', () => {
+    it('should update position while preserving syncOffset and maxPosition', () => {
+      usePlaybackStore.getState().setPlayheadState({
+        position: 10,
+        syncOffset: 5,
+        maxPosition: 100,
+      });
+
+      usePlaybackStore.getState().setPlayheadPosition(25);
+
+      const { playheadState } = usePlaybackStore.getState();
+      expect(playheadState?.position).toBe(25);
+      expect(playheadState?.syncOffset).toBe(5);
+      expect(playheadState?.maxPosition).toBe(100);
+    });
+
+    it('should create playheadState when null', () => {
+      usePlaybackStore.getState().setPlayheadPosition(42);
+
+      const { playheadState } = usePlaybackStore.getState();
+      expect(playheadState).not.toBeNull();
+      expect(playheadState?.position).toBe(42);
+      expect(playheadState?.syncOffset).toBe(0);
+      expect(playheadState?.maxPosition).toBe(42);
+    });
+  });
+
+  describe('setSyncOffset', () => {
+    it('should update syncOffset while preserving position and maxPosition', () => {
+      usePlaybackStore.getState().setPlayheadState({
+        position: 10,
+        syncOffset: 5,
+        maxPosition: 100,
+      });
+
+      usePlaybackStore.getState().setSyncOffset(15);
+
+      const { playheadState } = usePlaybackStore.getState();
+      expect(playheadState?.position).toBe(10);
+      expect(playheadState?.syncOffset).toBe(15);
+      expect(playheadState?.maxPosition).toBe(100);
+    });
+
+    it('should create playheadState when null', () => {
+      usePlaybackStore.getState().setSyncOffset(-3);
+
+      const { playheadState } = usePlaybackStore.getState();
+      expect(playheadState).not.toBeNull();
+      expect(playheadState?.syncOffset).toBe(-3);
+      expect(playheadState?.position).toBe(0);
+    });
+  });
+
   describe('Slider Positions Management', () => {
     it('should set slider positions', () => {
       const positions = {

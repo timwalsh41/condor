@@ -46,6 +46,14 @@ interface PlaybackStoreState {
   setPlaybackRate: (rate: number) => void;
   setIsLooping: (isLooping: boolean) => void;
   setPlayheadState: (state: PlayheadState | null) => void;
+  /**
+   * Update the playhead position while preserving syncOffset and maxPosition.
+   */
+  setPlayheadPosition: (frame: number) => void;
+  /**
+   * Update the sync offset while preserving position and maxPosition.
+   */
+  setSyncOffset: (offset: number) => void;
   setSliderPositions: (positions: SliderPositions) => void;
   reset: () => void;
 }
@@ -78,6 +86,20 @@ export const usePlaybackStore = create<PlaybackStoreState>((set) => ({
   setIsLooping: (isLooping) => set({ isLooping }),
 
   setPlayheadState: (state) => set({ playheadState: state }),
+
+  setPlayheadPosition: (frame) =>
+    set((state) => ({
+      playheadState: state.playheadState
+        ? { ...state.playheadState, position: frame }
+        : { position: frame, syncOffset: 0, maxPosition: frame },
+    })),
+
+  setSyncOffset: (offset) =>
+    set((state) => ({
+      playheadState: state.playheadState
+        ? { ...state.playheadState, syncOffset: offset }
+        : { position: 0, syncOffset: offset, maxPosition: 0 },
+    })),
 
   setSliderPositions: (positions) => set({ sliderPositions: positions }),
 

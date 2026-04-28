@@ -106,7 +106,7 @@ describe('sessionStore', () => {
       expect(mode).toBe('PLAYBACK');
     });
 
-    it('should calculate temporal offset from sync frames', async () => {
+    it('should set sync offset in playbackStore from sync frames', async () => {
       const { loadSession } = useSessionStore.getState();
       const { getSession } = await import('../../services/api');
 
@@ -148,12 +148,13 @@ describe('sessionStore', () => {
 
       await loadSession('test-session-1');
 
-      const { temporalOffset } = useSyncStore.getState();
+      // Sync offset is now owned by playbackStore
+      const { playheadState } = usePlaybackStore.getState();
       // offset = frameB - frameA = 200 - 100 = 100
-      expect(temporalOffset).toBe(100);
+      expect(playheadState?.syncOffset).toBe(100);
     });
 
-    it('should set temporalOffset to null when no sync frames exist', async () => {
+    it('should have no sync offset when no sync frames exist', async () => {
       const { loadSession } = useSessionStore.getState();
       const { getSession } = await import('../../services/api');
 
@@ -195,8 +196,9 @@ describe('sessionStore', () => {
 
       await loadSession('test-session-1');
 
-      const { temporalOffset } = useSyncStore.getState();
-      expect(temporalOffset).toBeNull();
+      // Sync offset should be null since no sync frames were set
+      const { playheadState } = usePlaybackStore.getState();
+      expect(playheadState).toBeNull();
     });
 
     it('should store target sync frames for seeking after video load', async () => {

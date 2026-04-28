@@ -391,12 +391,12 @@ export function DualVideoSynchronizer() {
     setIsLooping(loop);
   }, [activeSessionId]);
 
-  // Sync offset from store on session load — provides immediate display while decoders load.
+  // Sync offset from playbackStore on session load — provides immediate display while decoders load.
   // The seek effect will overwrite this with the precise frame-based value once both
   // decoders are ready.
   useEffect(() => {
     if (!activeSessionId) return;
-    const offset = useSyncStore.getState().temporalOffset;
+    const offset = usePlaybackStore.getState().playheadState?.syncOffset ?? null;
     if (offset !== null) setSyncOffset(offset);
   }, [activeSessionId]);
 
@@ -726,10 +726,11 @@ export function DualVideoSynchronizer() {
       frameA: videoA.currentFrame,
       frameB: videoB.currentFrame,
     });
-    const { addSyncPoint, clearSyncPoints, setTemporalOffset } = useSyncStore.getState();
+    const { addSyncPoint, clearSyncPoints } = useSyncStore.getState();
+    const { setSyncOffset: setSyncOffsetInStore } = usePlaybackStore.getState();
     clearSyncPoints();
     addSyncPoint({ frameA: videoA.currentFrame, frameB: videoB.currentFrame });
-    setTemporalOffset(playhead.syncOffset);
+    setSyncOffsetInStore(playhead.syncOffset);
 
     console.log(`[PLAYBACK MODE] Initialized playhead:`, playhead);
 

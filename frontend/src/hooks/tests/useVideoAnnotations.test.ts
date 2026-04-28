@@ -11,6 +11,7 @@ import type { UseWebCodecsDecoderResult } from "../useWebCodecsDecoder";
 import type { AnnotationType } from "../../types/annotations";
 import type Konva from "konva";
 import { useState } from "react";
+import { useAnnotationStore } from "../../store/annotationStore";
 
 // Mock video decoder result
 const createMockVideoDecoder = (): UseWebCodecsDecoderResult => ({
@@ -59,6 +60,8 @@ describe("useVideoAnnotations", () => {
     mockVideoDecoder = createMockVideoDecoder();
     setActiveVideo = vi.fn();
     activeVideo = null; // Default to no active video
+    // Reset annotation store between tests (now the source of truth)
+    useAnnotationStore.getState().reset();
   });
 
   // Helper wrapper to provide tool state management for tests
@@ -1692,141 +1695,4 @@ describe("useVideoAnnotations", () => {
     });
   });
 
-  describe("hydrateAnnotations", () => {
-    it("should expose hydrateAnnotations function", () => {
-      const { result } = renderHook(() =>
-        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
-      );
-
-      expect(result.current.hydrateAnnotations).toBeTypeOf("function");
-    });
-
-    it("should load provided annotations into hook state and manager", () => {
-      const { result } = renderHook(() =>
-        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
-      );
-
-      const incomingAnnotations = [
-        { id: "ann-1", type: "arrow" as const, points: [{ x: 10, y: 10 }, { x: 50, y: 50 }], color: "#ff0000", strokeWidth: 2 },
-        { id: "ann-2", type: "oval" as const, points: [{ x: 100, y: 100 }, { x: 150, y: 150 }], color: "#0000ff", strokeWidth: 2 },
-      ];
-
-      act(() => {
-        result.current.hydrateAnnotations(incomingAnnotations);
-      });
-
-      expect(result.current.annotations).toHaveLength(2);
-      expect(result.current.annotations[0].id).toBe("ann-1");
-      expect(result.current.annotations[1].id).toBe("ann-2");
-      expect(result.current.manager.getAnnotations()).toHaveLength(2);
-    });
-
-    it("should replace existing annotations on hydration", () => {
-      const { result } = renderHook(() =>
-        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo, "freehand")
-      );
-
-      // Add an initial annotation via the manager
-      act(() => {
-        result.current.manager.createAndAddText({ x: 10, y: 10 }, "Old");
-        // sync state via updateAnnotationText would be one path; clearAll then hydrate is the session restore path
-      });
-
-      const incoming = [
-        { id: "new-1", type: "arrow" as const, points: [{ x: 5, y: 5 }, { x: 20, y: 20 }], color: "#00ff00", strokeWidth: 2 },
-      ];
-
-      act(() => {
-        result.current.hydrateAnnotations(incoming);
-      });
-
-      expect(result.current.annotations).toHaveLength(1);
-      expect(result.current.annotations[0].id).toBe("new-1");
-    });
-
-    it("should clear all annotations when hydrated with empty array", () => {
-      const { result } = renderHook(() =>
-        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo, "freehand")
-      );
-
-      const existing = [
-        { id: "x-1", type: "arrow" as const, points: [{ x: 0, y: 0 }, { x: 10, y: 10 }], color: "#ff0000", strokeWidth: 2 },
-      ];
-
-      act(() => {
-        result.current.hydrateAnnotations(existing);
-      });
-
-      expect(result.current.annotations).toHaveLength(1);
-
-      act(() => {
-        result.current.hydrateAnnotations([]);
-      });
-
-      expect(result.current.annotations).toHaveLength(0);
-      expect(result.current.manager.getAnnotations()).toHaveLength(0);
-    });
-
-    it("should clear selection on hydration", () => {
-      const { result } = renderHook(() =>
-        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo, "freehand")
-      );
-
-      // Pre-load annotations so the manager has state, then hydrate with new ones
-      const initial = [
-        { id: "sel-1", type: "arrow" as const, points: [{ x: 0, y: 0 }, { x: 10, y: 10 }], color: "#ff0000", strokeWidth: 2 },
-      ];
-      act(() => {
-        result.current.hydrateAnnotations(initial);
-      });
-
-      const incoming = [
-        { id: "new-1", type: "oval" as const, points: [{ x: 5, y: 5 }, { x: 15, y: 15 }], color: "#0000ff", strokeWidth: 2 },
-      ];
-
-      act(() => {
-        result.current.hydrateAnnotations(incoming);
-      });
-
-      // After hydration, selection should always be empty (fresh start)
-      expect(result.current.selectedIds.size).toBe(0);
-    });
-
-    it("should reset undo/redo history so hydrated state is the baseline", () => {
-      const { result } = renderHook(() =>
-        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo, "freehand")
-      );
-
-      const incoming = [
-        { id: "h-1", type: "arrow" as const, points: [{ x: 1, y: 1 }, { x: 9, y: 9 }], color: "#ff0000", strokeWidth: 2 },
-      ];
-
-      act(() => {
-        result.current.hydrateAnnotations(incoming);
-      });
-
-      // Undo stack should have exactly one entry (the hydrated state), so undo is not available
-      expect(result.current.canUndo).toBe(false);
-      // Redo stack should be empty
-      expect(result.current.canRedo).toBe(false);
-    });
-
-    it("should not mutate the input array (defensive copy)", () => {
-      const { result } = renderHook(() =>
-        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
-      );
-
-      const incoming = [
-        { id: "copy-1", type: "arrow" as const, points: [{ x: 0, y: 0 }, { x: 5, y: 5 }], color: "#ff0000", strokeWidth: 2 },
-      ];
-      const originalRef = incoming[0];
-
-      act(() => {
-        result.current.hydrateAnnotations(incoming);
-      });
-
-      // The original array reference should remain intact
-      expect(incoming[0]).toBe(originalRef);
-    });
-  });
-});
+ });

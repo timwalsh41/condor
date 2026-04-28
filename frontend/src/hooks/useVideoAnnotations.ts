@@ -17,6 +17,7 @@ import type {
   Point,
 } from "../types/annotations";
 import type { UseWebCodecsDecoderResult } from "./useWebCodecsDecoder";
+import { useAnnotationStore } from "../store/annotationStore";
 
 /**
  * Event handlers for annotation drawing
@@ -59,11 +60,6 @@ export interface UseVideoAnnotationsResult {
   handlers: AnnotationHandlers;
   clearAll: () => void;
   updateAnnotationText: (id: string, text: string) => void;
-  /**
-   * Hydrate annotations from an external source (e.g., session restore).
-   * Replaces all current annotations, resets undo/redo history, and clears selection.
-   */
-  hydrateAnnotations: (annotations: Annotation[]) => void;
   isDraggingAnnotation: boolean;
   isReshapingAnnotation: boolean;
   // Undo/redo
@@ -99,9 +95,33 @@ export function useVideoAnnotations(
   const [drawingState, setDrawingState] = useState<DrawingState>({
     mode: "idle",
   });
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+
+  // Ephemeral UI state (stays local — not persisted)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [polylineMousePos, setPolylineMousePos] = useState<Point | null>(null);
+
+  // Select annotations from annotationStore based on videoId (store is source of truth)
+  const storeAnnotations = videoId === "A"
+    ? useAnnotationStore((state) => state.annotationsA)
+    : useAnnotationStore((state) => state.annotationsB);
+
+  // Sync manager with store annotations (triggered when store changes)
+  useEffect(() => {
+    const current = manager.getAnnotations();
+    // Only sync if store annotations differ from manager annotations
+    const storeArr = videoId === "A"
+      ? useAnnotationStore.getState().annotationsA
+      : useAnnotationStore.getState().annotationsB;
+
+    if (current.length !== storeArr.length ||
+        current.some((a, i) => a.id !== storeArr[i]?.id)) {
+      manager.setAnnotations([...storeArr]);
+      setSelectedIds(manager.getSelectedIds());
+      // Reset undo/redo history — loaded state becomes the clean baseline
+      setUndoStack([[...storeArr]]);
+      setRedoStack([]);
+    }
+  }, [storeAnnotations, videoId, manager]);
 
   // Drag state (Subtask 0.5.10)
   const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
@@ -124,6 +144,18 @@ export function useVideoAnnotations(
     setRedoStack([]);
   }, []);
 
+  /**
+   * Write current annotations to the annotationStore for this video slot.
+   * This is the primary write path — replaces the old setAnnotations(state) pattern.
+   */
+  const pushToStore = useCallback((current: Annotation[]) => {
+    if (videoId === "A") {
+      useAnnotationStore.getState().setAnnotationsA(current);
+    } else {
+      useAnnotationStore.getState().setAnnotationsB(current);
+    }
+  }, [videoId]);
+
   const undo = useCallback(() => {
     setUndoStack((prev) => {
       if (prev.length <= 1) return prev; // Nothing to undo
@@ -131,12 +163,12 @@ export function useVideoAnnotations(
       const prevState = newStack[newStack.length - 1];
       manager.setAnnotations(prevState);
       const restored = manager.getAnnotations();
-      setAnnotations(restored);
+      pushToStore(restored);
       setSelectedIds(manager.getSelectedIds());
       setRedoStack((r) => [[...prev[prev.length - 1]], ...r]);
       return newStack;
     });
-  }, [manager]);
+  }, [manager, pushToStore]);
 
   const redo = useCallback(() => {
     setRedoStack((prev) => {
@@ -144,12 +176,12 @@ export function useVideoAnnotations(
       const [nextState, ...rest] = prev;
       manager.setAnnotations(nextState);
       const restored = manager.getAnnotations();
-      setAnnotations(restored);
+      pushToStore(restored);
       setSelectedIds(manager.getSelectedIds());
       setUndoStack((u) => [...u, [...nextState]]);
       return rest;
     });
-  }, [manager]);
+  }, [manager, pushToStore]);
 
   // Canvas scale for CSS transform
   const [scale, setScale] = useState(1);
@@ -215,7 +247,7 @@ export function useVideoAnnotations(
         const annotation = manager.finishDrawing();
         if (annotation) {
           const current = manager.getAnnotations();
-          setAnnotations(current);
+          pushToStore(current);
           pushHistory(current);
         }
         setDrawingState(manager.getDrawingState());
@@ -249,7 +281,7 @@ export function useVideoAnnotations(
             `Video ${videoId}: Deleted ${count} selected annotation(s)`
           );
           const current = manager.getAnnotations();
-          setAnnotations(current);
+          pushToStore(current);
           setSelectedIds(manager.getSelectedIds());
           pushHistory(current);
         }
@@ -340,7 +372,7 @@ export function useVideoAnnotations(
         annotation
       );
       const current = manager.getAnnotations();
-      setAnnotations(current);
+      pushToStore(current);
       pushHistory(current);
     } else {
       console.warn(
@@ -376,7 +408,7 @@ export function useVideoAnnotations(
         if (!text || !text.trim()) return;
         manager.createAndAddText(point, text.trim());
         const current = manager.getAnnotations();
-        setAnnotations(current);
+        pushToStore(current);
         pushHistory(current);
         return;
       }
@@ -394,7 +426,7 @@ export function useVideoAnnotations(
           if (annotation) {
             console.log(`Video ${videoId}: Angle annotation created:`, annotation);
             const current = manager.getAnnotations();
-            setAnnotations(current);
+            pushToStore(current);
             pushHistory(current);
           }
         }
@@ -432,7 +464,7 @@ export function useVideoAnnotations(
         annotation
       );
       const current = manager.getAnnotations();
-      setAnnotations(current);
+      pushToStore(current);
       pushHistory(current);
     }
     setDrawingState(manager.getDrawingState());
@@ -475,45 +507,26 @@ export function useVideoAnnotations(
     if (manager.getCount() > 0) {
       manager.clearAll();
       const current = manager.getAnnotations();
-      setAnnotations(current);
+      pushToStore(current);
       setSelectedIds(manager.getSelectedIds());
       pushHistory(current);
       console.log(`Video ${videoId}: All annotations cleared`);
     }
-  }, [manager, videoId, pushHistory]);
+  }, [manager, videoId, pushHistory, pushToStore]);
 
   // Update text content of a text annotation
   const updateAnnotationText = useCallback(
     (id: string, text: string) => {
       if (manager.updateAnnotationText(id, text)) {
         const current = manager.getAnnotations();
-        setAnnotations(current);
+        pushToStore(current);
         pushHistory(current);
       }
     },
-    [manager, pushHistory]
+    [manager, pushHistory, pushToStore]
   );
 
-  /**
-   * Hydrate annotations from an external source (e.g., session restore).
-   * Replaces internal manager state and React state, then resets undo/redo
-   * history so the loaded annotations become the new clean baseline.
-   */
-  const hydrateAnnotations = useCallback(
-    (incomingAnnotations: Annotation[]) => {
-      manager.setAnnotations([...incomingAnnotations]);
-      const current = manager.getAnnotations();
-      setAnnotations(current);
-      setSelectedIds(new Set());
-      // Reset history: loaded state is the baseline, no undo path back to empty
-      setUndoStack([[...current]]);
-      setRedoStack([]);
-      console.log(`Video ${videoId}: Hydrated ${current.length} annotation(s) from session restore`);
-    },
-    [manager, videoId]
-  );
-
-  // ========================================
+ // ========================================
   // Drag Handlers (Subtask 0.5.10)
   // ========================================
 
@@ -596,7 +609,7 @@ export function useVideoAnnotations(
 
         // Update all selected annotations
         manager.updateDrag(delta);
-        setAnnotations(manager.getAnnotations());
+        pushToStore(manager.getAnnotations());
         setDragMoved(true); // Mark that we actually moved
         return;
       }
@@ -607,17 +620,17 @@ export function useVideoAnnotations(
         if (!point) return;
 
         manager.updateReshape(point);
-        setAnnotations(manager.getAnnotations());
+        pushToStore(manager.getAnnotations());
       }
     },
-    [
-      isDraggingAnnotation,
-      dragStartPos,
-      isReshapingAnnotation,
-      manager,
-      getPoint,
-    ]
-  );
+  [
+    isDraggingAnnotation,
+    isReshapingAnnotation,
+    manager,
+    videoId,
+    pushHistory,
+    pushToStore,
+  ]);
 
   /**
    * Handle mouse up during drag or reshape (on Stage).
@@ -630,7 +643,7 @@ export function useVideoAnnotations(
       manager.endDrag();
       setIsDraggingAnnotation(false);
       setDragStartPos(null);
-      setAnnotations(manager.getAnnotations());
+      pushToStore(manager.getAnnotations());
       setSelectedIds(manager.getSelectedIds()); // Sync selection state after drag
       return;
     }
@@ -641,7 +654,7 @@ export function useVideoAnnotations(
       manager.endReshape();
       setIsReshapingAnnotation(false);
       const current = manager.getAnnotations();
-      setAnnotations(current);
+      pushToStore(current);
       pushHistory(current);
     }
   }, [
@@ -650,6 +663,7 @@ export function useVideoAnnotations(
     manager,
     videoId,
     pushHistory,
+    pushToStore,
   ]);
 
   return {
@@ -657,7 +671,7 @@ export function useVideoAnnotations(
     selectedTool,
     setSelectedTool: onToolChange,
     drawingState,
-    annotations,
+    annotations: storeAnnotations,
     selectedIds,
     polylineMousePos,
     scale,
@@ -675,7 +689,6 @@ export function useVideoAnnotations(
     },
     clearAll,
     updateAnnotationText,
-    hydrateAnnotations,
     isDraggingAnnotation,
     isReshapingAnnotation,
     undo,

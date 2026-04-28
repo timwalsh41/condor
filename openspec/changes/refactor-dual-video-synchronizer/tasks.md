@@ -4,30 +4,30 @@
 
 ### 1.1 Consolidate PlayheadState into playbackStore
 
-- [ ] 1.1.1 Review current `playbackStore.ts` state shape and add PlayheadState fields if needed (position, syncOffset, maxPosition)
-- [ ] 1.1.2 Add `setPlayheadPosition(frame: number)` action to playbackStore that updates position while preserving syncOffset
-- [ ] 1.1.3 Add `setSyncOffset(offset: number)` action to playbackStore
-- [ ] 1.1.4 Update `restoreSessionState()` in `sessionStore.ts` to write playhead state via `playbackStore.setPlayheadPosition()` and `playbackStore.setSyncOffset()` instead of any local component state
-- [ ] 1.1.5 Update `buildSessionPayload()` in `sessionStore.ts` to read playhead state from `playbackStore.getState().playheadState`
-- [ ] 1.1.6 Update `playbackStore.test.ts` — add tests for new actions, verify session save reads from store
+- [x] 1.1.1 Review current `playbackStore.ts` state shape and add PlayheadState fields if needed (position, syncOffset, maxPosition)
+- [x] 1.1.2 Add `setPlayheadPosition(frame: number)` action to playbackStore that updates position while preserving syncOffset
+- [x] 1.1.3 Add `setSyncOffset(offset: number)` action to playbackStore
+- [x] 1.1.4 Update `restoreSessionState()` in `sessionStore.ts` to write playhead state via `playbackStore.setPlayheadPosition()` and `playbackStore.setSyncOffset()` instead of any local component state
+- [x] 1.1.5 Update `buildSessionPayload()` in `sessionStore.ts` to read playhead state from `playbackStore.getState().playheadState`
+- [x] 1.1.6 Update `playbackStore.test.ts` — add tests for new actions, verify session save reads from store
 
 ### 1.2 Remove syncStore.temporalOffset
 
-- [ ] 1.2.1 Remove `temporalOffset` field from `syncStore.ts` state
-- [ ] 1.2.2 Remove `setTemporalOffset` action from `syncStore.ts`
-- [ ] 1.2.3 Update `sessionStore.ts` — remove all references to `temporalOffset` (read in `buildSessionPayload`, write in `restoreSessionState`)
-- [ ] 1.2.4 Update `DualVideoSynchronizer.tsx` — remove all references to `temporalOffset` (read in session load effect at line ~397-401)
-- [ ] 1.2.5 Update `syncStore.test.ts` — remove temporalOffset tests, verify remaining tests pass
-- [ ] 1.2.6 Verify no remaining references: `grep -r "temporalOffset" frontend/src/`
+- [x] 1.2.1 Remove `temporalOffset` field from `syncStore.ts` state
+- [x] 1.2.2 Remove `setTemporalOffset` action from `syncStore.ts`
+- [x] 1.2.3 Update `sessionStore.ts` — remove all references to `temporalOffset` (read in `buildSessionPayload`, write in `restoreSessionState`)
+- [x] 1.2.4 Update `DualVideoSynchronizer.tsx` — remove all references to `temporalOffset` (read in session load effect at line ~397-401)
+- [x] 1.2.5 Update `syncStore.test.ts` — remove temporalOffset tests, verify remaining tests pass
+- [x] 1.2.6 Verify no remaining references: `grep -r "temporalOffset" frontend/src/`
 
 ### 1.3 Refactor useVideoAnnotations for store-backed annotations
 
-- [ ] 1.3.1 Update `useVideoAnnotations.ts` to subscribe to `useAnnotationStore` for the current annotation array (use `useSelector` pattern or direct store subscription)
-- [ ] 1.3.2 Update `useVideoAnnotations.ts` to write new annotations directly to `annotationStore` via `setAnnotationsA`/`setAnnotationsB`
-- [ ] 1.3.3 Remove `hydrateAnnotations` method from `useVideoAnnotations.ts` return type
-- [ ] 1.3.4 Keep local state for ephemeral UI data: `drawingState`, `selectedIds`, `polylineMousePos`, `isDraggingAnnotation`, `isReshapingAnnotation`
-- [ ] 1.3.5 Remove all sync-back `useEffect` hooks that previously synced hook state → store (these were in `DualVideoSynchronizer.tsx`, not in the hook)
-- [ ] 1.3.6 Update `useVideoAnnotations.test.ts` — remove `hydrateAnnotations` tests, add store subscription tests
+- [x] 1.3.1 Update `useVideoAnnotations.ts` to subscribe to `useAnnotationStore` for the current annotation array (use `useSelector` pattern or direct store subscription)
+- [x] 1.3.2 Update `useVideoAnnotations.ts` to write new annotations directly to `annotationStore` via `setAnnotationsA`/`setAnnotationsB`
+- [x] 1.3.3 Remove `hydrateAnnotations` method from `useVideoAnnotations.ts` return type
+- [x] 1.3.4 Keep local state for ephemeral UI data: `drawingState`, `selectedIds`, `polylineMousePos`, `isDraggingAnnotation`, `isReshapingAnnotation`
+- [x] 1.3.5 Remove all sync-back `useEffect` hooks that previously synced hook state → store (these were in `DualVideoSynchronizer.tsx`, not in the hook)
+- [x] 1.3.6 Update `useVideoAnnotations.test.ts` — remove `hydrateAnnotations` tests, add store subscription tests
   - Add test: "annotations update when store changes"
   - Add test: "new annotations write to store"
   - Add test: "deleted annotations write to store"

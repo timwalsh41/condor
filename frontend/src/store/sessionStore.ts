@@ -96,8 +96,8 @@ export function buildSessionPayload(name: string, notes?: string): AnalysisSessi
 export async function restoreSessionState(session: AnalysisSessionResponse): Promise<string[]> {
   const { setVideoA, setVideoB, setSessionId } = useVideoStore.getState();
   const { setAnnotationsA, setAnnotationsB } = useAnnotationStore.getState();
-  const { addSyncPoint, clearSyncPoints, setTemporalOffset, setMode, setTargetSyncFrames } = useSyncStore.getState();
-  const { setPlaybackRate, setIsLooping } = usePlaybackStore.getState();
+  const { addSyncPoint, clearSyncPoints, setMode, setTargetSyncFrames } = useSyncStore.getState();
+  const { setPlaybackRate, setIsLooping, setSyncOffset } = usePlaybackStore.getState();
   const { setTrimStart, setTrimEnd } = useTrimStore.getState();
 
   // Restore playback settings
@@ -108,14 +108,12 @@ export async function restoreSessionState(session: AnalysisSessionResponse): Pro
   setTrimStart(session.trim_start_a ?? null);
   setTrimEnd(session.trim_end_a ?? null);
 
-  // Restore sync points and calculate temporal offset
+  // Restore sync points and set sync offset in playbackStore
   clearSyncPoints();
   if (session.sync_frame_a !== null && session.sync_frame_b !== null) {
     addSyncPoint({ frameA: session.sync_frame_a, frameB: session.sync_frame_b });
-    // Calculate temporal offset: frameB = frameA + offset → offset = frameB - frameA
-    setTemporalOffset(session.sync_frame_b - session.sync_frame_a);
-  } else {
-    setTemporalOffset(null);
+    // Sync offset is now owned by playbackStore (clean break from syncStore.temporalOffset)
+    setSyncOffset(session.sync_frame_b - session.sync_frame_a);
   }
 
   // Restore annotations

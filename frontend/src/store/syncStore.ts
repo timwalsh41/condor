@@ -32,10 +32,6 @@ interface SyncStoreState {
   // Sync points (up to 2 for MVP)
   syncPoints: SyncPoint[];
 
-  // Calculated temporal offset (frameB = frameA + offset)
-  // Null until sync points are established
-  temporalOffset: number | null;
-
   // Target sync frames for seeking after session load
   targetSyncFrameA: number | null;
   targetSyncFrameB: number | null;
@@ -45,7 +41,6 @@ interface SyncStoreState {
   addSyncPoint: (syncPoint: SyncPoint) => void;
   removeSyncPoint: (index: number) => void;
   clearSyncPoints: () => void;
-  setTemporalOffset: (offset: number | null) => void;
   setTargetSyncFrames: (frameA: number | null, frameB: number | null) => void;
   clearTargetSyncFrames: () => void;
   reset: () => void;
@@ -58,7 +53,6 @@ interface SyncStoreState {
 const initialState = {
   mode: 'SYNC' as PlaybackMode,
   syncPoints: [],
-  temporalOffset: null,
   targetSyncFrameA: null,
   targetSyncFrameB: null,
 };
@@ -81,9 +75,7 @@ export const useSyncStore = create<SyncStoreState>((set) => ({
       syncPoints: state.syncPoints.filter((_, i) => i !== index),
     })),
 
-  clearSyncPoints: () => set({ syncPoints: [], temporalOffset: null }),
-
-  setTemporalOffset: (offset) => set({ temporalOffset: offset }),
+  clearSyncPoints: () => set({ syncPoints: [] }),
 
   /**
    * Set target sync frames for seeking after session load.
@@ -118,7 +110,6 @@ export const useSyncStore = create<SyncStoreState>((set) => ({
    * **Side Effects**:
    * - Resets mode to SYNC
    * - Clears all sync points
-   * - Resets temporal offset to null
    *
    * **Integration**: Should be called when loading new videos or resetting sync state.
    */

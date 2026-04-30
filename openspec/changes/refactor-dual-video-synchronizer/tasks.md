@@ -38,32 +38,32 @@
 
 ### 2.1 Create useVideoControls hook
 
-- [ ] 2.1.1 Create `frontend/src/hooks/useVideoControls.ts`
-- [ ] 2.1.2 Extract play/pause handler — accepts `videoDecoder` ref, returns `playPause()`
-- [ ] 2.1.3 Extract step handlers — returns `stepForward(coarse: boolean)` and `stepBackward(coarse: boolean)`
-- [ ] 2.1.4 Extract scrub handlers — returns `onSliderChange(value: number)` and `onSliderRelease()`
-- [ ] 2.1.5 Extract speed handler — returns `onSpeedChange(rate: number)`
-- [ ] 2.1.6 Extract seek helper — returns `seekToFrame(frame: number)` that pauses playback first
-- [ ] 2.1.7 Add internal state: `sliderValue` for responsive UI updates
-- [ ] 2.1.8 Ensure all handlers access latest decoder state via refs (not closure)
+- [x] 2.1.1 Create `frontend/src/hooks/useVideoControls.ts`
+- [x] 2.1.2 Extract play/pause handler — accepts `videoDecoder` ref, returns `playPause()`
+- [x] 2.1.3 Extract step handlers — returns `stepForward(coarse: boolean)` and `stepBackward(coarse: boolean)`
+- [x] 2.1.4 Extract scrub handlers — returns `onSliderChange(value: number)` and `onSliderRelease()`
+- [x] 2.1.5 Extract speed handler — returns `onSpeedChange(rate: number)`
+- [x] 2.1.6 Extract seek helper — returns `seekToFrame(frame: number)` that pauses playback first
+- [x] 2.1.7 Add internal state: `sliderValue` for responsive UI updates
+- [x] 2.1.8 Ensure all handlers access latest decoder state via refs (not closure)
 
 ### 2.2 Write useVideoControls tests
 
-- [ ] 2.2.1 Create `frontend/src/hooks/tests/useVideoControls.test.ts`
-- [ ] 2.2.2 Test: initializes with default slider value of 0
-- [ ] 2.2.3 Test: playPause toggles isPlaying state
-- [ ] 2.2.4 Test: playPause pauses if playing, plays if paused
-- [ ] 2.2.5 Test: stepForward increments current frame by 1
-- [ ] 2.2.6 Test: stepForward increments current frame by 5 when coarse=true
-- [ ] 2.2.7 Test: stepBackward decrements current frame by 1
-- [ ] 2.2.8 Test: stepBackward decrements current frame by 5 when coarse=true
-- [ ] 2.2.9 Test: step handlers pause video before seeking
-- [ ] 2.2.10 Test: seekToFrame pauses video before seeking
-- [ ] 2.2.11 Test: onSliderChange updates slider value without seeking
-- [ ] 2.2.12 Test: onSliderRelease seeks to slider value and pauses video
-- [ ] 2.2.13 Test: onSpeedChange updates playback rate
-- [ ] 2.2.14 Test: step handlers respect frame boundaries (0 and totalFrames-1)
-- [ ] 2.2.15 Test: hook returns consistent references across re-renders (stable handlers via useCallback)
+- [x] 2.2.1 Create `frontend/src/hooks/tests/useVideoControls.test.ts`
+- [x] 2.2.2 Test: initializes with default slider value of 0
+- [x] 2.2.3 Test: playPause toggles isPlaying state
+- [x] 2.2.4 Test: playPause pauses if playing, plays if paused
+- [x] 2.2.5 Test: stepForward increments current frame by 1
+- [x] 2.2.6 Test: stepForward increments current frame by 5 when coarse=true
+- [x] 2.2.7 Test: stepBackward decrements current frame by 1
+- [x] 2.2.8 Test: stepBackward decrements current frame by 5 when coarse=true
+- [x] 2.2.9 Test: step handlers pause video before seeking
+- [x] 2.2.10 Test: seekToFrame pauses video before seeking
+- [x] 2.2.11 Test: onSliderChange updates slider value without seeking
+- [x] 2.2.12 Test: onSliderRelease seeks to slider value and pauses video
+- [x] 2.2.13 Test: onSpeedChange updates playback rate
+- [x] 2.2.14 Test: step handlers respect frame boundaries (0 and totalFrames-1)
+- [x] 2.2.15 Test: hook returns consistent references across re-renders (stable handlers via useCallback)
 
 ## 3. Extract VideoCanvas Component
 

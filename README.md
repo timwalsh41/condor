@@ -24,6 +24,8 @@ PostgreSQL does not start automatically and must be started each time the contai
 docker exec -it -u postgres opencode-condor /bin/zsh -c "service postgresql start"
 ```
 
+**Note**: Use the `start_postgresql.sh` script for this, again from the host not the container
+
 ### First-Time Container Setup
 
 After connecting to a **fresh** dev container, complete these additional steps once to initialise the environment.

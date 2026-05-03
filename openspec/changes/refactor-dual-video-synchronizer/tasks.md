@@ -106,31 +106,31 @@
 
 ### 4.1 Create VideoControls component
 
-- [ ] 4.1.1 Create `frontend/src/components/VideoControls.tsx`
-- [ ] 4.1.2 Define props interface: `VideoControlsProps` with totalFrames, currentFrame, isPlaying, sliderValue, speed options, and callbacks
-- [ ] 4.1.3 Extract scrub bar input (range input with min/max/value/onChange/onMouseUp/onTouchEnd)
-- [ ] 4.1.4 Extract play/pause button with dynamic label and color
-- [ ] 4.1.5 Extract step buttons grid: back 5, forward 5, back 1, forward 1 (with disabled states)
-- [ ] 4.1.6 Extract speed selector dropdown
-- [ ] 4.1.7 Wire all callbacks to the extracted `useVideoControls` hook
-- [ ] 4.1.8 Preserve all `data-testid` attributes from current component
+- [x] 4.1.1 Create `frontend/src/components/VideoControls.tsx`
+- [x] 4.1.2 Define props interface: `VideoControlsProps` with totalFrames, currentFrame, isPlaying, sliderValue, speed options, and callbacks
+- [x] 4.1.3 Extract scrub bar input (range input with min/max/value/onChange/onMouseUp/onTouchEnd)
+- [x] 4.1.4 Extract play/pause button with dynamic label and color
+- [x] 4.1.5 Extract step buttons grid: back 5, forward 5, back 1, forward 1 (with disabled states)
+- [x] 4.1.6 Extract speed selector dropdown
+- [x] 4.1.7 Wire all callbacks to the extracted `useVideoControls` hook
+- [x] 4.1.8 Preserve all `data-testid` attributes from current component
 
 ### 4.2 Write VideoControls tests
 
-- [ ] 4.2.1 Create `frontend/src/components/tests/VideoControls.test.tsx`
-- [ ] 4.2.2 Test: renders scrub bar with correct min/max values
-- [ ] 4.2.3 Test: renders play button with "▶ Play" when not playing
-- [ ] 4.2.4 Test: renders play button with "⏸ Pause" when playing
-- [ ] 4.2.5 Test: step-backward-1 button is disabled at frame 0
-- [ ] 4.2.6 Test: step-forward-1 button is disabled at max frame
-- [ ] 4.2.7 Test: step-backward-5 button is disabled at frame 0
-- [ ] 4.2.8 Test: step-forward-5 button is disabled at max frame
-- [ ] 4.2.9 Test: speed selector shows all 5 speed options
-- [ ] 4.2.10 Test: clicking play calls onPlayPause callback
-- [ ] 4.2.11 Test: dragging scrub bar calls onSliderChange with new value
-- [ ] 4.2.12 Test: releasing scrub bar calls onSliderRelease
-- [ ] 4.2.13 Test: clicking step buttons calls appropriate step callback
-- [ ] 4.2.14 Test: changing speed calls onSpeedChange callback
+- [x] 4.2.1 Create `frontend/src/components/tests/VideoControls.test.tsx`
+- [x] 4.2.2 Test: renders scrub bar with correct min/max values
+- [x] 4.2.3 Test: renders play button with "▶ Play" when not playing
+- [x] 4.2.4 Test: renders play button with "⏸ Pause" when playing
+- [x] 4.2.5 Test: step-backward-1 button is disabled at frame 0
+- [x] 4.2.6 Test: step-forward-1 button is disabled at max frame
+- [x] 4.2.7 Test: step-backward-5 button is disabled at frame 0
+- [x] 4.2.8 Test: step-forward-5 button is disabled at max frame
+- [x] 4.2.9 Test: speed selector shows all 5 speed options
+- [x] 4.2.10 Test: clicking play calls onPlayPause callback
+- [x] 4.2.11 Test: dragging scrub bar calls onSliderChange with new value
+- [x] 4.2.12 Test: releasing scrub bar calls onSliderRelease
+- [x] 4.2.13 Test: clicking step buttons calls appropriate step callback
+- [x] 4.2.14 Test: changing speed calls onSpeedChange callback
 
 ## 5. Extract PlaybackControls Component
 

@@ -69,38 +69,38 @@
 
 ### 3.1 Create VideoCanvas component
 
-- [ ] 3.1.1 Create `frontend/src/components/VideoCanvas.tsx`
-- [ ] 3.1.2 Define props interface: `VideoCanvasProps` with video decoder refs, annotation data, drawing state, scale, handlers, layer ref, and per-type callbacks
-- [ ] 3.1.3 Extract Konva Stage + Layer rendering (move from DualVideoSynchronizer, lines ~1522-2000 for Video A)
-- [ ] 3.1.4 Extract `pointsToKonva` helper — move into VideoCanvas as internal utility
-- [ ] 3.1.5 Extract `getControlPoints` helper — move into VideoCanvas as internal utility
-- [ ] 3.1.6 Extract all annotation type renderers: freehand, polyline, oval, arrow, text, angle (as parameterized sub-components or render functions)
-- [ ] 3.1.7 Extract drawing preview rendering: drag-drawing, polyline-active, angle-active (parameterized by drawingState and annotationManager)
-- [ ] 3.1.8 Extract control point rendering as a reusable sub-component
-- [ ] 3.1.9 Wrap component in `React.memo` with custom equality (skip re-render when annotations unchanged)
-- [ ] 3.1.10 Apply SCALE constant (CONTROL_POINT_SIZE, CONTROL_POINT_HIT_SIZE) — move to module level or config
+- [x] 3.1.1 Create `frontend/src/components/VideoCanvas.tsx`
+- [x] 3.1.2 Define props interface: `VideoCanvasProps` with video decoder refs, annotation data, drawing state, scale, handlers, layer ref, and per-type callbacks
+- [x] 3.1.3 Extract Konva Stage + Layer rendering (move from DualVideoSynchronizer, lines ~1522-2000 for Video A)
+- [x] 3.1.4 Extract `pointsToKonva` helper — move into VideoCanvas as internal utility
+- [x] 3.1.5 Extract `getControlPoints` helper — move into VideoCanvas as internal utility
+- [x] 3.1.6 Extract all annotation type renderers: freehand, polyline, oval, arrow, text, angle (as parameterized sub-components or render functions)
+- [x] 3.1.7 Extract drawing preview rendering: drag-drawing, polyline-active, angle-active (parameterized by drawingState and annotationManager)
+- [x] 3.1.8 Extract control point rendering as a reusable sub-component
+- [x] 3.1.9 Wrap component in `React.memo` with custom equality (skip re-render when annotations unchanged)
+- [x] 3.1.10 Apply SCALE constant (CONTROL_POINT_SIZE, CONTROL_POINT_HIT_SIZE) — move to module level or config
 
 ### 3.2 Write VideoCanvas tests
 
-- [ ] 3.2.1 Create `frontend/src/components/tests/VideoCanvas.test.tsx`
-- [ ] 3.2.2 Test: renders Konva Stage with correct dimensions
-- [ ] 3.2.3 Test: renders freehand annotation when provided in annotations array
-- [ ] 3.2.4 Test: renders polyline annotation with all vertices
-- [ ] 3.2.5 Test: renders oval annotation with correct radius
-- [ ] 3.2.6 Test: renders arrow annotation with pointer
-- [ ] 3.2.7 Test: renders text annotation with correct position and text
-- [ ] 3.2.8 Test: renders angle annotation with angle label
-- [ ] 3.2.9 Test: renders control points when annotation is selected
-- [ ] 3.2.10 Test: does NOT re-render when annotations array identity unchanged (React.memo)
-- [ ] 3.2.11 Test: renders drawing preview when drawingState.mode is drag-drawing
-- [ ] 3.2.12 Test: renders polyline preview when drawingState.mode is polyline-active
-- [ ] 3.2.13 Test: renders angle preview when drawingState.mode is angle-active
-- [ ] 3.2.14 Test: passes mouseDown events to handlers
-- [ ] 3.2.15 Test: passes click events to handlers
-- [ ] 3.2.16 Test: pointsToKonva helper converts Point[] to flat number[] correctly
-- [ ] 3.2.17 Test: getControlPoints returns correct points for each annotation type
-- [ ] 3.2.18 Test: freehand control points are start and end only
-- [ ] 3.2.19 Test: oval control points include 8 points (corners + midpoints)
+- [x] 3.2.1 Create `frontend/src/components/tests/VideoCanvas.test.tsx`
+- [x] 3.2.2 Test: renders Konva Stage with correct dimensions
+- [x] 3.2.3 Test: renders freehand annotation when provided in annotations array
+- [x] 3.2.4 Test: renders polyline annotation with all vertices
+- [x] 3.2.5 Test: renders oval annotation with correct radius
+- [x] 3.2.6 Test: renders arrow annotation with pointer
+- [x] 3.2.7 Test: renders text annotation with correct position and text
+- [x] 3.2.8 Test: renders angle annotation with angle label
+- [x] 3.2.9 Test: renders control points when annotation is selected
+- [x] 3.2.10 Test: does NOT re-render when annotations array identity unchanged (React.memo)
+- [x] 3.2.11 Test: renders drawing preview when drawingState.mode is drag-drawing
+- [x] 3.2.12 Test: renders polyline preview when drawingState.mode is polyline-active
+- [x] 3.2.13 Test: renders angle preview when drawingState.mode is angle-active
+- [x] 3.2.14 Test: passes mouseDown events to handlers
+- [x] 3.2.15 Test: passes click events to handlers
+- [x] 3.2.16 Test: pointsToKonva helper converts Point[] to flat number[] correctly
+- [x] 3.2.17 Test: getControlPoints returns correct points for each annotation type
+- [x] 3.2.18 Test: freehand control points are start and end only
+- [x] 3.2.19 Test: oval control points include 8 points (corners + midpoints)
 
 ## 4. Extract VideoControls Component
 

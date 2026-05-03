@@ -1182,7 +1182,6 @@ export function useWebCodecsDecoder(
             cacheRef.current.set(frameIndex, cached);
 
             // Clear pending decode flag now that frame is cached
-            const wasPending = pendingDecodesRef.current.has(frameIndex);
             pendingDecodesRef.current.delete(frameIndex);
 
             // if (wasPending) {

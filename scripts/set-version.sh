@@ -20,7 +20,9 @@
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# Allow callers to override PROJECT_ROOT (e.g. when scripts/ is copied into a
+# sub-directory of the real project root, as in Docker build contexts).
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 
 # ── Version resolution ────────────────────────────────────────────────────────
 

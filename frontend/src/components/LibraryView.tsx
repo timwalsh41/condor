@@ -371,7 +371,7 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
         </p>
       ) : (
         <div className="library-view__grid">
-          {videos.map((video) => (
+          {videos.map((video: LibraryVideo) => (
             <VideoCard
               key={video.id}
               video={video}

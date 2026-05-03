@@ -21,7 +21,7 @@ COPY frontend/ ./
 
 # Copy scripts and resolve version from git before build
 COPY scripts/ ./scripts/
-RUN chmod +x scripts/set-version.sh && scripts/set-version.sh
+RUN chmod +x scripts/set-version.sh && PROJECT_ROOT=/app scripts/set-version.sh
 
 # Build production bundle (tsc + vite build)
 RUN npm run build

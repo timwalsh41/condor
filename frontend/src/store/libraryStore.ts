@@ -41,7 +41,7 @@ interface LibraryStoreState {
   clearError: () => void;
 }
 
-export const useLibraryStore = create<LibraryStoreState>((set) => ({
+export const useLibraryStore = create<LibraryStoreState>((set, get) => ({
   videos: [],
   loading: false,
   error: null,
@@ -81,8 +81,7 @@ export const useLibraryStore = create<LibraryStoreState>((set) => ({
   },
 
   isVideoInLibrary: (videoId: string) => {
-    const { videos } = useLibraryStore.getState();
-    return videos.some((v) => v.id === videoId);
+    return get().videos.some((v) => v.id === videoId);
   },
 
   clearError: () => set({ error: null }),

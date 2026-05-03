@@ -12,7 +12,7 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useVideoStore } from "../store/videoStore";
 import { useLibraryStore } from "../store/libraryStore";
-import type { LibraryVideoCreate } from "../types/api";
+import type { LibraryVideo, LibraryVideoCreate } from "../types/api";
 import "./LibraryView.css"; // Reuse shared button + modal styles
 
 type Slot = "A" | "B";
@@ -61,7 +61,7 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
     const newSavedSlots = new Set<Slot>();
 
     if (videoA?.metadata?.video_id) {
-      const inLibraryArray = videos.some(v => v.id === videoA.metadata.video_id);
+      const inLibraryArray = videos.some((v: LibraryVideo) => v.id === videoA.metadata!.video_id);
       const isFromLibrary = videoA.metadata.session_id === 'library';
       if (inLibraryArray || isFromLibrary) {
         newSavedSlots.add("A");
@@ -69,7 +69,7 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
     }
 
     if (videoB?.metadata?.video_id) {
-      const inLibraryArray = videos.some(v => v.id === videoB.metadata.video_id);
+      const inLibraryArray = videos.some((v: LibraryVideo) => v.id === videoB.metadata!.video_id);
       const isFromLibrary = videoB.metadata.session_id === 'library';
       if (inLibraryArray || isFromLibrary) {
         newSavedSlots.add("B");
@@ -89,7 +89,7 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
     // Check if video A has changed (new upload)
     // Only process if prevVideoAIdRef has been initialized (not initial mount)
     if (prevVideoAIdRef.current !== null && currentVideoAId !== prevVideoAIdRef.current) {
-      const isNowInLibrary = currentVideoAId !== null && videos.some(v => v.id === currentVideoAId);
+      const isNowInLibrary = currentVideoAId !== null && videos.some((v: LibraryVideo) => v.id === currentVideoAId);
       if (!isNowInLibrary) {
         // Video A changed to a new upload — remove from saved slots to allow re-saving
         setSavedSlots(prev => {
@@ -104,7 +104,7 @@ export function AddToLibraryPanel({ children, highlightUnsaved = false }: AddToL
     // Check if video B has changed (new upload)
     // Only process if prevVideoBIdRef has been initialized (not initial mount)
     if (prevVideoBIdRef.current !== null && currentVideoBId !== prevVideoBIdRef.current) {
-      const isNowInLibrary = currentVideoBId !== null && videos.some(v => v.id === currentVideoBId);
+      const isNowInLibrary = currentVideoBId !== null && videos.some((v: LibraryVideo) => v.id === currentVideoBId);
       if (!isNowInLibrary) {
         // Video B changed to a new upload — remove from saved slots to allow re-saving
         setSavedSlots(prev => {

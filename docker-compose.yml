@@ -55,7 +55,10 @@ services:
       dockerfile: Dockerfile.frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      # HTTP redirects to HTTPS
+      - "${FRONTEND_HTTP_PORT:-3000}:80"
+      # HTTPS — required for WebCodecs and other secure-context-only browser APIs
+      - "${FRONTEND_PORT:-3443}:443"
     depends_on:
       - backend
 

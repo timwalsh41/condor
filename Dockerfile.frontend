@@ -14,7 +14,7 @@ WORKDIR /app
 # Copy package files first (layer cache-friendly)
 COPY frontend/package.json frontend/package-lock.json* ./
 
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copy frontend source
 COPY frontend/ ./

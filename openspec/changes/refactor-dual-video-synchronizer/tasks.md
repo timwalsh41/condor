@@ -136,32 +136,32 @@
 
 ### 5.1 Create PlaybackControls component
 
-- [ ] 5.1.1 Create `frontend/src/components/PlaybackControls.tsx`
-- [ ] 5.1.2 Define props interface: `PlaybackControlsProps` with playheadState, trimStart, trimEnd, isPlaying, isLooping, playbackRate, syncOffset, totalFrames, and callbacks
-- [ ] 5.1.3 Extract trim + scrub bar section (TrimScrubBar component wrapper with computed range)
-- [ ] 5.1.4 Extract play/pause button
-- [ ] 5.1.5 Extract joint step buttons: back 5, back 1, forward 1, forward 5 (4-column grid)
-- [ ] 5.1.6 Extract speed selector
-- [ ] 5.1.7 Extract sync offset display panel
-- [ ] 5.1.8 Wire callbacks to playbackStore actions and local state
-- [ ] 5.1.9 Preserve all `data-testid` attributes from current component
+- [x] 5.1.1 Create `frontend/src/components/PlaybackControls.tsx`
+- [x] 5.1.2 Define props interface: `PlaybackControlsProps` with playheadState, trimStart, trimEnd, isPlaying, isLooping, playbackRate, syncOffset, totalFrames, and callbacks
+- [x] 5.1.3 Extract trim + scrub bar section (TrimScrubBar component wrapper with computed range)
+- [x] 5.1.4 Extract play/pause button
+- [x] 5.1.5 Extract joint step buttons: back 5, back 1, forward 1, forward 5 (4-column grid)
+- [x] 5.1.6 Extract speed selector
+- [x] 5.1.7 Extract sync offset display panel
+- [x] 5.1.8 Wire callbacks to playbackStore actions and local state
+- [x] 5.1.9 Preserve all `data-testid` attributes from current component
 
 ### 5.2 Write PlaybackControls tests
 
-- [ ] 5.2.1 Create `frontend/src/components/tests/PlaybackControls.test.tsx`
-- [ ] 5.2.2 Test: renders TrimScrubBar with computed range from sync offset
-- [ ] 5.2.3 Test: renders play button with correct label based on isPlaying
-- [ ] 5.2.4 Test: renders 4 step buttons in grid layout
-- [ ] 5.2.5 Test: speed selector shows all 5 speed options
-- [ ] 5.2.6 Test: displays sync offset with correct sign and description
-- [ ] 5.2.7 Test: clicking play calls onPlayPause callback
-- [ ] 5.2.8 Test: clicking trim start handle calls onTrimStartChange
-- [ ] 5.2.9 Test: clicking trim end handle calls onTrimEndChange
-- [ ] 5.2.10 Test: clicking return-to-in calls onReturnToIn
-- [ ] 5.2.11 Test: clicking loop toggle calls onLoopToggle
-- [ ] 5.2.12 Test: scrub bar playhead updates when playheadState changes
-- [ ] 5.2.13 Test: frame label shows correct Video A and Video B frame numbers
-- [ ] 5.2.14 Test: step buttons call appropriate step callback
+- [x] 5.2.1 Create `frontend/src/components/tests/PlaybackControls.test.tsx`
+- [x] 5.2.2 Test: renders TrimScrubBar with computed range from sync offset
+- [x] 5.2.3 Test: renders play button with correct label based on isPlaying
+- [x] 5.2.4 Test: renders 4 step buttons in grid layout
+- [x] 5.2.5 Test: speed selector shows all 5 speed options
+- [x] 5.2.6 Test: displays sync offset with correct sign and description
+- [x] 5.2.7 Test: clicking play calls onPlayPause callback
+- [x] 5.2.8 Test: clicking trim start handle calls onTrimStartChange
+- [x] 5.2.9 Test: clicking trim end handle calls onTrimEndChange
+- [x] 5.2.10 Test: clicking return-to-in calls onReturnToIn
+- [x] 5.2.11 Test: clicking loop toggle calls onLoopToggle
+- [x] 5.2.12 Test: scrub bar playhead updates when playheadState changes
+- [x] 5.2.13 Test: frame label shows correct Video A and Video B frame numbers
+- [x] 5.2.14 Test: step buttons call appropriate step callback
 
 ## 6. Extract AnnotationToolbar Component
 

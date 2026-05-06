@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # oc.sh — Manage opencode project containers.
 #         Creates a container (if needed), starts it (if needed), and opens a zsh
 #         shell to the project workspace within the container.
@@ -18,13 +18,13 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="${0:A:h}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 # Locate project root: check current dir, then parent (for nested mode where oc.sh is in workspace/)
 if [[ -f "${SCRIPT_DIR}/.oc-config" ]]; then
   PROJECT_ROOT="${SCRIPT_DIR}"
 elif [[ -f "${SCRIPT_DIR}/../.oc-config" ]]; then
-  PROJECT_ROOT="${SCRIPT_DIR:h}"
+  PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 else
   echo "ERROR: Cannot find .oc-config in ${SCRIPT_DIR} or parent directory." >&2
   echo "Initialize the project with oc-init.sh first." >&2
@@ -40,7 +40,7 @@ WORKSPACE_MODE="nested"  # nested (default) | direct (existing repo: mount proje
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 usage() {
-  sed '/^$/q' "${SCRIPT_DIR}/oc.sh" | grep '^#' | grep -v '^#!' | sed 's/^# \{0,1\}//'
+  sed '/^$/q' "${BASH_SOURCE[0]}" | grep '^#' | grep -v '^#!' | sed 's/^# \{0,1\}//'
   exit 1
 }
 
@@ -62,7 +62,8 @@ ports_match() {
   raw=$(docker container inspect \
     --format '{{range $port, $bindings := .HostConfig.PortBindings}}{{range $bindings}}{{.HostPort}}:{{$port}} {{end}}{{end}}' \
     "${container}" 2>/dev/null)
-  local -a actual=(${=raw})
+  local -a actual=()
+  read -ra actual <<< "$raw"
 
   local sw sa
   sw=$(printf '%s\n' "${wanted[@]}" | sort)
@@ -103,11 +104,9 @@ source "${PROJECT_ROOT}/.oc-config"
   { [[ -d "${PROJECT_ROOT}/workspace" ]] || die "Missing workspace/ in ${PROJECT_ROOT}. Project appears corrupt."; }
 
 # Derive container name from project folder if not set in .oc-config
-[[ -z "${PROJECT_NAME}" ]] && PROJECT_NAME="${PROJECT_ROOT:t}"
-# Sanitize: lowercase, replace non-alphanumeric with hyphens
-CONTAINER_NAME="opencode-${PROJECT_NAME:l}" 
-CONTAINER_NAME="${CONTAINER_NAME//[^a-z0-9\-]/-}"
-
+[[ -z "${PROJECT_NAME}" ]] && PROJECT_NAME="$(basename "${PROJECT_ROOT}")"
+# Sanitize: lowercase, replace non-alphanumeric with hyphens (tr used for bash 3.2 / macOS compat)
+CONTAINER_NAME="opencode-$(printf '%s' "${PROJECT_NAME}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | tr -s '-')"
 # ── Handle --fresh ─────────────────────────────────────────────────────────────
 if $FRESH; then
   if docker container inspect "${CONTAINER_NAME}" &>/dev/null; then
@@ -120,6 +119,11 @@ fi
 # Variables are forwarded only if set in the host environment.
 # Add or remove provider env vars here as needed.
 ENV_FLAGS=()
+
+# Pass host UID/GID so the entrypoint can remap the in-container user,
+# ensuring files written to bind-mounted volumes are owned by the host user.
+ENV_FLAGS+=("-e" "HOST_UID=$(id -u)" "-e" "HOST_GID=$(id -g)")
+
 for var in \
   ANTHROPIC_API_KEY \
   OPENAI_API_KEY \
@@ -131,7 +135,7 @@ for var in \
   DEEPSEEK_API_KEY \
   GROQ_API_KEY \
   CONTEXT7_API_KEY; do
-  [[ -n "${(P)var+x}" ]] && ENV_FLAGS+=("-e" "${var}")
+  [[ -n "${!var+x}" ]] && ENV_FLAGS+=("-e" "${var}")
 done
 
 # ── Determine OS for host-gateway ─────────────────────────────────────────────
@@ -141,6 +145,33 @@ HOST_FLAGS=()
 if [[ "$(uname -s)" == "Linux" ]]; then
   HOST_FLAGS+=("--add-host" "host.docker.internal:host-gateway")
 fi
+
+# ── Notification relay ─────────────────────────────────────────────────────────
+# A small Python HTTP server runs on the host and receives POST requests from
+# notify.ts inside the container, then fires the native desktop notification
+# (notify-send on Linux, osascript on macOS).  Containers reach the relay via
+# host.docker.internal, which is wired up via HOST_FLAGS above.
+NOTIFY_RELAY_PORT="${NOTIFY_RELAY_PORT:-19944}"
+ENV_FLAGS+=("-e" "NOTIFY_RELAY_PORT=${NOTIFY_RELAY_PORT}")
+RELAY_PID=""
+
+start_relay() {
+  local relay="${SCRIPT_DIR}/notify-relay.py"
+  [[ -f "${relay}" ]] || return 0
+  command -v python3 &>/dev/null || return 0
+  # Skip if something is already listening on the port (e.g. another oc.sh instance).
+  if ! (echo > /dev/tcp/127.0.0.1/${NOTIFY_RELAY_PORT}) 2>/dev/null; then
+    python3 "${relay}" "${NOTIFY_RELAY_PORT}" &
+    RELAY_PID=$!
+  fi
+}
+
+stop_relay() {
+  [[ -n "${RELAY_PID}" ]] && kill "${RELAY_PID}" 2>/dev/null || true
+}
+
+start_relay
+trap stop_relay EXIT
 
 # ── Resolve volume mounts ────────────────────────────────────────────────────────
 # In direct mode the project root IS /workspace, so .opencode/ is visible inside it.
@@ -184,6 +215,10 @@ else
     \
     `# Security hardening` \
     --cap-drop ALL \
+    --cap-add  SETUID \
+    --cap-add  SETGID \
+    --cap-add  CHOWN \
+    --cap-add  DAC_OVERRIDE \
     --security-opt no-new-privileges \
     \
     `# Host network access for local LLMs` \

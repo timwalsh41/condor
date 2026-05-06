@@ -167,27 +167,27 @@
 
 ### 6.1 Create AnnotationToolbar component
 
-- [ ] 6.1.1 Create `frontend/src/components/AnnotationToolbar.tsx`
-- [ ] 6.1.2 Define props interface: `AnnotationToolbarProps` with selectedTool, drawingStates, activeVideo, tools, and callbacks
-- [ ] 6.1.3 Extract tool buttons: select, freehand, polyline, oval, arrow, text, angle (with active styling)
-- [ ] 6.1.4 Extract undo/redo buttons for active video (conditional rendering)
-- [ ] 6.1.5 Extract clear all buttons for each video (conditional rendering)
-- [ ] 6.1.6 Extract helper text display (polyline/angle/text tool hints)
-- [ ] 6.1.7 Preserve all `data-testid` attributes from current component
+- [x] 6.1.1 Create `frontend/src/components/AnnotationToolbar.tsx`
+- [x] 6.1.2 Define props interface: `AnnotationToolbarProps` with selectedTool, drawingStates, activeVideo, tools, and callbacks
+- [x] 6.1.3 Extract tool buttons: select, freehand, polyline, oval, arrow, text, angle (with active styling)
+- [x] 6.1.4 Extract undo/redo buttons for active video (conditional rendering)
+- [x] 6.1.5 Extract clear all buttons for each video (conditional rendering)
+- [x] 6.1.6 Extract helper text display (polyline/angle/text tool hints)
+- [x] 6.1.7 Preserve all `data-testid` attributes from current component
 
 ### 6.2 Write AnnotationToolbar tests
 
-- [ ] 6.2.1 Create `frontend/src/components/tests/AnnotationToolbar.test.tsx`
-- [ ] 6.2.2 Test: renders all 7 tool buttons
-- [ ] 6.2.3 Test: selected tool has blue border and light blue background
-- [ ] 6.2.4 Test: unselected tools have gray border and white background
-- [ ] 6.2.5 Test: clicking a tool calls onToolChange callback
-- [ ] 6.2.6 Test: undo/redo buttons shown when activeVideo matches a ready video
-- [ ] 6.2.7 Test: undo button is disabled when canUndo is false
-- [ ] 6.2.8 Test: redo button is disabled when canRedo is false
-- [ ] 6.2.9 Test: clear-all buttons shown when video is ready
-- [ ] 6.2.10 Test: clear-all button is disabled when no annotations
-- [ ] 6.2.11 Test: helper text updates based on selected tool
+- [x] 6.2.1 Create `frontend/src/components/tests/AnnotationToolbar.test.tsx`
+- [x] 6.2.2 Test: renders all 7 tool buttons
+- [x] 6.2.3 Test: selected tool has blue border and light blue background
+- [x] 6.2.4 Test: unselected tools have gray border and white background
+- [x] 6.2.5 Test: clicking a tool calls onToolChange callback
+- [x] 6.2.6 Test: undo/redo buttons shown when activeVideo matches a ready video
+- [x] 6.2.7 Test: undo button is disabled when canUndo is false
+- [x] 6.2.8 Test: redo button is disabled when canRedo is false
+- [x] 6.2.9 Test: clear-all buttons shown when video is ready
+- [x] 6.2.10 Test: clear-all button is disabled when no annotations
+- [x] 6.2.11 Test: helper text updates based on selected tool
 
 ## 7. Extract VideoPanel Component
 

@@ -193,29 +193,29 @@
 
 ### 7.1 Create VideoPanel component
 
-- [ ] 7.1.1 Create `frontend/src/components/VideoPanel.tsx`
-- [ ] 7.1.2 Define props interface: `VideoPanelProps` with videoSlot, decoder, metadata, annotations, drawingState, handlers, scale, layerRef, controls (SYNC mode only), and callbacks
-- [ ] 7.1.3 Extract video canvas layout: container div with scaling, rotation handling, canvas element
-- [ ] 7.1.4 Extract display dimension calculation (rotation-aware width/height)
-- [ ] 7.1.5 Extract VideoCanvas component integration (pass appropriate props)
-- [ ] 7.1.6 Extract frame counter display
-- [ ] 7.1.7 Extract VideoControls integration (when in SYNC mode)
-- [ ] 7.1.8 Extract "No video loaded" / "Loading..." placeholder
-- [ ] 7.1.9 Preserve all `data-testid` attributes from current component
+- [x] 7.1.1 Create `frontend/src/components/VideoPanel.tsx`
+- [x] 7.1.2 Define props interface: `VideoPanelProps` with videoSlot, decoder, metadata, annotations, drawingState, handlers, scale, layerRef, controls (SYNC mode only), and callbacks
+- [x] 7.1.3 Extract video canvas layout: container div with scaling, rotation handling, canvas element
+- [x] 7.1.4 Extract display dimension calculation (rotation-aware width/height)
+- [x] 7.1.5 Extract VideoCanvas component integration (pass appropriate props)
+- [x] 7.1.6 Extract frame counter display
+- [x] 7.1.7 Extract VideoControls integration (when in SYNC mode)
+- [x] 7.1.8 Extract "No video loaded" / "Loading..." placeholder
+- [x] 7.1.9 Preserve all `data-testid` attributes from current component
 
 ### 7.2 Write VideoPanel tests
 
-- [ ] 7.2.1 Create `frontend/src/components/tests/VideoPanel.test.tsx`
-- [ ] 7.2.2 Test: renders "No video loaded" when no decoder ready
-- [ ] 7.2.3 Test: renders "Loading..." when decoder file is set but not ready
-- [ ] 7.2.4 Test: renders VideoCanvas with correct dimensions when decoder ready
-- [ ] 7.2.5 Test: applies rotation transform correctly (rotation=0)
-- [ ] 7.2.6 Test: applies rotation transform correctly (rotation=90)
-- [ ] 7.2.7 Test: scales display when video height exceeds videoHeight config
-- [ ] 7.2.8 Test: displays frame counter with correct frame number
-- [ ] 7.2.9 Test: renders VideoControls in SYNC mode
-- [ ] 7.2.10 Test: does not render VideoControls in PLAYBACK mode
-- [ ] 7.2.11 Test: passes correct videoSlot prop to child components
+- [x] 7.2.1 Create `frontend/src/components/tests/VideoPanel.test.tsx`
+- [x] 7.2.2 Test: renders "No video loaded" when no decoder ready
+- [x] 7.2.3 Test: renders "Loading..." when decoder file is set but not ready
+- [x] 7.2.4 Test: renders VideoCanvas with correct dimensions when decoder ready
+- [x] 7.2.5 Test: applies rotation transform correctly (rotation=0)
+- [x] 7.2.6 Test: applies rotation transform correctly (rotation=90)
+- [x] 7.2.7 Test: scales display when video height exceeds videoHeight config
+- [x] 7.2.8 Test: displays frame counter with correct frame number
+- [x] 7.2.9 Test: renders VideoControls in SYNC mode
+- [x] 7.2.10 Test: does not render VideoControls in PLAYBACK mode
+- [x] 7.2.11 Test: passes correct videoSlot prop to child components
 
 ## 8. Rebuild DualVideoSynchronizer as Orchestrator
 

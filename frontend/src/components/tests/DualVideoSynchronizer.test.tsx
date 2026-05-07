@@ -16,8 +16,6 @@ import { useSyncStore } from '../../store/syncStore';
 import { useTrimStore } from '../../store/trimStore';
 
 // Hoisted mock functions for useVideoAnnotations
-const mockHydrateA = vi.hoisted(() => vi.fn());
-const mockHydrateB = vi.hoisted(() => vi.fn());
 const mockClearAllA = vi.hoisted(() => vi.fn());
 const mockClearAllB = vi.hoisted(() => vi.fn());
 const mockHandlersA = vi.hoisted(() => ({
@@ -107,7 +105,6 @@ vi.mock('../../hooks/useVideoAnnotations', () => ({
     scale: 1,
     handlers: videoId === 'A' ? mockHandlersA : mockHandlersB,
     clearAll: videoId === 'A' ? mockClearAllA : mockClearAllB,
-    hydrateAnnotations: videoId === 'A' ? mockHydrateA : mockHydrateB,
     isDraggingAnnotation: false,
     isReshapingAnnotation: false,
     undo: vi.fn(),
@@ -313,7 +310,7 @@ describe('DualVideoSynchronizer - Session Load Bug Fixes', () => {
     expect(useAnnotationStore.getState().annotationsA[0].text).toBe('Test A');
   });
 
-  it('should reset hydration ref and re-hydrate when activeSessionId changes', () => {
+  it('should preserve store annotations when activeSessionId changes', () => {
     useVideoStore.getState().setVideoA({
       metadata: {
         filename: 'video_1920x1080.mp4',
@@ -335,27 +332,25 @@ describe('DualVideoSynchronizer - Session Load Bug Fixes', () => {
 
     render(<DualVideoSynchronizer />);
 
-    expect(mockHydrateA).toHaveBeenCalledWith([
-      { id: 'ann-1', type: 'text', text: 'Test A', points: [], color: '#000', strokeWidth: 2 },
-    ]);
-    const callsAfterMount = mockHydrateA.mock.calls.length;
+    // Store annotations should be preserved (hook reads from store directly)
+    expect(useAnnotationStore.getState().annotationsA).toHaveLength(1);
+    expect(useAnnotationStore.getState().annotationsA[0].text).toBe('Test A');
 
     act(() => {
       useSessionStore.setState({ activeSessionId: 'session-2' });
     });
 
-    expect(mockHydrateA.mock.calls.length).toBe(callsAfterMount + 1);
-    expect(mockHydrateA).toHaveBeenLastCalledWith([
-      { id: 'ann-1', type: 'text', text: 'Test A', points: [], color: '#000', strokeWidth: 2 },
-    ]);
+    // Store annotations should still be intact after session change
+    expect(useAnnotationStore.getState().annotationsA).toHaveLength(1);
+    expect(useAnnotationStore.getState().annotationsA[0].text).toBe('Test A');
   });
-  it('should hydrate channel B annotations without calling clearAllB', () => {
+  it('should preserve channel B store annotations without calling clearAllB', () => {
     /**
      * Validates Fix 1: externalVideo path no longer calls onUploadComplete/clearAllB.
      *
      * After restoreSessionState writes annotations to the store and activeSessionId is set,
-     * the HYDRATE B effect must call hydrateAnnotationsB with the stored annotations.
-     * clearAllB must NOT be called (it would wipe the just-restored annotations).
+     * the hook reads annotations from the store directly. clearAllB must NOT be called
+     * (it would wipe the just-restored annotations).
      */
     const channelBAnnotations = [
       { id: 'ann-b-1', type: 'text', text: 'B annotation', points: [], color: '#000', strokeWidth: 2 },
@@ -370,8 +365,9 @@ describe('DualVideoSynchronizer - Session Load Bug Fixes', () => {
 
     render(<DualVideoSynchronizer />);
 
-    // Hydration effect must call hydrateAnnotationsB with the stored annotations
-    expect(mockHydrateB).toHaveBeenCalledWith(channelBAnnotations);
+    // Store annotations must be preserved (hook reads from store directly)
+    expect(useAnnotationStore.getState().annotationsB).toHaveLength(1);
+    expect(useAnnotationStore.getState().annotationsB[0].text).toBe('B annotation');
     // clearAllB must NOT be called during session restore
     expect(mockClearAllB).not.toHaveBeenCalled();
   });

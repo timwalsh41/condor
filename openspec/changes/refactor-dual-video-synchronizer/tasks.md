@@ -221,76 +221,76 @@
 
 ### 8.1 Remove duplicated code from DualVideoSynchronizer
 
-- [ ] 8.1.1 Remove all duplicated SYNC mode handlers (handlePlayPauseA/B, handleStep*, handleSlider*, handlePlaybackRate*) — replaced by useVideoControls
-- [ ] 8.1.2 Remove all duplicated Konva rendering JSX (Video A and Video B canvas blocks) — replaced by VideoPanel
-- [ ] 8.1.3 Remove duplicated SYNC mode controls JSX (Video A controls, Video B controls) — replaced by VideoPanel + VideoControls
-- [ ] 8.1.4 Remove PLAYBACK mode controls JSX (trim bar, step buttons, speed, sync offset) — replaced by PlaybackControls
-- [ ] 8.1.5 Remove annotation toolbar JSX (tool buttons, undo/redo/clear) — replaced by AnnotationToolbar
-- [ ] 8.1.6 Remove `pointsToKonva` and `getControlPoints` helpers — moved to VideoCanvas
-- [ ] 8.1.7 Remove `CONTROL_POINT_SIZE`, `CONTROL_POINT_HIT_SCALE`, `CONTROL_POINT_HIT_SIZE` constants — moved to VideoCanvas
-- [ ] 8.1.8 Remove `switchToPlaybackMode` and `switchToSyncMode` logic — keep as orchestrator methods but simplify to call store actions
+- [x] 8.1.1 Remove all duplicated SYNC mode handlers (handlePlayPauseA/B, handleStep*, handleSlider*, handlePlaybackRate*) — replaced by useVideoControls
+- [x] 8.1.2 Remove all duplicated Konva rendering JSX (Video A and Video B canvas blocks) — replaced by VideoPanel
+- [x] 8.1.3 Remove duplicated SYNC mode controls JSX (Video A controls, Video B controls) — replaced by VideoPanel + VideoControls
+- [x] 8.1.4 Remove PLAYBACK mode controls JSX (trim bar, step buttons, speed, sync offset) — replaced by PlaybackControls
+- [x] 8.1.5 Remove annotation toolbar JSX (tool buttons, undo/redo/clear) — replaced by AnnotationToolbar
+- [x] 8.1.6 Remove `pointsToKonva` and `getControlPoints` helpers — moved to VideoCanvas
+- [x] 8.1.7 Remove `CONTROL_POINT_SIZE`, `CONTROL_POINT_HIT_SCALE`, `CONTROL_POINT_HIT_SIZE` constants — moved to VideoCanvas
+- [x] 8.1.8 Remove `switchToPlaybackMode` and `switchToSyncMode` logic — keep as orchestrator methods but simplify to call store actions
 
 ### 8.2 Replace local state with store reads
 
-- [ ] 8.2.1 Remove `useState<number | null>(null)` for `syncOffset` — read from `playbackStore.getState().playheadState?.syncOffset`
-- [ ] 8.2.2 Remove `useState<{frameA, frameB}>` for `syncPoints` — read from `syncStore.getState().syncPoints`
-- [ ] 8.2.3 Remove `useState<number>` for `sliderValueA`/`sliderValueB`/`sliderValueBoth` — read from `playbackStore.getState().sliderPositions`
-- [ ] 8.2.4 Remove `useState` for `isPlayingBoth` — read from `playbackStore.getState().isPlaying`
-- [ ] 8.2.5 Remove `useState` for `playbackRateBoth` — read from `playbackStore.getState().playbackRate`
-- [ ] 8.2.6 Remove `useState` for `playheadState` — read from `playbackStore.getState().playheadState`
-- [ ] 8.2.7 Remove `useState` for `isLooping` — read from `playbackStore.getState().isLooping`
-- [ ] 8.2.8 Keep `useState` for mode-independent UI state: `selectedTool`, `videoHeight`, `activeVideo`
+- [x] 8.2.1 Remove `useState<number | null>(null)` for `syncOffset` — read from `playbackStore.getState().playheadState?.syncOffset`
+- [x] 8.2.2 Remove `useState<{frameA, frameB}>` for `syncPoints` — read from `syncStore.getState().syncPoints`
+- [x] 8.2.3 Remove `useState<number>` for `sliderValueA`/`sliderValueB`/`sliderValueBoth` — read from `playbackStore.getState().sliderPositions`
+- [x] 8.2.4 Remove `useState` for `isPlayingBoth` — read from `playbackStore.getState().isPlaying`
+- [x] 8.2.5 Remove `useState` for `playbackRateBoth` — read from `playbackStore.getState().playbackRate`
+- [x] 8.2.6 Remove `useState` for `playheadState` — read from `playbackStore.getState().playheadState`
+- [x] 8.2.7 Remove `useState` for `isLooping` — read from `playbackStore.getState().isLooping`
+- [x] 8.2.8 Keep `useState` for mode-independent UI state: `selectedTool`, `videoHeight`, `activeVideo`
 
 ### 8.3 Eliminate redundant refs
 
-- [ ] 8.3.1 Remove `playheadStateRef` — replaced by reading `playbackStore.getState().playheadState` in playback loop
-- [ ] 8.3.2 Remove `isPlayingRef` — replaced by reading `playbackStore.getState().isPlaying`
-- [ ] 8.3.3 Remove `lastFrameTimeRef` — keep (used for timing, no store equivalent)
-- [ ] 8.3.4 Remove `playbackLoopRef` — keep (requestAnimationFrame handle)
-- [ ] 8.3.5 Keep `prevVideoAIdRef`/`prevVideoBIdRef` — needed for video change detection
-- [ ] 8.3.6 Keep `hydratedSessionIdRefA`/`hydratedSessionIdRefB` — remove (no longer needed)
-- [ ] 8.3.7 Keep `targetSeekedRef` — keep (session restore seek guard)
+- [x] 8.3.1 Remove `playheadStateRef` — replaced by reading `playbackStore.getState().playheadState` in playback loop
+- [x] 8.3.2 Remove `isPlayingRef` — replaced by reading `playbackStore.getState().isPlaying`
+- [x] 8.3.3 Keep `lastFrameTimeRef` — used for timing, no store equivalent
+- [x] 8.3.4 Keep `playbackLoopRef` — requestAnimationFrame handle
+- [x] 8.3.5 Keep `prevVideoAIdRef`/`prevVideoBIdRef` — needed for video change detection
+- [x] 8.3.6 Remove `hydratedSessionIdRefA`/`hydratedSessionIdRefB` — no longer needed
+- [x] 8.3.7 Keep `targetSeekedRef` — session restore seek guard
 
 ### 8.4 Eliminate redundant effects
 
-- [ ] 8.4.1 Remove sync-back effects for annotations (2 effects syncing annotationsA/B → store) — no longer needed, hook reads from store
-- [ ] 8.4.2 Remove hydration effects for annotations (2 effects hydrating from store) — no longer needed, hook reads from store
-- [ ] 8.4.3 Remove sync effects for playback rate/loop/sync offset from store — replaced by direct store subscription in PlaybackControls
-- [ ] 8.4.4 Remove `useLayoutEffect` for Konva layer draw after hydration — no longer needed
-- [ ] 8.4.5 Remove slider value sync effects (3 effects syncing currentFrame → sliderValue) — replaced by store subscription
-- [ ] 8.4.6 Keep video-change detection effect (simplified — only resets sync/trim on actual video swap)
-- [ ] 8.4.7 Keep keyboard shortcuts effect (moved logic or kept as-is)
-- [ ] 8.4.8 Keep playback loop effect (simplified — reads from store, writes to store)
-- [ ] 8.4.9 Keep trim state sync effects (trimStartRef/trimEndRef) — needed for playback loop timing
-- [ ] 8.4.10 Keep loop state sync effect (isLooping → store)
+- [x] 8.4.1 Remove sync-back effects for annotations (2 effects syncing annotationsA/B → store) — no longer needed, hook reads from store
+- [x] 8.4.2 Remove hydration effects for annotations (2 effects hydrating from store) — no longer needed, hook reads from store
+- [x] 8.4.3 Remove sync effects for playback rate/loop/sync offset from store — replaced by direct store subscription in PlaybackControls
+- [x] 8.4.4 Remove `useLayoutEffect` for Konva layer draw after hydration — no longer needed
+- [x] 8.4.5 Remove slider value sync effects (3 effects syncing currentFrame → sliderValue) — replaced by store subscription
+- [x] 8.4.6 Keep video-change detection effect (simplified — only resets sync/trim on actual video swap)
+- [x] 8.4.7 Keep keyboard shortcuts effect (moved logic or kept as-is)
+- [x] 8.4.8 Keep playback loop effect (simplified — reads from store, writes to store)
+- [x] 8.4.9 Keep trim state sync effects (trimStartRef/trimEndRef) — needed for playback loop timing
+- [x] 8.4.10 Keep loop state sync effect (isLooping → store)
 
 ### 8.5 Wire extracted components
 
-- [ ] 8.5.1 Import and render VideoPanel for Video A (with useVideoControls hook)
-- [ ] 8.5.2 Import and render VideoPanel for Video B (with useVideoControls hook)
-- [ ] 8.5.3 Import and render VideoControls inside each VideoPanel
-- [ ] 8.5.4 Import and render VideoCanvas inside each VideoPanel
-- [ ] 8.5.5 Import and render PlaybackControls in PLAYBACK mode
-- [ ] 8.5.6 Import and render AnnotationToolbar
-- [ ] 8.5.7 Wire mode toggle to syncStore.setMode()
-- [ ] 8.5.8 Wire VideoUploadWorkflow externalVideo props (preserve existing logic)
-- [ ] 8.5.9 Wire session load effect (simplified — write to stores, playback loop picks up via store subscription)
+- [x] 8.5.1 Import and render VideoPanel for Video A (with useVideoControls hook)
+- [x] 8.5.2 Import and render VideoPanel for Video B (with useVideoControls hook)
+- [x] 8.5.3 Import and render VideoControls inside each VideoPanel
+- [x] 8.5.4 Import and render VideoCanvas inside each VideoPanel
+- [x] 8.5.5 Import and render PlaybackControls in PLAYBACK mode
+- [x] 8.5.6 Import and render AnnotationToolbar
+- [x] 8.5.7 Wire mode toggle to syncStore.setMode()
+- [x] 8.5.8 Wire VideoUploadWorkflow externalVideo props (preserve existing logic)
+- [x] 8.5.9 Wire session load effect (simplified — write to stores, playback loop picks up via store subscription)
 
 ### 8.6 Remove unused imports and code
 
-- [ ] 8.6.1 Remove unused React imports (Fragment may still be needed)
-- [ ] 8.6.2 Remove unused Konva imports (only what VideoCanvas needs)
-- [ ] 8.6.3 Remove unused store imports (only what orchestrator needs)
-- [ ] 8.6.4 Remove unused utility imports (only what orchestrator needs)
-- [ ] 8.6.5 Verify file is ~200-250 lines
+- [x] 8.6.1 Remove unused React imports (Fragment may still be needed)
+- [x] 8.6.2 Remove unused Konva imports (only what VideoCanvas needs)
+- [x] 8.6.3 Remove unused store imports (only what orchestrator needs)
+- [x] 8.6.4 Remove unused utility imports (only what orchestrator needs)
+- [x] 8.6.5 Verify file is ~200-250 lines
 
 ## 9. Update Existing Unit Tests
 
 ### 9.1 Update DualVideoSynchronizer tests
 
-- [ ] 9.1.1 Remove mock for `hydrateAnnotations` from `useVideoAnnotations` mock
-- [ ] 9.1.2 Replace `expect(mockHydrateA).toHaveBeenCalledWith(...)` with store-content assertions
-- [ ] 9.1.3 Replace `expect(mockClearAllB).not.toHaveBeenCalled()` with store-content assertions
+- [x] 9.1.1 Remove mock for `hydrateAnnotations` from `useVideoAnnotations` mock
+- [x] 9.1.2 Replace `expect(mockHydrateA).toHaveBeenCalledWith(...)` with store-content assertions
+- [x] 9.1.3 Replace `expect(mockClearAllB).not.toHaveBeenCalled()` with store-content assertions
 - [ ] 9.1.4 Replace 8 placeholder tests with real assertions:
   - Height configuration: test video height slider renders with correct min/max/default
   - Slider interaction: test slider value updates on change
@@ -298,8 +298,8 @@
   - Annotation independence: test annotations use video-internal dimensions
   - Slider bounds: test min=128px constraint
   - Aspect ratio: test scaling maintains aspect ratio
-- [ ] 9.1.5 Update `useVideoAnnotations` mock to not include `hydrateAnnotations`
-- [ ] 9.1.6 Run `npm run test` and fix any failures
+- [x] 9.1.5 Update `useVideoAnnotations` mock to not include `hydrateAnnotations`
+- [x] 9.1.6 Run `npm run test` and fix any failures
 
 ### 9.2 Update store tests
 

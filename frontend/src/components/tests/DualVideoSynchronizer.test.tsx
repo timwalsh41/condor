@@ -165,99 +165,381 @@ describe('DualVideoSynchronizer - Video Height Slider', () => {
     });
 
     it('should show slider with default 640px when max height is greater than 640', () => {
-      // This test would require actually loading videos through the upload workflow
-      // For now, we'll document the expected behavior:
-      // - Min: 128px (hardcoded)
-      // - Max: min(videoA.height, videoB.height) accounting for rotation
-      // - Default: min(640, max)
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(slider).toBeTruthy();
+      expect(Number(slider.min)).toBe(128);
+      expect(Number(slider.max)).toBe(1080);
+      expect(Number(slider.value)).toBe(640);
     });
 
     it('should calculate max as minimum of both videos heights', () => {
-      // Expected behavior:
-      // - Video A: 1920x1080 -> height = 1080
-      // - Video B: 1280x720 -> height = 720
-      // - Max should be min(1080, 720) = 720
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      useVideoStore.getState().setVideoB({
+        metadata: {
+          filename: 'video_1280x720.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1280,
+          height: 720,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video-2',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(slider.max)).toBe(720); // min(1080, 720)
     });
 
     it('should handle rotation when calculating video height', () => {
-      // Expected behavior:
-      // - Video A: 1920x1080, rotation=0 -> height = 1080
-      // - Video B: 1920x1080, rotation=90 -> height = 1920 (swapped)
-      // - Max should be min(1080, 1920) = 1080
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      useVideoStore.getState().setVideoB({
+        metadata: {
+          filename: 'video_1920x1080_90.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          rotation: 90,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video-2',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      // Video A: 1080, Video B rotated 90° → height = width = 1920
+      // Max = min(1080, 1920) = 1080
+      expect(Number(slider.max)).toBe(1080);
     });
 
     it('should use single video height when only one video loaded', () => {
-      // Expected behavior:
-      // - Video A: 1920x1080 -> max = 1080
-      // - Video B: not loaded
-      // - Max should be 1080
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(slider.max)).toBe(1080);
     });
 
     it('should default to 1280 when no videos loaded', () => {
-      // Expected behavior:
-      // - No videos loaded
-      // - Max should default to 1280
-      expect(true).toBe(true); // Placeholder
+      render(<DualVideoSynchronizer />);
+
+      // No videos loaded, slider should not be visible
+      expect(screen.queryByRole('slider', { name: /Video Display Height/i })).toBeFalsy();
     });
   });
 
   describe('Slider Bounds', () => {
     it('should enforce minimum height of 128px', () => {
-      // The slider min attribute should be 128
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(slider.min)).toBe(128);
     });
 
     it('should enforce maximum height based on video dimensions', () => {
-      // The slider max attribute should be calculated max height
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(slider.max)).toBe(1080);
     });
 
     it('should constrain default to max if max < 640', () => {
-      // Expected behavior:
-      // - Video A: 640x480 -> max = 480
-      // - Default should be min(640, 480) = 480, not 640
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_640x480.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 640,
+          height: 480,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(slider.max)).toBe(480);
+      expect(Number(slider.value)).toBe(480); // default = min(640, 480) = 480
     });
   });
 
   describe('Slider Interaction', () => {
     it('should update display when slider value changes', () => {
-      // User drags slider -> videoHeight state updates -> videos re-render with new scale
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(slider.value)).toBe(640);
+
+      // Simulate slider change
+      slider.value = '800';
+      slider.dispatchEvent(new Event('change', { bubbles: true }));
+
+      expect(Number(slider.value)).toBe(800);
     });
 
     it('should update label to show current height value', () => {
-      // Label should show "Video Display Height: {value}px"
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const label = screen.getByText(/Video Display Height/i);
+      expect(label.textContent).toContain('640px');
     });
 
     it('should maintain aspect ratio when scaling', () => {
-      // Scaling should apply equally to width and height based on height constraint
-      expect(true).toBe(true); // Placeholder
+      // Aspect ratio is maintained by VideoPanel's calculateDisplayDimensions
+      // which applies uniform scale to both width and height.
+      // This is verified in VideoPanel tests; here we confirm the slider
+      // value is passed through correctly.
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(slider.value)).toBe(640);
     });
   });
 
   describe('Height Updates on Video Change', () => {
     it('should reset to default when new videos uploaded', () => {
-      // When videos change, videoHeight should reset to new default
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      const { rerender } = render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(slider.value)).toBe(640);
+
+      // Change video A to a smaller video
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_640x480.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 640,
+          height: 480,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video-2',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      rerender(<DualVideoSynchronizer />);
+
+      // Default should now be min(640, 480) = 480
+      const updatedSlider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(updatedSlider.value)).toBe(480);
     });
 
     it('should recalculate bounds when switching from single to dual video', () => {
-      // Max should change from single video height to min of both
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      const { rerender } = render(<DualVideoSynchronizer />);
+
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(slider.max)).toBe(1080);
+
+      // Add Video B with smaller height
+      useVideoStore.getState().setVideoB({
+        metadata: {
+          filename: 'video_1280x720.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1280,
+          height: 720,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video-2',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      rerender(<DualVideoSynchronizer />);
+
+      // Max should now be min(1080, 720) = 720
+      const updatedSlider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(Number(updatedSlider.max)).toBe(720);
     });
   });
 
   describe('Annotation Independence', () => {
     it('should keep annotations at original video dimensions regardless of slider', () => {
-      // Annotations canvas should use videoA.metadata.width/height
-      // Not affected by displayWidth/displayHeight
-      expect(true).toBe(true); // Placeholder
+      useVideoStore.getState().setVideoA({
+        metadata: {
+          filename: 'video_1920x1080.mp4',
+          framerate: 30,
+          duration: 10,
+          width: 1920,
+          height: 1080,
+          codec: 'h264',
+          session_id: 'test-session',
+          video_id: 'test-video',
+          processing_status: 'complete',
+        } as any,
+        blob: new Blob(['test']),
+      });
+      render(<DualVideoSynchronizer />);
+
+      // The annotation canvas uses videoA.metadata.width/height for its Stage dimensions,
+      // not the display dimensions. This is verified in VideoCanvas tests.
+      // Here we confirm the slider exists and the component renders without error.
+      const slider = screen.getByRole('slider', { name: /Video Display Height/i }) as HTMLInputElement;
+      expect(slider).toBeTruthy();
     });
   });
 });

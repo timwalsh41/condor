@@ -78,6 +78,37 @@ describe('playbackStore', () => {
     });
   });
 
+  describe('Loop Control', () => {
+    it('should not be looping initially', () => {
+      const { isLooping } = usePlaybackStore.getState();
+      expect(isLooping).toBe(false);
+    });
+
+    it('should set isLooping to true', () => {
+      usePlaybackStore.getState().setIsLooping(true);
+
+      const { isLooping } = usePlaybackStore.getState();
+      expect(isLooping).toBe(true);
+    });
+
+    it('should toggle isLooping', () => {
+      usePlaybackStore.getState().setIsLooping(true);
+      usePlaybackStore.getState().setIsLooping(false);
+
+      const { isLooping } = usePlaybackStore.getState();
+      expect(isLooping).toBe(false);
+    });
+
+    it('should maintain isLooping when changing playback rate', () => {
+      usePlaybackStore.getState().setIsLooping(true);
+      usePlaybackStore.getState().setPlaybackRate(0.5);
+
+      const state = usePlaybackStore.getState();
+      expect(state.isLooping).toBe(true);
+      expect(state.playbackRate).toBe(0.5);
+    });
+  });
+
   describe('Playhead State Management', () => {
     it('should set playhead state', () => {
       const playheadState: PlayheadState = {

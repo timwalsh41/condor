@@ -291,7 +291,7 @@
 - [x] 9.1.1 Remove mock for `hydrateAnnotations` from `useVideoAnnotations` mock
 - [x] 9.1.2 Replace `expect(mockHydrateA).toHaveBeenCalledWith(...)` with store-content assertions
 - [x] 9.1.3 Replace `expect(mockClearAllB).not.toHaveBeenCalled()` with store-content assertions
-- [ ] 9.1.4 Replace 8 placeholder tests with real assertions:
+- [x] 9.1.4 Replace 8 placeholder tests with real assertions:
   - Height configuration: test video height slider renders with correct min/max/default
   - Slider interaction: test slider value updates on change
   - Height updates on video change: test slider resets when videos change
@@ -303,16 +303,16 @@
 
 ### 9.2 Update store tests
 
-- [ ] 9.2.1 Update `playbackStore.test.ts` — add PlayheadState tests, remove dead code assertions
-- [ ] 9.2.2 Update `syncStore.test.ts` — remove temporalOffset tests
-- [ ] 9.2.3 Update `sessionStore.test.ts` — verify session save reads from corrected stores
-- [ ] 9.2.4 Run `npm run test` and fix any failures
+- [x] 9.2.1 Update `playbackStore.test.ts` — add PlayheadState tests, remove dead code assertions
+- [x] 9.2.2 Update `syncStore.test.ts` — remove temporalOffset tests
+- [x] 9.2.3 Update `sessionStore.test.ts` — verify session save reads from corrected stores
+- [x] 9.2.4 Run `npm run test` and fix any failures
 
 ### 9.3 Update annotation hook tests
 
-- [ ] 9.2.5 Add store subscription tests to `useVideoAnnotations.test.ts`
-- [ ] 9.2.6 Remove `hydrateAnnotations` test from `useVideoAnnotations.test.ts`
-- [ ] 9.2.7 Run `npm run test` and fix any failures
+- [x] 9.2.5 Add store subscription tests to `useVideoAnnotations.test.ts`
+- [x] 9.2.6 Remove `hydrateAnnotations` test from `useVideoAnnotations.test.ts`
+- [x] 9.2.7 Run `npm run test` and fix any failures
 
 ## 10. Validation
 

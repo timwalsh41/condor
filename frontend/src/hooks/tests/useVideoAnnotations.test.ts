@@ -301,6 +301,118 @@ describe("useVideoAnnotations", () => {
     });
   });
 
+  describe("store subscription", () => {
+    it("should read annotations from annotationStore", () => {
+      // Pre-populate the store with annotations
+      const testAnnotations = [
+        { id: "store-ann-1", type: "freehand", points: [{ x: 10, y: 20 }], color: "#ff0000", strokeWidth: 2 },
+      ];
+      useAnnotationStore.getState().setAnnotationsA(testAnnotations as any);
+
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      expect(result.current.annotations).toHaveLength(1);
+      expect(result.current.annotations[0].id).toBe("store-ann-1");
+    });
+
+    it("should update annotations when store changes", () => {
+      const { result, rerender } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      expect(result.current.annotations).toEqual([]);
+
+      // Write to store after hook is mounted
+      act(() => {
+        useAnnotationStore.getState().setAnnotationsA([
+          { id: "new-ann", type: "freehand", points: [{ x: 10, y: 20 }], color: "#ff0000", strokeWidth: 2 },
+        ] as any);
+      });
+
+      // Re-render to pick up store changes
+      rerender();
+
+      expect(result.current.annotations).toHaveLength(1);
+      expect(result.current.annotations[0].id).toBe("new-ann");
+    });
+
+    it("should write to store when annotations are cleared", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create annotations via manager
+      act(() => {
+        result.current.manager.createAndAddAnnotation("freehand", [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ]);
+        result.current.manager.createAndAddAnnotation("oval", [
+          { x: 50, y: 60 },
+          { x: 100, y: 100 },
+        ]);
+      });
+
+      // Clear all — this writes to store via pushToStore
+      act(() => {
+        result.current.clearAll();
+      });
+
+      // Store should be empty
+      const storeAnnotations = useAnnotationStore.getState().annotationsA;
+      expect(storeAnnotations).toEqual([]);
+    });
+
+    it("should write to store when text annotation is updated", () => {
+      const { result } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+
+      // Create a text annotation
+      act(() => {
+        result.current.manager.createAndAddText({ x: 10, y: 10 }, "Original");
+      });
+
+      // Update text — this writes to store via pushToStore
+      const annotations = result.current.manager.getAnnotations();
+      const textAnnotation = annotations.find((a) => a.type === "text");
+
+      if (textAnnotation) {
+        act(() => {
+          result.current.updateAnnotationText(textAnnotation.id, "Updated");
+        });
+
+        const storeAnnotations = useAnnotationStore.getState().annotationsA;
+        const updated = storeAnnotations.find((a) => a.id === textAnnotation.id);
+        expect(updated?.text).toBe("Updated");
+      }
+    });
+
+    it("should read from correct store channel based on videoId", () => {
+      // Set annotations for both channels
+      useAnnotationStore.getState().setAnnotationsA([
+        { id: "ann-a", type: "freehand", points: [{ x: 10, y: 20 }], color: "#ff0000", strokeWidth: 2 },
+      ] as any);
+      useAnnotationStore.getState().setAnnotationsB([
+        { id: "ann-b", type: "polyline", points: [{ x: 30, y: 40 }], color: "#00ff00", strokeWidth: 2 },
+      ] as any);
+
+      const { result: resultA } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "A", activeVideo, setActiveVideo)
+      );
+      const { result: resultB } = renderHook(() =>
+        useVideoAnnotationsWithTool(mockVideoDecoder, "B", activeVideo, setActiveVideo)
+      );
+
+      expect(resultA.current.annotations).toHaveLength(1);
+      expect(resultA.current.annotations[0].id).toBe("ann-a");
+      expect(resultB.current.annotations).toHaveLength(1);
+      expect(resultB.current.annotations[0].id).toBe("ann-b");
+    });
+  });
+
   describe("integration with AnnotationManager", () => {
     it("should update annotations when drawing completes", () => {
       const { result } = renderHook(() =>

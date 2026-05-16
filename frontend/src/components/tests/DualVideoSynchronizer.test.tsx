@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import { DualVideoSynchronizer } from '../DualVideoSynchronizer';
 import { useSessionStore } from '../../store/sessionStore';
 import { useAnnotationStore } from '../../store/annotationStore';
@@ -19,27 +19,33 @@ import { useTrimStore } from '../../store/trimStore';
 const mockClearAllA = vi.hoisted(() => vi.fn());
 const mockClearAllB = vi.hoisted(() => vi.fn());
 const mockHandlersA = vi.hoisted(() => ({
-  handleStageMouseDown: vi.fn(),
-  handleStageMouseMove: vi.fn(),
-  handleStageMouseUp: vi.fn(),
+  handleMouseDown: vi.fn(),
+  handleMouseMove: vi.fn(),
+  handleMouseUp: vi.fn(),
+  handleClick: vi.fn(),
+  handleDoubleClick: vi.fn(),
   handleAnnotationClick: vi.fn(),
   handleAnnotationDragStart: vi.fn(),
-  handleAnnotationDragMove: vi.fn(),
-  handleAnnotationDragEnd: vi.fn(),
   handleControlPointMouseDown: vi.fn(),
-  handleStageClick: vi.fn(),
+  handleStageMouseMove: vi.fn(),
+  handleStageMouseUp: vi.fn(),
 }));
 const mockHandlersB = vi.hoisted(() => ({
-  handleStageMouseDown: vi.fn(),
-  handleStageMouseMove: vi.fn(),
-  handleStageMouseUp: vi.fn(),
+  handleMouseDown: vi.fn(),
+  handleMouseMove: vi.fn(),
+  handleMouseUp: vi.fn(),
+  handleClick: vi.fn(),
+  handleDoubleClick: vi.fn(),
   handleAnnotationClick: vi.fn(),
   handleAnnotationDragStart: vi.fn(),
-  handleAnnotationDragMove: vi.fn(),
-  handleAnnotationDragEnd: vi.fn(),
   handleControlPointMouseDown: vi.fn(),
-  handleStageClick: vi.fn(),
+  handleStageMouseMove: vi.fn(),
+  handleStageMouseUp: vi.fn(),
 }));
+
+// Hoisted decoder state for step tests — step handlers read decA.currentFrame,
+// so we need mutable state that tests can set and seekToFrame can update.
+const mockDecoderFrame = vi.hoisted(() => ({ value: 0 }));
 
 // Mock the WebCodecs decoder hook
 vi.mock('../../hooks/useWebCodecsDecoder', () => ({
@@ -80,10 +86,13 @@ vi.mock('../../hooks/useWebCodecsDecoder', () => ({
         video_id: 'test-video',
         processing_status: 'complete' as const,
       },
-      currentFrame: 0,
+      // Use getter/setter so tests can control decoder state and
+      // seekToFrame updates propagate to subsequent reads.
+      get currentFrame() { return mockDecoderFrame.value; },
+      set currentFrame(v) { mockDecoderFrame.value = v; },
       totalFrames: 300,
       canvasRef: { current: document.createElement('canvas') },
-      seekToFrame: vi.fn(),
+      seekToFrame: vi.fn((frame: number) => { mockDecoderFrame.value = frame; }),
       play: vi.fn(),
       pause: vi.fn(),
       reset: vi.fn(),
@@ -652,6 +661,388 @@ describe('DualVideoSynchronizer - Session Load Bug Fixes', () => {
     expect(useAnnotationStore.getState().annotationsB[0].text).toBe('B annotation');
     // clearAllB must NOT be called during session restore
     expect(mockClearAllB).not.toHaveBeenCalled();
+  });
+});
+
+describe('DualVideoSynchronizer - Playback Controls', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDecoderFrame.value = 0;
+    useVideoStore.getState().reset();
+    useSessionStore.setState({ activeSessionId: null, isHydratingSession: false, error: null, loading: false });
+    useAnnotationStore.getState().reset();
+    usePlaybackStore.getState().reset();
+    useSyncStore.getState().reset();
+    useTrimStore.getState().resetTrim();
+  });
+
+  it('playhead state updates propagate to PlaybackControls', () => {
+    // Set up both videos with proper metadata
+    useVideoStore.getState().setVideoA({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+    useVideoStore.getState().setVideoB({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video-2',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+
+    // Set syncStore mode to PLAYBACK
+    useSyncStore.getState().setMode('PLAYBACK');
+
+    // Initialize playheadState and slider position (both updated together in production)
+    usePlaybackStore.getState().setPlayheadState({ position: 42, syncOffset: 15, maxPosition: 200 });
+    usePlaybackStore.getState().setSliderPositions({ unified: 42, videoA: 0, videoB: 0 });
+
+    // Render DualVideoSynchronizer
+    render(<DualVideoSynchronizer />);
+
+    // Assert PlaybackControls rendered
+    expect(screen.getByTestId('playback-controls')).toBeTruthy();
+
+    // Update playhead and slider via store subscription (as the component does)
+    act(() => {
+      usePlaybackStore.getState().setPlayheadState({ position: 50, syncOffset: 15, maxPosition: 200 });
+      usePlaybackStore.getState().setSliderPositions({ unified: 50, videoA: 0, videoB: 0 });
+    });
+
+    // Assert component re-rendered with new value
+    expect(screen.getByText(/Frame 50/)).toBeTruthy();
+  });
+
+  it('PLAYBACK mode step forward updates playhead and slider in store', async () => {
+    // Set up both videos with proper metadata
+    useVideoStore.getState().setVideoA({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+    useVideoStore.getState().setVideoB({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video-2',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+
+    // Set syncStore mode to PLAYBACK
+    useSyncStore.getState().setMode('PLAYBACK');
+
+    // Initialize playhead + slider
+    usePlaybackStore.getState().setPlayheadState({ position: 42, syncOffset: 15, maxPosition: 200 });
+    usePlaybackStore.getState().setSliderPositions({ unified: 42, videoA: 0, videoB: 0 });
+
+    // Render DualVideoSynchronizer
+    render(<DualVideoSynchronizer />);
+
+    // Dispatch ArrowRight keyboard event
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    });
+
+    // Wait for async effects (seekToFrame resolves as microtask)
+    await waitFor(() => {
+      // playheadState.position should step from currentFrame(0) + 1 = 1
+      expect(usePlaybackStore.getState().playheadState?.position).toBe(1);
+    });
+
+    // sliderPositions.unified should match
+    expect(usePlaybackStore.getState().sliderPositions.unified).toBe(1);
+  });
+
+  it('PLAYBACK mode step backward updates playhead and slider in store', async () => {
+    // Set up both videos with proper metadata
+    useVideoStore.getState().setVideoA({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+    useVideoStore.getState().setVideoB({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video-2',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+
+    // Set syncStore mode to PLAYBACK
+    useSyncStore.getState().setMode('PLAYBACK');
+
+    // Initialize playhead + slider
+    usePlaybackStore.getState().setPlayheadState({ position: 42, syncOffset: 15, maxPosition: 200 });
+    usePlaybackStore.getState().setSliderPositions({ unified: 42, videoA: 0, videoB: 0 });
+
+    // Render DualVideoSynchronizer
+    render(<DualVideoSynchronizer />);
+
+    // Set decoder currentFrame to match playhead position (step handlers
+    // read decA.currentFrame, not the store's playheadState)
+    mockDecoderFrame.value = 42;
+
+    // Dispatch ArrowLeft keyboard event
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    });
+
+    // Wait for async effects (seekToFrame resolves as microtask)
+    await waitFor(() => {
+      expect(usePlaybackStore.getState().playheadState?.position).toBe(41);
+    });
+
+    // sliderPositions.unified should match
+    expect(usePlaybackStore.getState().sliderPositions.unified).toBe(41);
+  });
+
+  it('PLAYBACK mode coarse step forward (Shift+ArrowRight) advances 5 frames', async () => {
+    // Set up both videos with proper metadata
+    useVideoStore.getState().setVideoA({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+    useVideoStore.getState().setVideoB({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video-2',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+
+    // Set syncStore mode to PLAYBACK
+    useSyncStore.getState().setMode('PLAYBACK');
+
+    // Initialize playhead + slider
+    usePlaybackStore.getState().setPlayheadState({ position: 42, syncOffset: 15, maxPosition: 200 });
+    usePlaybackStore.getState().setSliderPositions({ unified: 42, videoA: 0, videoB: 0 });
+
+    // Render DualVideoSynchronizer
+    render(<DualVideoSynchronizer />);
+
+    // Set decoder currentFrame to match playhead position
+    mockDecoderFrame.value = 42;
+
+    // Dispatch Shift+ArrowRight keyboard event (coarse step)
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true }));
+    });
+
+    // Wait for async effects
+    await waitFor(() => {
+      // coarse step = 5 frames, 42 + 5 = 47
+      expect(usePlaybackStore.getState().playheadState?.position).toBe(47);
+    });
+
+    // sliderPositions.unified should match
+    expect(usePlaybackStore.getState().sliderPositions.unified).toBe(47);
+  });
+
+  it('PLAYBACK mode coarse step backward (Shift+ArrowLeft) steps back 5 frames', async () => {
+    // Set up both videos with proper metadata
+    useVideoStore.getState().setVideoA({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+    useVideoStore.getState().setVideoB({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video-2',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+
+    // Set syncStore mode to PLAYBACK
+    useSyncStore.getState().setMode('PLAYBACK');
+
+    // Initialize playhead + slider
+    usePlaybackStore.getState().setPlayheadState({ position: 42, syncOffset: 15, maxPosition: 200 });
+    usePlaybackStore.getState().setSliderPositions({ unified: 42, videoA: 0, videoB: 0 });
+
+    // Render DualVideoSynchronizer
+    render(<DualVideoSynchronizer />);
+
+    // Set decoder currentFrame to match playhead position
+    mockDecoderFrame.value = 42;
+
+    // Dispatch Shift+ArrowLeft keyboard event (coarse step backward)
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', shiftKey: true }));
+    });
+
+    // Wait for async effects
+    await waitFor(() => {
+      // coarse step = 5 frames, 42 - 5 = 37
+      expect(usePlaybackStore.getState().playheadState?.position).toBe(37);
+    });
+
+    // sliderPositions.unified should match
+    expect(usePlaybackStore.getState().sliderPositions.unified).toBe(37);
+  });
+
+  it('stepping then playing starts from stepped position', async () => {
+    // Set up both videos with proper metadata
+    useVideoStore.getState().setVideoA({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+    useVideoStore.getState().setVideoB({
+      metadata: {
+        filename: 'video_1920x1080.mp4',
+        framerate: 30,
+        duration: 10,
+        width: 1920,
+        height: 1080,
+        codec: 'h264',
+        session_id: 'test-session',
+        video_id: 'test-video-2',
+        processing_status: 'complete',
+      } as any,
+      blob: new Blob(['test']),
+    });
+
+    // Set syncStore mode to PLAYBACK
+    useSyncStore.getState().setMode('PLAYBACK');
+
+    // Initialize playhead + slider at position 42
+    usePlaybackStore.getState().setPlayheadState({ position: 42, syncOffset: 15, maxPosition: 200 });
+    usePlaybackStore.getState().setSliderPositions({ unified: 42, videoA: 0, videoB: 0 });
+
+    // Render DualVideoSynchronizer
+    render(<DualVideoSynchronizer />);
+
+    // Set decoder currentFrame to match playhead
+    mockDecoderFrame.value = 42;
+
+    // Step forward (fine)
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    });
+
+    // Verify playhead advanced
+    await waitFor(() => {
+      expect(usePlaybackStore.getState().playheadState?.position).toBe(43);
+    });
+
+    // Click play button
+    act(() => {
+      screen.getByTestId('play-pause-both').click();
+    });
+
+    // After play, isPlaying should be true (startPlayback called after
+    // seekToFrame promises resolve)
+    await waitFor(() => {
+      expect(usePlaybackStore.getState().isPlaying).toBe(true);
+    });
+  });
+
+  it('slider position is initialized when playhead is set', () => {
+    // Simulate what finalizePlayhead does — sets playhead, syncOffset,
+    // and slider position together
+    const playhead = { position: 100, syncOffset: 15, maxPosition: 200 };
+    act(() => {
+      usePlaybackStore.getState().setPlayheadState(playhead);
+      usePlaybackStore.getState().setSyncOffset(playhead.syncOffset);
+      usePlaybackStore.getState().setSliderPositions({
+        ...usePlaybackStore.getState().sliderPositions,
+        unified: playhead.position,
+      });
+    });
+    // Verify slider is in sync with playhead
+    expect(usePlaybackStore.getState().sliderPositions.unified).toBe(100);
   });
 });
 

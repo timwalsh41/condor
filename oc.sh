@@ -16,6 +16,11 @@
 #
 # See README.md for full documentation.
 
+# If invoked via another shell (e.g., `zsh ./oc.sh`), re-run under bash.
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec bash "$0" "$@"
+fi
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -222,13 +227,13 @@ else
     --security-opt no-new-privileges \
     \
     `# Host network access for local LLMs` \
-    "${HOST_FLAGS[@]}" \
+    ${HOST_FLAGS+"${HOST_FLAGS[@]}"} \
     \
     `# API keys (host env vars, passed only if set)` \
     "${ENV_FLAGS[@]}" \
     \
     `# Port forwarding (-p flags, if any)` \
-    "${PORT_FLAGS[@]}" \
+    ${PORT_FLAGS+"${PORT_FLAGS[@]}"} \
     \
     "${IMAGE}:latest"
 fi

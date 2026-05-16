@@ -280,6 +280,67 @@ describe("VideoCanvas", () => {
     expect(handlers.handleClick).not.toHaveBeenCalled();
     expect(container.querySelector(".konvajs-content")).toBeTruthy();
   });
+
+  it("re-renders when handlers prop changes", () => {
+    const drawingState: DrawingState = {
+      mode: "polyline-active",
+      points: [
+        { x: 10, y: 10 },
+        { x: 50, y: 50 },
+      ],
+    };
+    const handlers = createMockHandlers();
+    const { rerender } = render(
+      <VideoCanvas
+        {...defaultProps}
+        drawingState={drawingState}
+        handlers={handlers}
+      />
+    );
+    // getPreviewPoints was called once during the initial render. Reset tracking
+    // so we can detect if the component re-renders when handlers change.
+    vi.clearAllMocks();
+    const newHandlers = createMockHandlers();
+    rerender(
+      <VideoCanvas
+        {...defaultProps}
+        drawingState={drawingState}
+        handlers={newHandlers}
+      />
+    );
+    // If the component re-rendered (areEqual detected the handlers reference change),
+    // then the render function was called and getPreviewPoints was invoked again.
+    expect(mockAnnotationManager.getPreviewPoints).toHaveBeenCalled();
+  });
+
+  it("re-renders when polylineMousePos changes", () => {
+    const drawingState: DrawingState = {
+      mode: "polyline-active",
+      points: [
+        { x: 10, y: 10 },
+        { x: 50, y: 50 },
+      ],
+    };
+    const { rerender } = render(
+      <VideoCanvas
+        {...defaultProps}
+        drawingState={drawingState}
+        polylineMousePos={{ x: 10, y: 10 }}
+      />
+    );
+    // getPreviewPoints was called during the first render. Reset tracking.
+    vi.clearAllMocks();
+    rerender(
+      <VideoCanvas
+        {...defaultProps}
+        drawingState={drawingState}
+        polylineMousePos={{ x: 20, y: 20 }}
+      />
+    );
+    // If areEqual detected the polylineMousePos change, the component
+    // re-rendered and getPreviewPoints was called again.
+    expect(mockAnnotationManager.getPreviewPoints).toHaveBeenCalled();
+  });
 });
 
 describe("pointsToKonva", () => {

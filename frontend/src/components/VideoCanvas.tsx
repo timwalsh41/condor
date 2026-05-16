@@ -84,12 +84,17 @@ function ControlPoint({ point, onMouseDown }: { point: Point; onMouseDown: (e: K
 }
 
 const areEqual = (prev: VideoCanvasProps, next: VideoCanvasProps): boolean => {
+  if (prev.handlers !== next.handlers) return false;
   if (prev.annotations !== next.annotations) return false;
   if (prev.width !== next.width || prev.height !== next.height) return false;
   if (prev.drawingState.mode !== next.drawingState.mode) return false;
   if (prev.isDraggingAnnotation !== next.isDraggingAnnotation) return false;
   if (prev.isReshapingAnnotation !== next.isReshapingAnnotation) return false;
   if (prev.selectedIds.size !== next.selectedIds.size) return false;
+  if (prev.polylineMousePos?.x !== next.polylineMousePos?.x ||
+      prev.polylineMousePos?.y !== next.polylineMousePos?.y) return false;
+  if ((prev.polylineMousePos === null) !== (next.polylineMousePos === null)) return false;
+  if (prev.annotationManager !== next.annotationManager) return false;
   return true;
 };
 

@@ -39,6 +39,8 @@ import type { VideoMetadata } from "../types/api";
  * Handlers delegated to: useVideoControls hook.
  */
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function DualVideoSynchronizer() {
   // ─── Store subscriptions ────────────────────────────────────────────────
   const { sessionId, videoA: videoAStore, videoB: videoBStore, setSessionId, setVideoA, setVideoB } =
@@ -49,6 +51,14 @@ export function DualVideoSynchronizer() {
   const isHydratingSession = useSessionStore((state) => state.isHydratingSession);
   const isSavingToLibrary = useVideoStore((state) => state.isSavingToLibrary);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
+
+  const playheadState = usePlaybackStore(s => s.playheadState);
+  const isPlaying = usePlaybackStore(s => s.isPlaying);
+  const isLooping = usePlaybackStore(s => s.isLooping);
+  const playbackRate = usePlaybackStore(s => s.playbackRate);
+  const sliderUnified = usePlaybackStore(s => s.sliderPositions.unified);
+
+  const validSessionId = sessionId && UUID_RE.test(sessionId) ? sessionId : undefined;
 
   // ─── File memoization ───────────────────────────────────────────────────
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -86,12 +96,16 @@ export function DualVideoSynchronizer() {
   const videoB = useWebCodecsDecoder(fileB);
 
   // Refs to always access latest decoder state (avoid stale closures)
+  // Must update inline (not in useEffect) so useVideoControls can
+  // sync its internal videoRefSafe during the same render phase.
   const videoARef = useRef(videoA);
-  const videoBRef = useRef(videoB);
-  useEffect(() => {
+  if (videoARef.current !== videoA) {
     videoARef.current = videoA;
+  }
+  const videoBRef = useRef(videoB);
+  if (videoBRef.current !== videoB) {
     videoBRef.current = videoB;
-  });
+  }
 
   // ─── Video controls hooks (SYNC mode) ───────────────────────────────────
   const controlsA = useVideoControls(videoARef);
@@ -213,7 +227,7 @@ export function DualVideoSynchronizer() {
   // ─── Upload completion handlers ─────────────────────────────────────────
   const handleVideoAUploadComplete = useCallback(
     (metadata: VideoMetadata, blob: Blob) => {
-      if (!sessionId && metadata.session_id) {
+      if ((!sessionId || sessionId === 'library') && metadata.session_id) {
         setSessionId(metadata.session_id);
       }
       clearAllA();
@@ -224,7 +238,7 @@ export function DualVideoSynchronizer() {
 
   const handleVideoBUploadComplete = useCallback(
     (metadata: VideoMetadata, blob: Blob) => {
-      if (!sessionId && metadata.session_id) {
+      if ((!sessionId || sessionId === 'library') && metadata.session_id) {
         setSessionId(metadata.session_id);
       }
       clearAllB();
@@ -245,6 +259,10 @@ export function DualVideoSynchronizer() {
       videoB.totalFrames
     );
     usePlaybackStore.getState().setPlayheadState(playhead);
+    usePlaybackStore.getState().setSliderPositions({
+      ...usePlaybackStore.getState().sliderPositions,
+      unified: playhead.position,
+    });
 
     const range = calculatePlayheadRange(
       videoA.totalFrames,
@@ -276,41 +294,41 @@ export function DualVideoSynchronizer() {
   };
 
   // ─── PLAYBACK mode - Synchronized stepping ──────────────────────────────
-  const handleStepForwardFine = async () => {
+  const handleStepForward = async (coarse: boolean) => {
+    stopPlayback();
     const syncOffset = usePlaybackStore.getState().playheadState?.syncOffset;
     if (syncOffset === undefined) return;
-    const nextFrameA = videoA.currentFrame + 1;
+    const decA = videoARef.current;
+    const decB = videoBRef.current;
+    if (!decA || !decB) return;
+    const step = coarse ? 5 : 1;
+    const nextFrameA = decA.currentFrame + step;
     const nextFrameB = nextFrameA + syncOffset;
-    if (nextFrameA >= videoA.totalFrames || nextFrameB >= videoB.totalFrames || nextFrameB < 0) return;
-    await Promise.all([videoA.seekToFrame(nextFrameA), videoB.seekToFrame(nextFrameB)]);
+    if (nextFrameA >= decA.totalFrames || nextFrameB >= decB.totalFrames || nextFrameB < 0) return;
+    await Promise.all([decA.seekToFrame(nextFrameA), decB.seekToFrame(nextFrameB)]);
+    updatePlayheadAfterStep(nextFrameA, syncOffset);
   };
 
-  const handleStepBackwardFine = async () => {
+  const handleStepBackward = async (coarse: boolean) => {
+    stopPlayback();
     const syncOffset = usePlaybackStore.getState().playheadState?.syncOffset;
     if (syncOffset === undefined) return;
-    const nextFrameA = videoA.currentFrame - 1;
+    const decA = videoARef.current;
+    const decB = videoBRef.current;
+    if (!decA || !decB) return;
+    const step = coarse ? 5 : 1;
+    const nextFrameA = decA.currentFrame - step;
     const nextFrameB = nextFrameA + syncOffset;
-    if (nextFrameA < 0 || nextFrameB >= videoB.totalFrames || nextFrameB < 0) return;
-    await Promise.all([videoA.seekToFrame(nextFrameA), videoB.seekToFrame(nextFrameB)]);
+    if (nextFrameA < 0 || nextFrameB >= decB.totalFrames || nextFrameB < 0) return;
+    await Promise.all([decA.seekToFrame(nextFrameA), decB.seekToFrame(nextFrameB)]);
+    updatePlayheadAfterStep(nextFrameA, syncOffset);
   };
 
-  const handleStepForwardCoarse = async () => {
-    const syncOffset = usePlaybackStore.getState().playheadState?.syncOffset;
-    if (syncOffset === undefined) return;
-    const nextFrameA = videoA.currentFrame + 5;
-    const nextFrameB = nextFrameA + syncOffset;
-    if (nextFrameA >= videoA.totalFrames || nextFrameB >= videoB.totalFrames || nextFrameB < 0) return;
-    await Promise.all([videoA.seekToFrame(nextFrameA), videoB.seekToFrame(nextFrameB)]);
-  };
-
-  const handleStepBackwardCoarse = async () => {
-    const syncOffset = usePlaybackStore.getState().playheadState?.syncOffset;
-    if (syncOffset === undefined) return;
-    const nextFrameA = videoA.currentFrame - 5;
-    const nextFrameB = nextFrameA + syncOffset;
-    if (nextFrameA < 0 || nextFrameB >= videoB.totalFrames || nextFrameB < 0) return;
-    await Promise.all([videoA.seekToFrame(nextFrameA), videoB.seekToFrame(nextFrameB)]);
-  };
+  function updatePlayheadAfterStep(frameA: number, syncOffset: number) {
+    const store = usePlaybackStore.getState();
+    store.setPlayheadState({ position: frameA, syncOffset, maxPosition: store.playheadState!.maxPosition });
+    store.setSliderPositions({ ...store.sliderPositions, unified: frameA });
+  }
 
   // ─── PLAYBACK mode - Synchronized playback loop ─────────────────────────
   const playbackLoopRef = useRef<number | null>(null);
@@ -381,6 +399,10 @@ export function DualVideoSynchronizer() {
           ]);
           const newPlayheadState = { ...currentPlayhead, position: nextPosition };
           usePlaybackStore.getState().setPlayheadState(newPlayheadState);
+          usePlaybackStore.getState().setSliderPositions({
+            ...usePlaybackStore.getState().sliderPositions,
+            unified: nextPosition,
+          });
           lastFrameTimeRef.current = timestamp;
         } catch (error) {
           console.error("[PLAYBACK] Error during seek:", error);
@@ -441,7 +463,16 @@ export function DualVideoSynchronizer() {
       return;
     }
 
-    startPlayback();
+    // Seek decoders to playhead position before starting, ensuring visual
+    // frame matches the playhead position (important after stepping).
+    const targets = calculateTargetFrames(
+      state.playheadState.position,
+      state.playheadState.syncOffset
+    );
+    Promise.all([
+      videoA.seekToFrame(targets.frameA),
+      videoB.seekToFrame(targets.frameB),
+    ]).then(startPlayback).catch(console.error);
   };
 
   const handleReturnToIn = async () => {
@@ -520,15 +551,11 @@ export function DualVideoSynchronizer() {
   const keyboardActionsRef = useRef({
     mode,
     handlePlayPauseBoth,
-    handleStepForwardFine,
-    handleStepBackwardFine,
-    handleStepForwardCoarse,
-    handleStepBackwardCoarse,
+    handleStepForward,
+    handleStepBackward,
     controlsA,
     controlsB,
     activeVideo,
-    videoA,
-    videoB,
     undoA,
     redoA,
     undoB,
@@ -537,15 +564,11 @@ export function DualVideoSynchronizer() {
   keyboardActionsRef.current = {
     mode,
     handlePlayPauseBoth,
-    handleStepForwardFine,
-    handleStepBackwardFine,
-    handleStepForwardCoarse,
-    handleStepBackwardCoarse,
+    handleStepForward,
+    handleStepBackward,
     controlsA,
     controlsB,
     activeVideo,
-    videoA,
-    videoB,
     undoA,
     redoA,
     undoB,
@@ -566,15 +589,11 @@ export function DualVideoSynchronizer() {
       const {
         mode: currentMode,
         handlePlayPauseBoth: playPauseBoth,
-        handleStepForwardFine: stepFwdFine,
-        handleStepBackwardFine: stepBwdFine,
-        handleStepForwardCoarse: stepFwdCoarse,
-        handleStepBackwardCoarse: stepBwdCoarse,
+        handleStepForward: stepFwd,
+        handleStepBackward: stepBwd,
         controlsA: cA,
         controlsB: cB,
         activeVideo: active,
-        videoA: va,
-        videoB: vb,
         undoA: doUndoA,
         redoA: doRedoA,
         undoB: doUndoB,
@@ -603,13 +622,11 @@ export function DualVideoSynchronizer() {
             break;
           case 'ArrowRight':
             e.preventDefault();
-            if (e.shiftKey) void stepFwdCoarse();
-            else void stepFwdFine();
+            void stepFwd(e.shiftKey);
             break;
           case 'ArrowLeft':
             e.preventDefault();
-            if (e.shiftKey) void stepBwdCoarse();
-            else void stepBwdFine();
+            void stepBwd(e.shiftKey);
             break;
         }
       } else {
@@ -622,21 +639,17 @@ export function DualVideoSynchronizer() {
           case 'ArrowRight':
             e.preventDefault();
             if (active === 'A') {
-              const next = va.currentFrame + (e.shiftKey ? 5 : 1);
-              void va.seekToFrame(Math.min(next, va.totalFrames - 1));
+              void cA.stepForward(e.shiftKey);
             } else if (active === 'B') {
-              const next = vb.currentFrame + (e.shiftKey ? 5 : 1);
-              void vb.seekToFrame(Math.min(next, vb.totalFrames - 1));
+              void cB.stepForward(e.shiftKey);
             }
             break;
           case 'ArrowLeft':
             e.preventDefault();
             if (active === 'A') {
-              const prev = va.currentFrame - (e.shiftKey ? 5 : 1);
-              void va.seekToFrame(Math.max(0, prev));
+              void cA.stepBackward(e.shiftKey);
             } else if (active === 'B') {
-              const prev = vb.currentFrame - (e.shiftKey ? 5 : 1);
-              void vb.seekToFrame(Math.max(0, prev));
+              void cB.stepBackward(e.shiftKey);
             }
             break;
         }
@@ -688,6 +701,10 @@ export function DualVideoSynchronizer() {
       const playhead = initializePlayhead(fA, fB, videoA.totalFrames, videoB.totalFrames);
       usePlaybackStore.getState().setPlayheadState(playhead);
       usePlaybackStore.getState().setSyncOffset(playhead.syncOffset);
+      usePlaybackStore.getState().setSliderPositions({
+        ...usePlaybackStore.getState().sliderPositions,
+        unified: playhead.position,
+      });
     };
 
     doSeek().then(() => {
@@ -720,8 +737,7 @@ export function DualVideoSynchronizer() {
   }
 
   const bothVideosReady = videoA.isReady && videoB.isReady;
-  const playbackState = usePlaybackStore.getState();
-  const syncOffset = playbackState.playheadState?.syncOffset ?? null;
+  const syncOffset = playheadState?.syncOffset ?? null;
 
   return (
     <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
@@ -760,8 +776,8 @@ export function DualVideoSynchronizer() {
 
       {/* Upload Section */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "30px" }}>
-        <VideoUploadWorkflow key="video-a" videoSlot="A" sessionId={sessionId || undefined} onUploadComplete={handleVideoAUploadComplete} externalVideo={externalVideoA} />
-        <VideoUploadWorkflow key="video-b" videoSlot="B" sessionId={sessionId || undefined} onUploadComplete={handleVideoBUploadComplete} externalVideo={externalVideoB} />
+        <VideoUploadWorkflow key="video-a" videoSlot="A" sessionId={validSessionId} onUploadComplete={handleVideoAUploadComplete} externalVideo={externalVideoA} />
+        <VideoUploadWorkflow key="video-b" videoSlot="B" sessionId={validSessionId} onUploadComplete={handleVideoBUploadComplete} externalVideo={externalVideoB} />
       </div>
 
       {/* Video Display */}
@@ -778,33 +794,6 @@ export function DualVideoSynchronizer() {
               <span>{videoHeightConfig.max}px (max)</span>
             </div>
           </div>
-
-          {/* PLAYBACK Mode Controls */}
-          {mode === "PLAYBACK" && (
-            <PlaybackControls
-              playheadState={playbackState.playheadState}
-              trimStart={trimStart}
-              trimEnd={trimEnd}
-              isPlaying={playbackState.isPlaying}
-              isLooping={playbackState.isLooping}
-              playbackRate={playbackState.playbackRate}
-              syncOffset={syncOffset}
-              totalFramesA={videoA.totalFrames}
-              totalFramesB={videoB.totalFrames}
-              sliderValue={playbackState.sliderPositions.unified}
-              onPlayPause={handlePlayPauseBoth}
-              onStepForward={handleStepForwardCoarse}
-              onStepBackward={handleStepBackwardCoarse}
-              onSliderChange={handleSliderChangeBoth}
-              onSliderRelease={handleSliderReleaseBoth}
-              onTrimStartChange={setTrimStart}
-              onTrimEndChange={setTrimEnd}
-              onReturnToIn={handleReturnToIn}
-              onLoopToggle={handleLoopToggle}
-              onResetTrim={handleResetTrim}
-              onSpeedChange={handleSpeedChange}
-            />
-          )}
 
           {/* Annotation Toolbar */}
           {(videoA.isReady || videoB.isReady) && (
@@ -878,6 +867,33 @@ export function DualVideoSynchronizer() {
               />
             </div>
           </div>
+
+          {/* PLAYBACK Mode Controls */}
+          {mode === "PLAYBACK" && (
+            <PlaybackControls
+              playheadState={playheadState}
+              trimStart={trimStart}
+              trimEnd={trimEnd}
+              isPlaying={isPlaying}
+              isLooping={isLooping}
+              playbackRate={playbackRate}
+              syncOffset={syncOffset}
+              totalFramesA={videoA.totalFrames}
+              totalFramesB={videoB.totalFrames}
+              sliderValue={sliderUnified}
+              onPlayPause={handlePlayPauseBoth}
+              onStepForward={handleStepForward}
+              onStepBackward={handleStepBackward}
+              onSliderChange={handleSliderChangeBoth}
+              onSliderRelease={handleSliderReleaseBoth}
+              onTrimStartChange={setTrimStart}
+              onTrimEndChange={setTrimEnd}
+              onReturnToIn={handleReturnToIn}
+              onLoopToggle={handleLoopToggle}
+              onResetTrim={handleResetTrim}
+              onSpeedChange={handleSpeedChange}
+            />
+          )}
         </div>
       )}
 
@@ -900,10 +916,10 @@ export function DualVideoSynchronizer() {
         <strong style={{ display: "block", marginBottom: "6px" }}>Keyboard Shortcuts</strong>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 24px" }}>
           <span><kbd>Space</kbd> Play / Pause</span>
-          <span><kbd>\u2190</kbd> Step back 1 frame</span>
-          <span><kbd>\u2192</kbd> Step forward 1 frame</span>
-          <span><kbd>Shift</kbd>+<kbd>\u2190</kbd> Step back 5 frames</span>
-          <span><kbd>Shift</kbd>+<kbd>\u2192</kbd> Step forward 5 frames</span>
+          <span><kbd>{"\u2190"}</kbd> Step back 1 frame</span>
+          <span><kbd>{"\u2192"}</kbd> Step forward 1 frame</span>
+          <span><kbd>Shift</kbd>+<kbd>{"\u2190"}</kbd> Step back 5 frames</span>
+          <span><kbd>Shift</kbd>+<kbd>{"\u2192"}</kbd> Step forward 5 frames</span>
         </div>
         <div style={{ marginTop: "4px", color: "#888" }}>
           In PLAYBACK mode steps both videos together. In SYNC mode steps the active video. Shortcuts are disabled when a text field is focused.

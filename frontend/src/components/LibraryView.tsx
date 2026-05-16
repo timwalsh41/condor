@@ -270,7 +270,7 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
     if (!editTarget) return;
     try {
       await updateVideo(editTarget.id, updates);
-    } catch (err) {
+    } catch {
       /* error handled by store */
     }
     setEditTarget(null);
@@ -281,7 +281,7 @@ export function LibraryView({ onNavigateToAnalyze }: LibraryViewProps) {
     if (!deleteTarget) return;
     try {
       await removeVideo(deleteTarget.id);
-    } catch (err) {
+    } catch {
       /* error handled by store */
     }
     setDeleteTarget(null);

@@ -4,6 +4,7 @@
  * Tests the custom hook that encapsulates annotation state and logic.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useVideoAnnotations } from "../useVideoAnnotations";
@@ -510,9 +511,8 @@ describe("useVideoAnnotations", () => {
       );
 
       // Create a text annotation directly via manager
-      let textAnn: ReturnType<typeof result.current.manager.createAndAddText>;
       act(() => {
-        textAnn = result.current.manager.createAndAddText({ x: 50, y: 50 }, "Original");
+        result.current.manager.createAndAddText({ x: 50, y: 50 }, "Original");
         // Sync annotations state by triggering a re-render via clearAll/restore path
         // Instead, call updateAnnotationText to trigger the state sync
       });

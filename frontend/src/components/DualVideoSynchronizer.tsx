@@ -19,7 +19,6 @@ import { VideoPanel } from "./VideoPanel";
 import { PlaybackControls } from "./PlaybackControls";
 import { AnnotationToolbar } from "./AnnotationToolbar";
 import { useVideoStore } from "../store/videoStore";
-import { useAnnotationStore } from "../store/annotationStore";
 import { useSessionStore } from "../store/sessionStore";
 import { useTrimStore } from "../store/trimStore";
 import { useSyncStore } from "../store/syncStore";
@@ -46,7 +45,6 @@ export function DualVideoSynchronizer() {
     useVideoStore();
   const { mode, setMode, resetSyncState } = useSyncStore();
   const { resetTrimState } = useTrimStore();
-  const playbackStore = usePlaybackStore();
   const { trimStart, trimEnd, setTrimStart, setTrimEnd } = useTrimStore();
   const isHydratingSession = useSessionStore((state) => state.isHydratingSession);
   const isSavingToLibrary = useVideoStore((state) => state.isSavingToLibrary);
@@ -647,7 +645,6 @@ export function DualVideoSynchronizer() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ─── Cleanup on unmount ─────────────────────────────────────────────────

@@ -318,21 +318,21 @@
 
 ### 10.1 Type checking and linting
 
-- [ ] 10.1.1 Run `npx tsc --noEmit` and fix any type errors
-- [ ] 10.1.2 Run `npm run lint` and fix any lint errors
-- [ ] 10.1.3 Verify no unused imports remain
+- [x] 10.1.1 Run `npx tsc --noEmit` and fix any type errors
+- [x] 10.1.2 Run `npm run lint` and fix any lint errors
+- [x] 10.1.3 Verify no unused imports remain
 
 ### 10.2 Unit test verification
 
-- [ ] 10.2.1 Run `npm run test` — all existing tests must pass
-- [ ] 10.2.2 Verify test count increased (459 → ~550+)
-- [ ] 10.2.3 Verify no placeholder tests remain (`expect(true).toBe(true`)
+- [x] 10.2.1 Run `npm run test` — all existing tests must pass
+- [x] 10.2.2 Verify test count increased (459 → ~550+)
+- [x] 10.2.3 Verify no placeholder tests remain (`expect(true).toBe(true`)
 
 ### 10.3 Integration test verification
 
-- [ ] 10.3.1 Run `npm run test:e2e` — all Playwright tests must pass
-- [ ] 10.3.2 Verify no `data-testid` attributes are broken
-- [ ] 10.3.3 Verify frame stepping tests pass with exact frame accuracy
+- [x] 10.3.1 Run `npm run test:e2e` — all Playwright tests must pass
+- [x] 10.3.2 Verify no `data-testid` attributes are broken
+- [x] 10.3.3 Verify frame stepping tests pass with exact frame accuracy
 
 ### 10.4 Manual verification
 

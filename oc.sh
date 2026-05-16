@@ -199,7 +199,7 @@ if docker container inspect "${CONTAINER_NAME}" &>/dev/null; then
     docker start "${CONTAINER_NAME}"
   fi
   echo "==> Attaching to container: ${CONTAINER_NAME}"
-  docker exec -it "${CONTAINER_NAME}" /usr/bin/zsh
+  docker exec -it "${CONTAINER_NAME}" /entrypoint.sh
 else
   # No existing container — create and start it.
   echo "==> Creating container: ${CONTAINER_NAME} (image: ${IMAGE})"

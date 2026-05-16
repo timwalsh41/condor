@@ -6,7 +6,7 @@
  * Phase: Phase 1 Task 1.3.5
  */
 
-import { type Page, expect } from "@playwright/test";
+import { type Page } from "@playwright/test";
 import path from 'node:path';
 
 /**
@@ -108,7 +108,7 @@ async function waitForUploadComplete(
   try {
     await waitForUploadState(page, videoSlot, "analyzing", 5000);
     console.log(`  (Analyzing state detected for slot ${videoSlot})`);
-  } catch (error) {
+  } catch {
     console.log(`  (Analyzing state not detected for slot ${videoSlot} - may have been skipped)`);
     // Continue - analyzing state may be skipped when rotation is requested
   }
@@ -119,7 +119,7 @@ async function waitForUploadComplete(
     try {
       await waitForUploadState(page, videoSlot, "processing", 3000);
       console.log(`  (Processing state detected for slot ${videoSlot})`);
-    } catch (error) {
+    } catch {
       console.log(`  (Processing state not detected for slot ${videoSlot} - may have completed very quickly)`);
       // Continue - processing may complete faster than we can detect it
     }

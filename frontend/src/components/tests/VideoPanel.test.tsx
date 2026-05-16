@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@testing-library/react";
 import { VideoPanel } from "../VideoPanel";
@@ -5,7 +6,7 @@ import type { VideoPanelProps } from "../VideoPanel";
 import type { UseWebCodecsDecoderResult } from "../../hooks/useWebCodecsDecoder";
 import type { AnnotationHandlers } from "../../hooks/useVideoAnnotations";
 import type { VideoControlsHandle } from "../../hooks/useVideoControls";
-import type { Annotation, DrawingState, Point } from "../../types/annotations";
+import type { Annotation, DrawingState } from "../../types/annotations";
 import type { AnnotationManager } from "../../utils/AnnotationManager";
 
 // Mock child components

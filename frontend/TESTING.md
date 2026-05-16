@@ -401,6 +401,8 @@ The UX spec states keyboard shortcuts operate in Analyze for playback and steppi
 
 4. **Add keyboard shortcut tests** — verify at least play/pause and frame stepping keyboard shortcuts work correctly in Analyze view.
 
+5. **Per DeepSeek, 10 e2e tests fail due to waitForFunction timeouts** — the decoder's seekToFrame doesn't reliably update currentFrame React state in headless Firefox
+
 ### Medium Priority
 
 5. **Add Library view tests** — navigate to Library, render video list, select video, edit metadata fields, select one/two videos for Analyze.

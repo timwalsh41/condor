@@ -101,9 +101,9 @@ export function useVideoAnnotations(
   const [polylineMousePos, setPolylineMousePos] = useState<Point | null>(null);
 
   // Select annotations from annotationStore based on videoId (store is source of truth)
-  const storeAnnotations = videoId === "A"
-    ? useAnnotationStore((state) => state.annotationsA)
-    : useAnnotationStore((state) => state.annotationsB);
+  const annotationsA = useAnnotationStore((state) => state.annotationsA);
+  const annotationsB = useAnnotationStore((state) => state.annotationsB);
+  const storeAnnotations = videoId === "A" ? annotationsA : annotationsB;
 
   // Sync manager with store annotations (triggered when store changes)
   useEffect(() => {
@@ -263,7 +263,7 @@ export function useVideoAnnotations(
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeVideo, videoId, manager, pushHistory]);
+  }, [activeVideo, videoId, manager, pushHistory, pushToStore]);
 
   // Delete/Backspace key handler for removing selected annotations
   useEffect(() => {
@@ -290,7 +290,7 @@ export function useVideoAnnotations(
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [manager, videoId]);
+  }, [manager, videoId, pushHistory, pushToStore]);
 
   // Helper to convert Konva position to Point
   const getPoint = useCallback(
@@ -381,7 +381,7 @@ export function useVideoAnnotations(
     }
 
     setDrawingState(manager.getDrawingState());
-  }, [manager, videoId]);
+  }, [manager, videoId, pushHistory, pushToStore]);
 
   // Click handler for polyline, text, and angle tools
   const handleClick = useCallback(
@@ -450,7 +450,7 @@ export function useVideoAnnotations(
 
       setDrawingState(manager.getDrawingState());
     },
-    [videoDecoder.isReady, videoId, setActiveVideo, selectedTool, manager, getPoint, pushHistory]
+    [videoDecoder.isReady, videoId, setActiveVideo, selectedTool, manager, getPoint, pushHistory, pushToStore]
   );
 
   // Double-click handler for polyline finalization
@@ -469,7 +469,7 @@ export function useVideoAnnotations(
     }
     setDrawingState(manager.getDrawingState());
     setPolylineMousePos(null);
-  }, [manager, videoId, pushHistory]);
+  }, [manager, videoId, pushHistory, pushToStore]);
 
   // Annotation click handler for selection
   const handleAnnotationClick = useCallback(
@@ -627,9 +627,9 @@ export function useVideoAnnotations(
     isDraggingAnnotation,
     isReshapingAnnotation,
     manager,
-    videoId,
-    pushHistory,
     pushToStore,
+    getPoint,
+    dragStartPos,
   ]);
 
   /**

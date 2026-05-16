@@ -517,27 +517,6 @@ async function getAnnotationCount(page: Page, videoId: "a" | "b"): Promise<numbe
   return result.count;
 }
 
-/**
- * Helper: Get error message from UI
- */
-async function getErrorMessage(page: Page): Promise<string | null> {
-  return await page.evaluate(() => {
-    // Error messages are displayed in the error display area
-    const errorDisplay = document.querySelector('[data-testid^="error-display"]');
-    if (errorDisplay) {
-      return errorDisplay.textContent;
-    }
-
-    // Also check for any visible error text (fallback)
-    const allText = document.body.innerText;
-    if (allText.includes('Unsupported video codec')) {
-      return allText;
-    }
-
-    return null;
-  });
-}
-
 test.describe("Canvas Overlay Alignment", () => {
   // const TEST_VIDEO_PATH = "../tests/fixtures/videos/test_gop30_h264.mp4";
 
@@ -1006,7 +985,7 @@ test.describe("HEVC Codec Blocking", () => {
    * Helper to check if HEVC/H.265 codec is supported in the browser.
    * Tests multiple HEVC codec variants (hvc1, hev1).
    */
-  async function isHevcSupported(page: any): Promise<boolean> {
+  async function isHevcSupported(page: Page): Promise<boolean> {
     return await page.evaluate(async () => {
       if (typeof VideoDecoder === 'undefined') {
         return false;

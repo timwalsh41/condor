@@ -42,6 +42,7 @@ async function getChromeEndpoint(): Promise<string | undefined> {
 const chromeEndpoint = process.env.CHROME_CDP_URL
   ? await getChromeEndpoint()
   : undefined;
+void chromeEndpoint;
 
 export default defineConfig({
   testDir: "./tests",

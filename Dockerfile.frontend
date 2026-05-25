@@ -9,12 +9,12 @@
 # ── Stage 1: build ─────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
-WORKDIR /app
-
-# Allow callers to pass an explicit version string (e.g. from git tag on the
-# host). If omitted, set-version.sh falls back to git resolution inside the
-# build — which works for local dev but requires .git in the build context.
+# set-version.sh expects the repo layout (frontend/package.json,
+# frontend/src/version.ts, etc.) under PROJECT_ROOT, so we preserve the
+# frontend/ directory structure rather than flattening into /app/ directly.
 ARG VERSION=
+
+WORKDIR /app/frontend
 
 # Copy package files first (layer cache-friendly)
 COPY frontend/package.json frontend/package-lock.json* ./
@@ -24,9 +24,10 @@ RUN npm ci
 # Copy frontend source
 COPY frontend/ ./
 
-# Copy scripts and resolve version from git before build
-COPY scripts/ ./scripts/
-RUN chmod +x scripts/set-version.sh && PROJECT_ROOT=/app scripts/set-version.sh "$VERSION"
+# Copy scripts and resolve version from git before build.
+# PROJECT_ROOT=/app so the script finds /app/frontend/package.json etc.
+COPY scripts/ /app/scripts/
+RUN chmod +x /app/scripts/set-version.sh && PROJECT_ROOT=/app /app/scripts/set-version.sh "$VERSION"
 
 # Build production bundle (tsc + vite build)
 RUN npm run build
@@ -49,8 +50,8 @@ RUN mkdir -p /etc/nginx/ssl && \
       -out    /etc/nginx/ssl/condor.crt \
       -subj   "/CN=condor-local/O=Condor/C=US"
 
-# Copy compiled assets
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy compiled assets (dist is at /app/frontend/dist after the restructured build)
+COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
 # Copy nginx configuration (single-page app + API reverse-proxy)
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf

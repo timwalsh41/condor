@@ -14,8 +14,10 @@
 #   - frontend/src/version.ts  : GENERATED — VERSION constant
 #
 # Usage:
-#   scripts/set-version.sh          # Run from project root
-#   scripts/set-version.sh --dry    # Print version only, don't write files
+#   scripts/set-version.sh                 # Resolve from git and write files
+#   scripts/set-version.sh --dry           # Resolve from git, print only
+#   scripts/set-version.sh VERSION         # Use explicit VERSION, write files
+#   scripts/set-version.sh VERSION --dry   # Use explicit VERSION, print only
 
 set -eu
 
@@ -23,6 +25,20 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Allow callers to override PROJECT_ROOT (e.g. when scripts/ is copied into a
 # sub-directory of the real project root, as in Docker build contexts).
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+
+# ── Argument parsing ─────────────────────────────────────────────────────────
+# Positional arg: optional explicit version (skip git resolution if provided).
+# Flag --dry: print version only, don't write files.
+
+EXPLICIT_VERSION=""
+DRY_RUN=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry) DRY_RUN=true ;;
+        *)     EXPLICIT_VERSION="$arg" ;;
+    esac
+done
 
 # ── Version resolution ────────────────────────────────────────────────────────
 
@@ -44,10 +60,14 @@ resolve_version() {
     fi
 }
 
-VERSION=$(resolve_version)
+if [ -n "$EXPLICIT_VERSION" ]; then
+    VERSION="$EXPLICIT_VERSION"
+else
+    VERSION=$(resolve_version)
+fi
 
 # Handle dry-run mode
-if [ "${1:-}" = "--dry" ]; then
+if [ "$DRY_RUN" = true ]; then
     echo "$VERSION"
     exit 0
 fi

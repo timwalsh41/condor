@@ -146,8 +146,16 @@ See `backend/README.md` and `frontend/README.md` for integration test instructio
 ### Building for Production
 
 ```bash
+# Resolves version from git and writes it into frontend/package.json,
+# backend/version.py, and frontend/src/version.ts
+scripts/set-version.sh
+
+# Then build the frontend bundle
 cd frontend && npm run build
 ```
+
+When building via Docker, version resolution happens inside the image build.
+See the [Deploy](#deploy) section below for the recommended workflow.
 
 ### API Documentation
 
@@ -165,18 +173,34 @@ Condor ships production Docker images for `linux/amd64` and `linux/arm64`.
 
 ### Deploy
 
+The deploy script resolves the version from git tags and bakes it into the
+images so the running application displays the correct version string.
+
 ```bash
-# 1. Clone the repository
+# 1. Clone the repository and checkout the desired version
 git clone <repo-url> condor && cd condor
+git checkout v0.1.4
 
 # 2. Configure environment (edit passwords for production)
 cp .env.example .env
 
 # 3. Build images and start all services (postgres, backend, frontend)
-docker compose up --build -d
+scripts/deploy.sh
 
 # 4. Open the application
 #    http://<raspberry-pi-ip>:3000
+```
+
+The version is resolved as follows:
+
+1. **Git tag** reachable from HEAD (e.g. `v0.1.4` → `0.1.4` published in the UI)
+2. **Short commit hash** prefixed with `unreleased-` (no tag found)
+3. **`dev`** (fallback when git is unavailable, e.g. source tarball)
+
+To see what version would be used without building:
+
+```bash
+scripts/deploy.sh --dry-run
 ```
 
 The stack starts three containers:
@@ -232,6 +256,7 @@ Override any of the following in your `.env` file:
 | `LOG_LEVEL`       | `INFO`          | Backend log verbosity         |
 | `FRONTEND_PORT`   | `3000`          | Host port for UI              |
 | `BACKEND_PORT`    | `8000`          | Host port for API (optional)  |
+| `CONDOR_VERSION`  | *(auto)*        | Override the version baked into the image (e.g. `v0.1.4`). Normally resolved from git tags by `scripts/deploy.sh`. |
 
 ### Troubleshooting
 

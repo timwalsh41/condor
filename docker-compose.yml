@@ -33,6 +33,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
+      args:
+        VERSION: ${CONDOR_VERSION:-}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-condor_user}:${POSTGRES_PASSWORD:-condor_dev}@postgres/${POSTGRES_DB:-condor_db}
@@ -53,6 +55,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        VERSION: ${CONDOR_VERSION:-}
     restart: unless-stopped
     ports:
       # HTTP redirects to HTTPS

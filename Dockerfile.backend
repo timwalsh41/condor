@@ -31,6 +31,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Allow callers to pass an explicit version string (e.g. from git tag on the
+# host). If omitted, set-version.sh falls back to git resolution inside the
+# build — which works for local dev but requires .git in the build context.
+ARG VERSION=
+
 # Copy virtual environment from builder stage
 COPY --from=builder /app/.venv /app/.venv
 
@@ -41,7 +46,7 @@ COPY backend/ ./backend/
 
 # Copy scripts and resolve version from git before build
 COPY scripts/ ./scripts/
-RUN chmod +x scripts/set-version.sh && scripts/set-version.sh
+RUN chmod +x scripts/set-version.sh && scripts/set-version.sh "$VERSION"
 
 # Create video storage directory (mounted as a volume in production)
 RUN mkdir -p /app/video_storage/library

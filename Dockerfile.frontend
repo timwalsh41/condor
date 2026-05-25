@@ -11,6 +11,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Allow callers to pass an explicit version string (e.g. from git tag on the
+# host). If omitted, set-version.sh falls back to git resolution inside the
+# build — which works for local dev but requires .git in the build context.
+ARG VERSION=
+
 # Copy package files first (layer cache-friendly)
 COPY frontend/package.json frontend/package-lock.json* ./
 
@@ -21,7 +26,7 @@ COPY frontend/ ./
 
 # Copy scripts and resolve version from git before build
 COPY scripts/ ./scripts/
-RUN chmod +x scripts/set-version.sh && PROJECT_ROOT=/app scripts/set-version.sh
+RUN chmod +x scripts/set-version.sh && PROJECT_ROOT=/app scripts/set-version.sh "$VERSION"
 
 # Build production bundle (tsc + vite build)
 RUN npm run build

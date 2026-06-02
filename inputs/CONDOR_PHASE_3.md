@@ -36,6 +36,11 @@ Condor Phase 3 further enhances basic product functionality, preparing for multi
 - [ ] Update data structure - typically have both a DTL and FO video, can pair those together with a single set of metadata; organize library this way
     - [ ] Maintain backwards compatibility for single video session
 - [ ] Library view - show a small thumbnail preview of the video, and allow local playback in the library view with minimal video controls (play/pause, scrub, coarse/fine step, playback speed)
+- [ ] Add feature to edit metadata for videos and sessions
+
+## Bug fixes
+
+- [ ] In the save video view, selecting the text in the "Notes" entry cancels the save
 
 ## Code Quality
 

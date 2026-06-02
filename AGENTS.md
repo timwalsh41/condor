@@ -6,6 +6,8 @@ Before beginning any task, make sure you review the documentation (docs/ and REA
 
 Always ask for clarification when user intent is unclear, ambiguous, or contradictory. Make sure we have complete alignment on objectives, approach, and acceptance criteria before undertaking any code changes.
 
+Prioritize retrieval-led reasoning over pretrained-knowledge-led reasoning.
+
 Stay in scope: only modify files directly related to the current task. Do not refactor, reformat, rename, or clean up files that are not in scope, even if you notice an opportunity for improvement. Report those observations to the user instead.
 
 # Repo Information

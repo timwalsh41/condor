@@ -35,3 +35,9 @@ video_storage
 
 # log files
 *.log
+
+# SSL public cert and private key
+frontend/ssl/
+
+# Workaround for Continue.dev lack of remote terminal access
+command_output.txt

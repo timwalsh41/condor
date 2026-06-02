@@ -186,11 +186,14 @@ git checkout v0.1.4
 # 2. Configure environment (edit passwords for production)
 cp .env.example .env
 
-# 3. Build images and start all services (postgres, backend, frontend)
+# 3. Generate a self-signed TLS certificate (see SSL Certificate section below)
+scripts/generate-cert.sh <your-server-ip-or-hostname>
+
+# 4. Build images and start all services (postgres, backend, frontend)
 scripts/deploy.sh
 
-# 4. Open the application
-#    http://<raspberry-pi-ip>:3000
+# 5. Open the application
+#    https://<raspberry-pi-ip>:3443
 ```
 
 The version is resolved as follows:
@@ -207,11 +210,12 @@ scripts/deploy.sh --dry-run
 
 The stack starts three containers:
 
-| Container  | Port  | Description                                      |
-| ---------- | ----- | ------------------------------------------------ |
-| `postgres` | —     | PostgreSQL 15 (internal to Docker network only)  |
-| `backend`  | 8000  | FastAPI API + video processing                   |
-| `frontend` | 3000  | nginx serving SPA + reverse-proxying `/api/`     |
+| Container  | Port(s)      | Description                                      |
+| ---------- | ------------ | ------------------------------------------------ |
+| `postgres` | —            | PostgreSQL 15 (internal to Docker network only)  |
+| `backend`  | 8000         | FastAPI API + video processing                   |
+| `frontend` | 3000 (HTTP)  | nginx serving SPA + reverse-proxying `/api/`     |
+|            | 3443 (HTTPS) | HTTPS with self-signed TLS certificate           |
 
 ### Manage and Operate
 
@@ -256,9 +260,104 @@ Override any of the following in your `.env` file:
 | `POSTGRES_PASSWORD`| `condor_dev`   | Database password (**change for production**) |
 | `POSTGRES_DB`     | `condor_db`     | Database name                 |
 | `LOG_LEVEL`       | `INFO`          | Backend log verbosity         |
-| `FRONTEND_PORT`   | `3000`          | Host port for UI              |
+| `FRONTEND_PORT`   | `3443`          | Host port for HTTPS (primary access) |
+| `FRONTEND_HTTP_PORT` | `3000`       | Host port for HTTP→HTTPS redirect |
 | `BACKEND_PORT`    | `8000`          | Host port for API (optional)  |
 | `CONDOR_VERSION`  | *(auto)*        | Override the version baked into the image (e.g. `v0.1.4`). Normally resolved from git tags by `scripts/deploy.sh`. |
+
+### SSL Certificate
+
+The frontend container serves HTTPS using a self-signed TLS certificate. This is required for browser APIs that demand a secure context (e.g. WebCodecs, used for video processing).
+
+#### Generate the Certificate
+
+On your **development machine**, run the certificate generation script with the IP address or hostname clients will use to access the server:
+
+```bash
+# Single IP address
+scripts/generate-cert.sh 192.168.1.50
+
+# Hostname
+scripts/generate-cert.sh condor.local
+
+# Multiple SANs (IP + hostname)
+scripts/generate-cert.sh 192.168.1.50 condor.local
+```
+
+This produces two files in `frontend/ssl/`:
+
+| File | Description |
+| --- | --- |
+| `condor.crt` | **Public certificate** — to be shared with clients |
+| `condor.key` | **Private key** — must be kept secure |
+
+The script is idempotent: if the certificate already exists, it will skip generation unless `--force` is passed.
+
+#### Deploy the Certificate
+
+**Transfer the public certificate and private key** to the deploy host; copy it securely (e.g. via `scp`):
+   ```bash
+   scp -r frontend/ssl/ user@deploy-host:/path/to/condor/frontend/ssl/
+   ```
+
+On the deploy host, ensure both files exist at `frontend/ssl/` before running `scripts/deploy.sh`. The private key is mounted as a read-only volume into the frontend container at runtime.
+
+#### Distribute the Public Certificate to Clients
+
+Because the certificate is self-signed, browsers will show a security warning on first visit. To eliminate this warning, distribute `frontend/ssl/condor.crt` to each client machine and add it to the system trust store.
+
+**Windows:**
+1. Double-click `condor.crt` to open the Certificate viewer.
+2. Click **Install Certificate**.
+3. Select **Local Machine** → **Next**.
+4. Choose **Place all certificates in the following store** → **Browse** → **Trusted Root Certification Authorities**.
+5. Click **OK** → **Next** → **Finish**.
+
+**macOS:**
+1. Double-click `condor.crt` to open it in **Keychain Access**.
+2. Select the **System** keychain (or **Login** for current user only).
+3. Double-click the imported certificate in Keychain Access.
+4. Expand the **Trust** section.
+5. Set **When using this certificate** to **Always Trust**.
+6. Close the dialog and authenticate with your password.
+
+**Linux (system-wide, Debian/Ubuntu):**
+```bash
+sudo cp condor.crt /usr/local/share/ca-certificates/condor-local.crt
+sudo update-ca-certificates
+```
+For RHEL/CentOS/Fedora:
+```bash
+sudo cp condor.crt /etc/pki/ca-trust/source/anchors/condor-local.crt
+sudo update-ca-trust
+```
+
+**iOS:**
+1. Transfer `condor.crt` to the device (e.g. via email, AirDrop, or a hosted download link).
+2. Open the file to trigger the profile installation prompt.
+3. Go to **Settings** → **Profile Downloaded** → **Install**.
+4. Then go to **Settings** → **General** → **About** → **Certificate Trust Settings** and enable trust for the certificate.
+
+**Android:**
+1. Go to **Settings** → **Security** → **Encryption & Credentials** → **Install a certificate**.
+2. Choose **CA certificate**.
+3. Select `condor.crt` from your downloads.
+4. Name the certificate (e.g. "Condor") and confirm.
+
+> **Note:** On Android, system-wide CA installation may require root access on newer versions (Android 7+). In that case, configure the browser individually or use the Chrome flag `chrome://flags/#allow-insecure-localhost` as a workaround.
+
+#### Regenerate the Certificate
+
+To regenerate an existing certificate (e.g. after a key compromise or to change the SANs), use `--force`:
+
+```bash
+scripts/generate-cert.sh --force 192.168.1.50
+```
+
+After regeneration:
+1. Transfer the new private key to the deploy host
+2. Restart the frontend container: `docker compose restart frontend`
+3. Redistribute the new public certificate to all client machines and update their trust stores
 
 ### Troubleshooting
 

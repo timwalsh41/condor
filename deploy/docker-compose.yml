@@ -31,8 +31,8 @@ services:
   # ── FastAPI backend ──────────────────────────────────────────────────────────
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
+      context: ../
+      dockerfile: deploy/Dockerfile.backend
       args:
         VERSION: ${CONDOR_VERSION:-}
     restart: unless-stopped
@@ -53,8 +53,8 @@ services:
   # ── nginx + Vite SPA frontend ────────────────────────────────────────────────
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ../
+      dockerfile: deploy/Dockerfile.frontend
       args:
         VERSION: ${CONDOR_VERSION:-}
     restart: unless-stopped

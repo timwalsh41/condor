@@ -4,21 +4,36 @@
 
 ```bash
 # Start backend server
-python3 -m backend.main
+uv run python -m backend.main
 # Server runs at http://localhost:8000
 # API docs at http://localhost:8000/docs
 ```
 
-## Endpoints (MVP Phase 1)
+## Health
 
-### Health Check
+```
+GET /health
+```
+
+Returns application status and version.
 
 ```bash
 curl http://localhost:8000/health
 # Response: {"status":"healthy","version":"0.1.0"}
 ```
 
-### Upload Video
+## Upload
+
+```
+POST /api/upload
+```
+
+Upload a video file with optional rotation. Multipart form data.
+
+**Parameters**:
+- `file`: Video file (MP4, max 200MB)
+- `rotation`: Optional rotation angle (0, 90, 180, 270)
+- `session_id`: Optional session ID (auto-generated if omitted)
 
 ```bash
 curl -X POST http://localhost:8000/api/upload \
@@ -27,21 +42,26 @@ curl -X POST http://localhost:8000/api/upload \
 # Response: {"video_id":"abc123","session_id":"xyz789","filename":"video.mp4",...}
 ```
 
-**Parameters**:
-- `file`: Video file (MP4, max 200MB)
-- `rotation`: Optional rotation angle (0, 90, 180, 270)
-- `session_id`: Optional session ID (auto-generated if omitted)
+```
+GET /api/upload/{video_id}/status
+```
 
-### Check Upload Status
+Poll upload and processing status.
+
+**Status values**: `pending` → `analyzing` → `processing` → `complete` | `error`
 
 ```bash
 curl http://localhost:8000/api/upload/abc123/status
-# Response: {"status":"complete","progress":1.0,"video_id":"abc123"}
+# Response: {"status":"complete","progress":1.0,"video_id":"abc123","metadata":{...}}
 ```
 
-**Status values**: `pending` → `processing` → `complete` | `error`
+## Video Streaming
 
-### Stream Video
+```
+GET /api/video/{session_id}/{video_id}
+```
+
+Stream video with HTTP range request support (for seeking).
 
 ```bash
 # Full video
@@ -51,7 +71,92 @@ curl http://localhost:8000/api/video/xyz789/abc123 -o output.mp4
 curl -H "Range: bytes=0-1023" http://localhost:8000/api/video/xyz789/abc123
 ```
 
-**URL format**: `/api/video/{session_id}/{video_id}`
+## Library
+
+```
+GET /api/library
+```
+
+List all videos in the user's library, newest first.
+
+```
+POST /api/library
+```
+
+Add a processed video to the library with optional metadata (golfer name, club,
+capture date, notes, quality score, camera view).
+
+```
+GET /api/library/{video_id}
+```
+
+Retrieve a single library video record.
+
+```
+PUT /api/library/{video_id}
+```
+
+Update editable metadata fields on a library video.
+
+```
+DELETE /api/library/{video_id}
+```
+
+Remove a video from the library.
+
+```
+GET /api/library/{video_id}/stream
+```
+
+Stream a library video (HTTP range support).
+
+## Sessions
+
+```
+GET /api/sessions
+```
+
+List all analysis sessions (lightweight summaries, no annotation payload).
+
+```
+POST /api/sessions
+```
+
+Create a new analysis session with video references, sync points, trim bounds,
+playback speed, loop state, and annotations.
+
+```
+GET /api/sessions/{session_id}
+```
+
+Get full session state including annotations.
+
+```
+PUT /api/sessions/{session_id}
+```
+
+Update an existing session's state (all fields optional).
+
+```
+DELETE /api/sessions/{session_id}
+```
+
+Delete a session.
+
+## Google Photos Import (Mocked)
+
+These endpoints provide a mock integration for importing videos from Google
+Photos. The integration is not yet functional — endpoints return placeholder data.
+
+```
+GET  /api/google-photos/status
+POST /api/google-photos/connect
+POST /api/google-photos/disconnect
+GET  /api/google-photos/albums
+GET  /api/google-photos/albums/{album_id}/videos
+POST /api/google-photos/import
+GET  /api/google-photos/import/{job_id}
+```
 
 ## Video Processing
 
@@ -62,9 +167,7 @@ curl -H "Range: bytes=0-1023" http://localhost:8000/api/video/xyz789/abc123
    - H.265/HEVC → H.264 (WebCodecs compatibility)
    - GOP > 30 → GOP=30 (frame-accurate seeking)
    - Rotation applied if requested
-4. Optimized video stored at `/tmp/condor/{session_id}/{video_id}.mp4`
-
-**Processing time**: ~0.42x realtime (60s video → 25s processing)
+4. Optimized video stored
 
 ## Error Responses
 
@@ -74,16 +177,8 @@ curl -H "Range: bytes=0-1023" http://localhost:8000/api/video/xyz789/abc123
 }
 ```
 
-**Status codes**: `400` (validation), `413` (file too large), `500` (processing error)
-
-## Testing
-
-```bash
-# Upload test video (generated with ffmpeg)
-cd tests/fixtures
-bash generate_test_videos.sh
-curl -X POST http://localhost:8000/api/upload -F "file=@videos/test_30fps_10s.mp4"
-```
+**Status codes**: `400` (validation), `404` (not found), `413` (file too large),
+`416` (range not satisfiable), `500` (processing error)
 
 ## Interactive API Docs
 

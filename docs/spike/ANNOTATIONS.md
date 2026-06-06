@@ -74,7 +74,7 @@ The implementation separates business logic from UI through a modular, testable 
   - `handleStageMouseUp`: Finalizes reshape via `manager.endReshape()`, sets `isReshapingAnnotation = false`
 - **Returns**: Manager, tool state, drawing state, annotations, selectedIds, scale, drag state, reshape state, and event handlers
 
-**4. Component Integration** (`frontend/src/components/DualVideoSyncDemo.tsx`)
+**4. Component Integration** (`frontend/src/components/DualVideoSynchronizer.tsx`)
 
 - **Dual-Video Support**: Independent annotation state for Video A and Video B
 - **Hook Usage**: Single line per video: `useVideoAnnotations(videoDecoder, videoId, activeVideo, setActiveVideo)`

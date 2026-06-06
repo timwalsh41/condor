@@ -1,21 +1,18 @@
-# The Condor - Golf Swing Video Analysis
+# The Condor — Frontend
 
-Frontend for dual-video synchronized playback with frame-accurate control and annotation tools.
+React SPA for dual-video synchronized playback with frame-accurate control and annotation tools.
 
 ## Architecture
 
-**DualVideoSyncDemo** (`/dual-video-sync` route)
+The app is a single-page application with three views navigated via a top nav bar:
 
-- Phase 0 standalone proof-of-concept
-- Client-side only, no backend integration
-- Used for frame-accurate sync validation
+| View | Component | Description |
+|------|-----------|-------------|
+| **Analyze** | `DualVideoSynchronizer` | Video upload, WebCodecs playback, sync/playback modes, annotation canvas |
+| **Library** | `LibraryView` | Browse, edit metadata, and load saved videos |
+| **Sessions** | `SessionsView` | List, load, and delete saved analysis sessions |
 
-**DualVideoSynchronizer** (main app)
-
-- Production application with backend integration
-- Video upload workflow with rotation controls
-- WebCodecs-based frame-accurate playback
-- Synchronized dual-video analysis with annotations
+**Future**: `GooglePhotosImport` and `GooglePhotosImport.css` exist as stubs for a planned Google Photos integration. The backend endpoints are mocked (see `docs/API/BACKEND_API.md`).
 
 ## Development
 
@@ -49,18 +46,14 @@ npm run test:ui       # Interactive UI
 
 **Integration Tests (Playwright E2E):**
 
-⚠️ **Backend Required**: Playwright tests require the backend server running at `http://localhost:8000`
+⚠️ **Backend Required**: Playwright tests require the backend server running at `http://localhost:8000`. The Vite dev server is started automatically by Playwright's `webServer` config — you do NOT need to start it manually.
 
 ```bash
 # STEP 1: Start backend server (in a separate terminal, from project root)
-uv run python3 -m backend.main
+uv run python -m backend.main
 
-# STEP 2: First time setup - install browser binaries (from frontend/)
-npx playwright install firefox webkit    # as node user - install user copy in /home/node/.cache/ms-playwright
-
-# Optional - install chrome to run all tests (x86/amd64 only); NOTE THIS IS NOT POSSIBLE IN A CONTAINER WTIHOUT PROPER PRIVILEGES
-wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-sudo dpkg -i google-chrome-stable_current_amd64.deb
+# STEP 2: First time setup — install browser binaries (from frontend/)
+npx playwright install firefox webkit
 
 # STEP 3: Run tests (from frontend/)
 npm run test:e2e              # Headless mode (all browsers)
@@ -71,24 +64,22 @@ npm run test:e2e:ui           # Interactive UI mode
 npx playwright test tests/test_upload_workflow.spec.ts
 
 # Run tests in specific browser
-npx playwright test --project=chrome
 npx playwright test --project=firefox
 npx playwright test --project=webkit
 ```
 
+> **Note**: The Chrome project is currently **disabled** in `playwright.config.ts`. Cross-browser coverage is Firefox/WebKit only.
+
 **Test Coverage:**
 
-- Upload Workflow, Frame Control, Dual Video Sync, Annotations, Performance
+See `docs/TESTING.md` for a detailed test coverage map by workflow, browser coverage status, known skips and their reasons, and a coverage improvement plan.
 
 **Manual Tests:**
 
-Some session-load behaviors require user verification because they depend on visual state of the Konva annotation canvas, which is not queryable by automated tests.
-
-| Scenario | Steps | Expected Result |
-|----------|-------|-----------------|
-| Session restore — annotations on both channels | 1. Upload two videos, draw at least one annotation on each channel. 2. Save both videos to library. 3. Save the session. 4. Reload the app. 5. Load the saved session. | Both Video A and Video B annotation canvases show the saved annotations after the session finishes loading. Neither channel is blank. |
+See `docs/TESTING.md` (§ Manual Tests) for a regression-test procedure and `docs/TESTING.md` (§ Manual Verification) for frame-accuracy and memory-leak checklists.
 
 **Troubleshooting:**
 
 - If tests fail with connection errors, ensure backend is running
 - For debugging, use headed mode: `npm run test:e2e:headed`
+- See `docs/TESTING.md` (§ Troubleshooting) for more issues

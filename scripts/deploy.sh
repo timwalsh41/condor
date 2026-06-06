@@ -26,7 +26,7 @@ echo "🔖  Resolved version: ${VERSION}"
 # ── Dry-run mode ─────────────────────────────────────────────────────────────
 
 if [ "${1:-}" = "--dry-run" ]; then
-    echo "▶   CONDOR_VERSION=${VERSION} docker compose -f \"${PROJECT_ROOT}/docker-compose.yml\" up --build -d"
+    echo "▶   CONDOR_VERSION=${VERSION} docker compose -f \"${PROJECT_ROOT}/deploy/docker-compose.yml\" up --build -d"
     exit 0
 fi
 
@@ -35,4 +35,4 @@ fi
 export CONDOR_VERSION="${VERSION}"
 echo "🏗️   Building images with CONDOR_VERSION=${CONDOR_VERSION} ..."
 
-exec docker compose -f "${PROJECT_ROOT}/docker-compose.yml" up --build -d "$@"
+exec docker compose -f "${PROJECT_ROOT}/deploy/docker-compose.yml" up --build -d "$@"

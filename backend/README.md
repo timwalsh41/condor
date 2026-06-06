@@ -6,7 +6,7 @@ FastAPI backend for The Condor video analysis platform.
 
 ```bash
 # Run development server (from project root)
-uv run python3 -m backend.main
+uv run python -m backend.main
 # Server starts at http://localhost:8000
 # API docs at http://localhost:8000/docs
 ```
@@ -35,11 +35,6 @@ uv run pytest backend/ tests/test_backend_integration.py -v
 uv run pytest backend/ --cov=backend --cov-report=term
 ```
 
-## API Endpoints
+## API Documentation
 
-- `POST /api/upload` - Upload video with optional rotation
-- `GET /api/status/{session_id}` - Poll upload/processing status
-- `GET /api/video/{session_id}` - Download processed video blob
-- `GET /api/metadata/{session_id}` - Get video metadata
-
-See interactive API docs at http://localhost:8000/docs
+See the full API reference at `docs/API/BACKEND_API.md`, or open the interactive Swagger UI at http://localhost:8000/docs when the backend is running.

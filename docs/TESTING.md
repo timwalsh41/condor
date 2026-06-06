@@ -6,7 +6,6 @@
 
 **Location**: `src/**/*.test.{ts,tsx}`
 **Purpose**: Component logic, cache behavior, utilities
-**Count**: 459 tests
 
 ### Playwright Integration Tests
 
@@ -401,20 +400,20 @@ The UX spec states keyboard shortcuts operate in Analyze for playback and steppi
 
 4. **Add keyboard shortcut tests** — verify at least play/pause and frame stepping keyboard shortcuts work correctly in Analyze view.
 
-5. **Per DeepSeek, 10 e2e tests fail due to waitForFunction timeouts** — the decoder's seekToFrame doesn't reliably update currentFrame React state in headless Firefox
+5. **Known issue: 10 E2E tests fail** — the decoder's `seekToFrame` doesn't reliably update `currentFrame` React state in headless Firefox, causing `waitForFunction` timeouts
 
 ### Medium Priority
 
-5. **Add Library view tests** — navigate to Library, render video list, select video, edit metadata fields, select one/two videos for Analyze.
+6. **Add Library view tests** — navigate to Library, render video list, select video, edit metadata fields, select one/two videos for Analyze.
 
-6. **Add trim workflow tests** — set trim bounds, verify trim state in session save/load.
+7. **Add trim workflow tests** — set trim bounds, verify trim state in session save/load.
 
-7. **Address skipped annotation tests** — consider running in headed mode or using alternative interaction patterns to work around the React+Konva headless event coordination limitation.
+8. **Address skipped annotation tests** — consider running in headed mode or using alternative interaction patterns to work around the React+Konva headless event coordination limitation.
 
 ### Low Priority
 
-8. **Add loading state tests** — verify deterministic success/failure feedback during async operations (per Cross-Workflow UX Rule 3).
+9. **Add loading state tests** — verify deterministic success/failure feedback during async operations (per Cross-Workflow UX Rule 3).
 
-9. **Add performance regression tests** — frame step latency under sustained use, cache hit/miss rate tracking.
+10. **Add performance regression tests** — frame step latency under sustained use, cache hit/miss rate tracking.
 
-10. **Add memory leak tests for Firefox/WebKit** — the current tests are Chrome-only due to CDP dependency. Consider using Playwright's built-in memory metrics (`page.context().cookies()` as proxy, or browser DevTools Protocol equivalents) for non-Chromium browsers.
+11. **Add memory leak tests for Firefox/WebKit** — the current tests are Chrome-only due to CDP dependency. Consider using Playwright's built-in memory metrics (`page.context().cookies()` as proxy, or browser DevTools Protocol equivalents) for non-Chromium browsers.

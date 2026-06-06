@@ -661,7 +661,7 @@ export class AnnotationManager {
         let newMinY = minY;
         let newMaxY = maxY;
 
-        // Control point mapping (matches getControlPoints in DualVideoSyncDemo):
+        // Control point mapping for oval resize:
         // 0: top-left corner, 1: top-center, 2: top-right corner, 3: right-center
         // 4: bottom-right corner, 5: bottom-center, 6: bottom-left corner, 7: left-center
         switch (controlIndex) {

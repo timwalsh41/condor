@@ -12,64 +12,6 @@ The Condor is an open-source platform for frame-accurate video analysis with dua
 - **npm** or **yarn**: Package management
 - **Playwright Browsers**: For cross-browser testing
 
-### Development Container
-
-We manage the development container in the `.opencode/` folder using the Dockerfile and the `oc.sh` script. After updating the Dockerfile, manually rebuild the container and then run `oc.sh -f` to recreate the container with the new image.
-
-### Container Startup (Every Session)
-
-PostgreSQL does not start automatically and must be started each time the container restarts. Run this from the **host** (outside the container):
-
-```bash
-docker exec -it -u postgres opencode-condor /bin/zsh -c "service postgresql start"
-```
-
-**Note**: Use the `start_postgresql.sh` script for this, again from the host not the container
-
-### First-Time Container Setup
-
-After connecting to a **fresh** dev container, complete these additional steps once to initialise the environment.
-
-**1. Install Python dependencies**
-
-```bash
-uv sync
-```
-
-**2. Initialise the database**
-
-Run the backend once to apply Alembic migrations. Wait for `Application startup complete`, then stop it with `Ctrl+C`:
-
-```bash
-uv run python -m backend.main
-```
-
-> The database schema must be initialised this way before backend tests can pass.
-
-**3. Install frontend dependencies**
-
-```bash
-cd frontend
-npm install
-cd ..
-```
-
-**4. Verify with tests**
-
-Run all backend unit tests:
-
-```bash
-uv run pytest backend/
-```
-
-Run all frontend unit tests:
-
-```bash
-cd frontend && npm test && cd ..
-```
-
-All tests should pass before beginning development. See `backend/README.md` and `frontend/README.md` for integration test instructions.
-
 ### Run Full Application (Frontend + Backend)
 
 Once setup is complete, start the two services in separate terminals:
@@ -86,28 +28,9 @@ cd frontend && npm run dev
 
 Open http://localhost:5173 — you'll see the upload workflow for dual-video analysis.
 
-### Run Legacy Demo (Frontend Only, No Backend)
-
-To use the original Phase 0 demo with local file selection (no upload required):
-
-```bash
-# Edit frontend/src/App.tsx - change line 1:
-# FROM: import { DualVideoSynchronizer } from "./components/DualVideoSynchronizer";
-# TO:   import { DualVideoSyncDemo } from "./components/DualVideoSyncDemo";
-
-# And change line 22:
-# FROM: <DualVideoSynchronizer />
-# TO:   <DualVideoSyncDemo />
-
-cd frontend
-npm run dev
-# Open demo at http://localhost:5173
-# Use `npm run dev -- --host` when port forwarding outside of dev container
-```
-
 ### Instructions for Use
 
-**Upload Workflow** (full application only): Select and upload two videos with optional rotation. After upload, the app enters synchronized playback mode.
+**Upload Workflow**: Select and upload two videos with optional rotation. After upload, the app enters synchronized playback mode.
 
 **Playback** (both modes): The application starts in SYNC mode where you can independently control each video. Use the playback controls (play/pause, scrub bar, frame stepping) to synchronize the two videos, e.g. by setting them both to the impact frame:
 
@@ -161,11 +84,12 @@ See the [Deploy](#deploy) section below for the recommended workflow.
 
 ### API Documentation
 
-Interactive API docs are available at http://localhost:8000/docs when the backend is running.
+See the full API reference in `docs/API/BACKEND_API.md`, or open the
+interactive Swagger UI at http://localhost:8000/docs when the backend is running.
 
 ## Docker Deployment
 
-Condor ships production Docker images for `linux/amd64` and `linux/arm64`.
+Condor provides a Docker Compose deployment setup with frontend, backend, and PostgreSQL containers.
 
 ### Prerequisites
 
@@ -173,10 +97,20 @@ Condor ships production Docker images for `linux/amd64` and `linux/arm64`.
 - 4+ GB RAM recommended
 - Sufficient storage for the PostgreSQL data volume and video files
 
+### Create Release Tag
+
+Create an annotated tag and push to origin:
+
+```bash
+git tag -a v1.0.0 -m "Release description"
+git push origin v1.0.0
+```
+
 ### Deploy
 
-The deploy script resolves the version from git tags and bakes it into the
-images so the running application displays the correct version string.
+The deploy script resolves the version from git tags and bakes it into the images so the running application displays the correct version string. See [below](#ssl-certificate) for details on generating and deploying the SSL certificate.
+
+On the deployment host:
 
 ```bash
 # 1. Clone the repository and checkout the desired version
@@ -186,14 +120,11 @@ git checkout v0.1.4
 # 2. Configure environment (edit passwords for production)
 cp .env.example .env
 
-# 3. Generate a self-signed TLS certificate (see SSL Certificate section below)
-scripts/generate-cert.sh <your-server-ip-or-hostname>
-
-# 4. Build images and start all services (postgres, backend, frontend)
+# 3. Build images and start all services (postgres, backend, frontend)
 scripts/deploy.sh
 
 # 5. Open the application
-#    https://<raspberry-pi-ip>:3443
+#    https://<condor-host>:3443
 ```
 
 The version is resolved as follows:
@@ -364,7 +295,6 @@ After regeneration:
 | Symptom | Check |
 | ------- | ----- |
 | Frontend loads but API calls fail | Verify backend is healthy: `docker compose ps` and `curl http://localhost:8000/health` |
-| `alembic upgrade head` fails on start | Database may still be initialising — restarting the backend container usually resolves this |
 | Out of disk space | Remove unused Docker images with `docker image prune -a` |
 
 ### Testing
@@ -394,20 +324,23 @@ bash generate_test_videos.sh
 ```
 condor/
 ├── backend/              # Backend source & unit tests
+├── deploy/               # Docker deployment files (compose, Dockerfiles, nginx)
 ├── docs/                 # Technical documentation
-│   └── spike/            # Detailed spike documentation
+│   ├── API/              # API reference
+│   ├── design/           # Design documents and workflow specs
+│   ├── inputs/           # Design input documentation
+│   ├── project/          # Project documentation (requirements, planning)
+│   ├── spike/            # Detailed spike documentation
+│   └── style/            # Style guides
 ├── frontend/             # Frontend source & unit tests
 │   ├── src/
-│   │   ├── hooks/        # Custom React hooks (useFrameCallback)
-│   │   └── components/   # UI components (FrameStepper)
+│   │   ├── hooks/        # Custom React hooks
+│   │   └── components/   # UI components
 │   └── tests/            # Playwright E2E tests
 ├── image/                # Images for documentation
-├── inputs/               # Design input documentation
-├── project/              # Project documentation (requirements and planning)
-├── PRPs/                 # Product Requirements Prompts
-├── tests/                # Integration tests
-│   └── fixtures/         # Test video generation scripts
-└── validation/           # Validation and review artifacts
+├── scripts/              # Utility scripts (deploy, version, cert generation)
+└── tests/                # Integration tests
+    └── fixtures/         # Test video generation scripts
 ```
 
 ## Technology Stack
@@ -418,21 +351,31 @@ condor/
 - **uv**: Dependency management (`pyproject.toml`)
 - **PostgreSQL / SQLAlchemy (asyncpg)**: Database
 - **FFmpeg**: Video metadata extraction
+- **Alembic**: Database migrations
 - **Testing**: pytest
 
 ### Frontend
 
-- **React 18**: UI framework
+- **React 19**: UI framework
 - **TypeScript**: Type safety
 - **Vite**: Build tool
-- **Zustand**: State management (Phase 1)
-- **react-konva**: Canvas annotations (Phase 1)
+- **Zustand**: State management
+- **react-konva**: Canvas annotations
+- **Konva**: Canvas rendering
+- **WebCodecs**: Frame-accurate video playback
+- **Axios**: HTTP client
 
 ### Testing
 
 - **Playwright**: E2E cross-browser testing
-- **Vitest**: Frontend unit tests (Phase 1)
-- **pytest**: Backend unit tests (Phase 1)
+- **Vitest**: Frontend unit tests
+- **pytest**: Backend unit tests
+
+### Infrastructure
+
+- **PostgreSQL 15**: Database (Docker)
+- **nginx**: Reverse proxy & SPA serving (Docker)
+- **Docker Compose**: Multi-container orchestration
 
 ## License
 

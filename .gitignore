@@ -8,8 +8,24 @@ tests/fixtures/videos/
 # Logs
 logs/
 
-# Ignore all __pycache__ directories
+# Ignore all cache directories
 **/__pycache__/
+.pytest_cache/
+.ruff_cache/
+test-results/
+
+# Tool settings and working files
+.serena/
+.vscode/
+.weave/
+.claude/
+/.oc-config
+.opencode/
+.github/
+progress.txt
+openspec/
+ralph/
+oc.sh
 
 # Ignore all .DS_Store files
 **/.DS_Store
@@ -26,12 +42,10 @@ node_modules/
 /playwright/.auth/
 
 # Video storage volume
-video_storage
+video_storage/
 
-# opencode workspace content
-/.oc-config
-.opencode/
-.weave/
+# Validation reports and code reviews
+validation/
 
 # log files
 *.log
@@ -41,3 +55,13 @@ frontend/ssl/
 
 # Workaround for Continue.dev lack of remote terminal access
 command_output.txt
+
+# Agent configurations
+AGENTS.md
+CLAUDE.md
+
+# Plans
+docs/project/PROJECT_PLAN.md
+docs/project/phase_0
+docs/project/phase_2
+docs/project/PRPs

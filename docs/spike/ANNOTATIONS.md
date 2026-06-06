@@ -14,7 +14,7 @@ The annotation system enables users to draw shapes (freehand, polyline, oval, ar
 
 The implementation separates business logic from UI through a modular, testable architecture:
 
-**1. Type Definitions** (`src/types/annotations.ts`)
+**1. Type Definitions** (`frontend/src/types/annotations.ts`)
 
 - `Annotation`: Core data structure with id, type, points, style
 - `AnnotationType`: Union type for tool types (freehand | polyline | oval | arrow)
@@ -22,7 +22,7 @@ The implementation separates business logic from UI through a modular, testable 
 - `DrawingState`: State machine union (idle | drag-drawing | polyline-active)
 - `Point`: Coordinate interface for type-safe position handling
 
-**2. Business Logic** (`src/utils/AnnotationManager.ts`)
+**2. Business Logic** (`frontend/src/utils/AnnotationManager.ts`)
 
 - **Data Management**: CRUD operations, unique ID generation, validation
 - **Tool Selection**: Integrated tool state management via `setTool(tool)` and `getTool()`
@@ -53,7 +53,7 @@ The implementation separates business logic from UI through a modular, testable 
   - `isReshaping()`: Query active reshape state
   - `getReshapeState()`: Get current reshape metadata
 
-**3. Custom Hook** (`src/hooks/useVideoAnnotations.ts`)
+**3. Custom Hook** (`frontend/src/hooks/useVideoAnnotations.ts`)
 
 - **Encapsulation**: All annotation logic per video channel in single hook
 - **Scale Calculation**: Automatic canvas scaling to match video display size
@@ -74,7 +74,7 @@ The implementation separates business logic from UI through a modular, testable 
   - `handleStageMouseUp`: Finalizes reshape via `manager.endReshape()`, sets `isReshapingAnnotation = false`
 - **Returns**: Manager, tool state, drawing state, annotations, selectedIds, scale, drag state, reshape state, and event handlers
 
-**4. Component Integration** (`src/components/DualVideoSyncDemo.tsx`)
+**4. Component Integration** (`frontend/src/components/DualVideoSyncDemo.tsx`)
 
 - **Dual-Video Support**: Independent annotation state for Video A and Video B
 - **Hook Usage**: Single line per video: `useVideoAnnotations(videoDecoder, videoId, activeVideo, setActiveVideo)`
@@ -288,7 +288,7 @@ const getControlPoints = (annotation: Annotation): Point[] => {
 
 ### Unit Tests
 
-**AnnotationManager** (`src/utils/tests/AnnotationManager.test.ts`) - **137 tests**:
+**AnnotationManager** (`frontend/src/utils/tests/AnnotationManager.test.ts`) - **137 tests**:
 
 - Annotation CRUD operations
 - Tool selection integration (`setTool`, `getTool`)
@@ -298,7 +298,7 @@ const getControlPoints = (annotation: Annotation): Point[] => {
 - Drag operations (21 tests): `updateAnnotationPoints`, `startDrag`, `updateDrag` (including cumulative delta), `endDrag`, `isDragging`, integration scenarios
 - Reshape operations (31 tests): `startReshape`, `updateReshape` (arrow/polyline/oval/freehand), `endReshape`, `isReshaping`, `getReshapeState`, integration scenarios
 
-**useVideoAnnotations Hook** (`src/hooks/tests/useVideoAnnotations.test.ts`) - **38 tests**:
+**useVideoAnnotations Hook** (`frontend/src/hooks/tests/useVideoAnnotations.test.ts`) - **38 tests**:
 
 - Hook initialization and state management
 - Tool selection via hook API
@@ -396,5 +396,5 @@ These features work correctly in production (manually verified in Chrome, Firefo
 ## References
 
 - **React Konva**: https://konvajs.org/docs/react/
-- **Task 0.5 Plan**: `/workspace/project/phase_0/TASK_0.5_PLAN.md`
-- **Requirements**: `/workspace/project/REQUIREMENTS.md` (REQ-F-ANNOT-\*)
+- **Task 0.5 Plan**: `docs/project/phase_0/TASK_0.5_PLAN.md`
+- **Requirements**: `docs/project/REQUIREMENTS.md` (REQ-F-ANNOT-\*)

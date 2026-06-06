@@ -1,13 +1,13 @@
 # Frame-Accurate Video Control Spike - DEPRECATED
 
-**⚠️ DEPRECATED**: This approach using `requestVideoFrameCallback` + HTML5 video seeking was **abandoned** due to inability to achieve exact frame accuracy (0 tolerance). Replaced by **WebCodecs API** implementation documented in `WEBCODECS_FRAME_CONTROL.md`.
+**⚠️ DEPRECATED**: This approach using `requestVideoFrameCallback` + HTML5 video seeking was **abandoned** due to inability to achieve exact frame accuracy (0 tolerance). Replaced by **WebCodecs API** implementation documented in `docs/spike/WEBCODECS_FRAME_CONTROL.md`.
 
 **Phase 0 - Task 0.2: Frame-Accurate Seeking Validation**
 
 **Date**: 2025-11-12 (Updated)
 **Status**: Complete - Approach Validated then Abandoned
 **Browsers Validated**: Chrome, Firefox, WebKit/Safari (headless mode)
-**Replacement**: See `WEBCODECS_FRAME_CONTROL.md` for production implementation
+**Replacement**: See `docs/spike/WEBCODECS_FRAME_CONTROL.md` for production implementation
 
 ---
 
@@ -452,7 +452,7 @@ The frame-accurate video control spike successfully **validates** the technical 
 ---
 
 **Spike Owner**: Claude Code Assistant
-**Review Status**: ✅ Complete - Independent review performed (see `REVIEW_SUMMARY_20251109_TASK_0.2_FRAME_CONTROL.md`)
+**Review Status**: ✅ Complete - Independent review performed (see `validation/review/REVIEW_SUMMARY_20251109_TASK_0.2_FRAME_CONTROL.md`)
 **Validation Status**: ✅ Complete - All requirements validated
 **Status**: **COMPLETE** - Ready for Phase 1 integration
 **Completion Date**: 2025-11-12

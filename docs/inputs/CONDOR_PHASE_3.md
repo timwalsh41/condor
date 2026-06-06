@@ -45,6 +45,7 @@ Condor Phase 3 further enhances basic product functionality, preparing for multi
 ## Other minor improvements
 
 - [ ] Add date recorded to video metadata displayed in `Analyze` view
+- [ ] Add mechanism to back up deployment Postgres & video store volumes
 
 ## Code Quality
 

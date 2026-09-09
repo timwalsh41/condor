@@ -31,7 +31,8 @@ import path from 'node:path';
 
 test.describe("Memory Leak Detection", () => {
   // Skip on non-Chrome browsers - requires Chrome DevTools Protocol
-  test.skip(({ browserName }) => browserName !== 'chrome', 'Chrome-only tests (CDP required)');
+  // Playwright's browserName is 'chromium' for the Chrome channel (never 'chrome').
+  test.skip(({ browserName }) => browserName !== 'chromium', 'Chrome-only tests (CDP required)');
 
   // const testVideoPath = '../tests/fixtures/videos/test_gop30_h264.mp4';
 

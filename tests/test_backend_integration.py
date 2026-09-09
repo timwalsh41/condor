@@ -128,7 +128,30 @@ def test_upload_video_success(client, test_video_h264_optimal):
     assert "codec" in data
     assert data["codec"] == "h264"
     assert "gop_size" in data
-    assert data["gop_size"] == 30  # Already optimal
+    # GOP detection runs in a background task (since commit 92f9ca3), so the
+    # immediate response carries gop_size=None; poll the status endpoint.
+    assert data["gop_size"] is None
+    status_data = _poll_upload_status(client, data["video_id"])
+    assert status_data["status"] == "complete"
+    assert status_data["metadata"]["gop_size"] == 30  # Already optimal
+
+
+def _poll_upload_status(client, video_id, max_attempts=50):
+    """Poll GET /api/upload/{video_id}/status until a terminal state.
+
+    Matches the documented client contract (docs/API/BACKEND_API.md):
+    pending -> analyzing -> processing -> complete | error.
+    """
+    import time
+
+    for _ in range(max_attempts):
+        status_response = client.get(f"/api/upload/{video_id}/status")
+        assert status_response.status_code == 200
+        status_data = status_response.json()
+        if status_data["status"] in ("complete", "error"):
+            return status_data
+        time.sleep(0.1)
+    raise AssertionError(f"Upload {video_id} did not reach a terminal state")
 
 
 def test_upload_video_auto_generates_session_id(client, test_video_h264_optimal):
@@ -259,9 +282,13 @@ def test_upload_video_with_rotation_90(client, test_video_h264_optimal):
 
     assert response.status_code == 200
     data = response.json()
-    # Note: Rotation triggers re-encoding, so video will be optimized
     assert data["codec"] == "h264"
-    assert data["gop_size"] == 30
+    # Rotation triggers re-encoding; GOP detection runs in a background task
+    # (since commit 92f9ca3), so poll the status endpoint for the final value.
+    assert data["gop_size"] is None
+    status_data = _poll_upload_status(client, data["video_id"])
+    assert status_data["status"] == "complete"
+    assert status_data["metadata"]["gop_size"] == 30
 
 
 def test_upload_video_with_rotation_180(client, test_video_h264_optimal):

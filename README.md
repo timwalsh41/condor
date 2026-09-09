@@ -52,6 +52,35 @@ Annotations can be selected (ctrl-click to select multiple). White control point
 
 ## Development
 
+### Local environment setup
+
+Install dependencies:
+
+```bash
+sudo apt update
+sudo apt install ffmpeg postgresql
+```
+
+Start Postgresql:
+
+```bash
+sudo -u postgres service postgresql start   # must run as user postgres
+```
+
+Alternately, the `start_postgresql.sh` shortcut script does will execute this within a running container.
+
+Option to set a user as a Postgres admin:
+
+```bash
+sudo -u postgres createuser --superuser "<user>"    # must run as user postgres
+```
+
+Create the database user and Condor database; this can be run as user `postgres`, or with an admin account as set in previous step:
+```bash
+sudo -u postgres psql -c "CREATE USER condor_user WITH PASSWORD 'condor_dev';"
+sudo -u postgres psql -c "CREATE DATABASE condor_db OWNER condor_user;"
+```
+
 ### Running Tests
 
 **Backend unit tests** (from project root):
